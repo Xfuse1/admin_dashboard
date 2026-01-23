@@ -1,5 +1,5 @@
 {
-  "buildCommand": "./flutter/bin/flutter build web --release --web-renderer canvaskit",
+  "buildCommand": "./flutter/bin/flutter build web --release",
   "outputDirectory": "build/web",
   "framework": null,
   "installCommand": "bash install.sh",
