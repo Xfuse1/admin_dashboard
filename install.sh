@@ -1,12 +1,13 @@
 #!/bin/bash
-# Flutter installation script for Vercel
 
-# Install Flutter if not exists
-if [ ! -d "$HOME/flutter" ]; then
-  git clone --depth 1 -b stable https://github.com/flutter/flutter.git $HOME/flutter
+# التحقق مما إذا كان Flutter محملاً بالفعل (لتسريع العملية في المرات القادمة)
+if [ -d "flutter" ]; then
+    echo "Flutter is already installed"
+else
+    # تحميل Flutter النسخة المستقرة
+    git clone https://github.com/flutter/flutter.git -b stable --depth 1
 fi
 
-# Setup Flutter
-export PATH="$PATH:$HOME/flutter/bin"
-flutter config --no-analytics
-flutter pub get
+# تفعيل الويب وتجهيز الأدوات
+./flutter/bin/flutter config --enable-web
+./flutter/bin/flutter pub get
