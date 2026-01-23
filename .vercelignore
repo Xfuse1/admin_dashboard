@@ -1,0 +1,27 @@
+# Flutter/Dart specific
+.dart_tool/
+.packages
+build/
+!build/web/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# Android
+android/
+ios/
+macos/
+linux/
+windows/
+
+# Tests
+test/
+integration_test/
+
+# Others
+.flutter-plugins
+.flutter-plugins-dependencies
+.metadata
+pubspec.lock

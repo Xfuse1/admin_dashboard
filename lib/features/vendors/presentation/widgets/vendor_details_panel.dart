@@ -1,0 +1,798 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:intl/intl.dart';
+
+import '../../../../core/constants/app_colors.dart';
+import '../../../../core/constants/app_constants.dart';
+import '../../domain/entities/vendor_entity.dart';
+import '../bloc/vendors_bloc.dart';
+import '../bloc/vendors_event.dart';
+
+/// Vendor details side panel.
+class VendorDetailsPanel extends StatelessWidget {
+  final VendorEntity vendor;
+  final VoidCallback onClose;
+
+  const VendorDetailsPanel({
+    super.key,
+    required this.vendor,
+    required this.onClose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _buildHeader(context),
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(AppConstants.spacingMd),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildMainInfo(context),
+                const SizedBox(height: AppConstants.spacingLg),
+                _buildStatusSection(context),
+                const SizedBox(height: AppConstants.spacingLg),
+                _buildContactInfo(context),
+                const SizedBox(height: AppConstants.spacingLg),
+                _buildAddressSection(context),
+                const SizedBox(height: AppConstants.spacingLg),
+                _buildStatisticsSection(context),
+                const SizedBox(height: AppConstants.spacingLg),
+                _buildOperatingHoursSection(context),
+                if (vendor.tags.isNotEmpty) ...[
+                  const SizedBox(height: AppConstants.spacingLg),
+                  _buildTagsSection(context),
+                ],
+              ],
+            ),
+          ),
+        ),
+        _buildActions(context),
+      ],
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppConstants.spacingMd),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border(
+          bottom: BorderSide(
+            color: AppColors.border.withValues(alpha: 0.5),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          _VendorAvatar(logoUrl: vendor.logoUrl, category: vendor.category),
+          const SizedBox(width: AppConstants.spacingMd),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        vendor.name,
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (vendor.isVerified) ...[
+                      const SizedBox(width: AppConstants.spacingSm),
+                      Icon(Icons.verified, color: AppColors.info, size: 18),
+                    ],
+                  ],
+                ),
+                Text(
+                  _getCategoryLabel(vendor.category),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close),
+            onPressed: onClose,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMainInfo(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'معلومات المتجر',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+        ),
+        const SizedBox(height: AppConstants.spacingMd),
+        if (vendor.description != null && vendor.description!.isNotEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(AppConstants.spacingMd),
+            decoration: BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.circular(AppConstants.radiusSm),
+            ),
+            child: Text(
+              vendor.description!,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+            ),
+          ),
+        const SizedBox(height: AppConstants.spacingMd),
+        Row(
+          children: [
+            Expanded(
+              child: _InfoCard(
+                icon: Icons.star,
+                iconColor: AppColors.warning,
+                label: 'التقييم',
+                value: vendor.rating.toStringAsFixed(1),
+                sublabel: '(${vendor.totalRatings} تقييم)',
+              ),
+            ),
+            const SizedBox(width: AppConstants.spacingSm),
+            Expanded(
+              child: _InfoCard(
+                icon: Icons.percent,
+                iconColor: AppColors.primary,
+                label: 'العمولة',
+                value: '${vendor.commissionRate.toStringAsFixed(0)}%',
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatusSection(BuildContext context) {
+    final statusColor = switch (vendor.status) {
+      VendorStatus.active => AppColors.success,
+      VendorStatus.inactive => AppColors.textTertiary,
+      VendorStatus.pending => AppColors.warning,
+      VendorStatus.suspended => AppColors.error,
+    };
+
+    final statusLabel = switch (vendor.status) {
+      VendorStatus.active => 'نشط',
+      VendorStatus.inactive => 'غير نشط',
+      VendorStatus.pending => 'قيد المراجعة',
+      VendorStatus.suspended => 'موقوف',
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'الحالة',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+        ),
+        const SizedBox(height: AppConstants.spacingMd),
+        Container(
+          padding: const EdgeInsets.all(AppConstants.spacingMd),
+          decoration: BoxDecoration(
+            color: statusColor.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+            border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: statusColor,
+                  shape: BoxShape.circle,
+                ),
+              ),
+              const SizedBox(width: AppConstants.spacingMd),
+              Text(
+                statusLabel,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: statusColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+              const Spacer(),
+              PopupMenuButton<VendorStatus>(
+                icon: Icon(Icons.edit, size: 18, color: statusColor),
+                tooltip: 'تغيير الحالة',
+                onSelected: (newStatus) {
+                  context.read<VendorsBloc>().add(
+                        ToggleVendorStatusEvent(vendor.id, newStatus),
+                      );
+                },
+                itemBuilder: (context) => VendorStatus.values
+                    .where((s) => s != vendor.status)
+                    .map((status) => PopupMenuItem(
+                          value: status,
+                          child: Text(_getStatusLabel(status)),
+                        ))
+                    .toList(),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppConstants.spacingMd),
+        Row(
+          children: [
+            Expanded(
+              child: _ActionButton(
+                icon: vendor.isFeatured ? Icons.star : Icons.star_border,
+                label:
+                    vendor.isFeatured ? 'إزالة من المميزين' : 'إضافة للمميزين',
+                color: AppColors.warning,
+                onTap: () {
+                  context.read<VendorsBloc>().add(
+                        ToggleFeaturedStatusEvent(
+                            vendor.id, !vendor.isFeatured),
+                      );
+                },
+              ),
+            ),
+            const SizedBox(width: AppConstants.spacingSm),
+            if (!vendor.isVerified)
+              Expanded(
+                child: _ActionButton(
+                  icon: Icons.verified,
+                  label: 'تحقق',
+                  color: AppColors.info,
+                  onTap: () {
+                    context.read<VendorsBloc>().add(
+                          VerifyVendorEvent(vendor.id),
+                        );
+                  },
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildContactInfo(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'معلومات التواصل',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+        ),
+        const SizedBox(height: AppConstants.spacingMd),
+        _ContactRow(icon: Icons.phone, value: vendor.phone),
+        if (vendor.email != null)
+          _ContactRow(icon: Icons.email, value: vendor.email!),
+        if (vendor.website != null)
+          _ContactRow(icon: Icons.language, value: vendor.website!),
+      ],
+    );
+  }
+
+  Widget _buildAddressSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'العنوان',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+        ),
+        const SizedBox(height: AppConstants.spacingMd),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(AppConstants.spacingMd),
+          decoration: BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.location_on,
+                color: AppColors.primary,
+                size: 20,
+              ),
+              const SizedBox(width: AppConstants.spacingMd),
+              Expanded(
+                child: Text(
+                  vendor.address.fullAddress,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatisticsSection(BuildContext context) {
+    final currencyFormatter = NumberFormat.currency(
+      symbol: '\$',
+      decimalDigits: 0,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'الإحصائيات',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+        ),
+        const SizedBox(height: AppConstants.spacingMd),
+        Row(
+          children: [
+            Expanded(
+              child: _StatCard(
+                icon: Icons.shopping_bag,
+                label: 'الطلبات',
+                value: NumberFormat.compact().format(vendor.totalOrders),
+              ),
+            ),
+            const SizedBox(width: AppConstants.spacingSm),
+            Expanded(
+              child: _StatCard(
+                icon: Icons.attach_money,
+                label: 'الإيرادات',
+                value: currencyFormatter.format(vendor.totalRevenue),
+                color: AppColors.success,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOperatingHoursSection(BuildContext context) {
+    if (vendor.operatingHours.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'ساعات العمل',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+        ),
+        const SizedBox(height: AppConstants.spacingMd),
+        Container(
+          padding: const EdgeInsets.all(AppConstants.spacingMd),
+          decoration: BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+          ),
+          child: Column(
+            children: vendor.operatingHours.map((hours) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      _getDayLabel(hours.day),
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    Text(
+                      hours.isClosed
+                          ? 'مغلق'
+                          : '${hours.openTime} - ${hours.closeTime}',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: hours.isClosed
+                                ? AppColors.error
+                                : AppColors.textSecondary,
+                          ),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTagsSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'الوسوم',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+        ),
+        const SizedBox(height: AppConstants.spacingMd),
+        Wrap(
+          spacing: AppConstants.spacingSm,
+          runSpacing: AppConstants.spacingSm,
+          children: vendor.tags
+              .map((tag) => Chip(
+                    label: Text(tag),
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                    labelStyle: TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 12,
+                    ),
+                    visualDensity: VisualDensity.compact,
+                  ))
+              .toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActions(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppConstants.spacingMd),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        border: Border(
+          top: BorderSide(
+            color: AppColors.border.withValues(alpha: 0.5),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: () => _showDeleteConfirmation(context),
+              icon: const Icon(Icons.delete_outline, size: 18),
+              label: const Text('حذف'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.error,
+                side: BorderSide(color: AppColors.error.withValues(alpha: 0.5)),
+              ),
+            ),
+          ),
+          const SizedBox(width: AppConstants.spacingMd),
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: () {
+                // TODO: Implement edit
+              },
+              icon: const Icon(Icons.edit, size: 18),
+              label: const Text('تعديل'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('حذف المتجر'),
+        content: Text(
+          'هل أنت متأكد من حذف ${vendor.name}؟\nهذا الإجراء لا يمكن التراجع عنه.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              context.read<VendorsBloc>().add(DeleteVendorEvent(vendor.id));
+              Navigator.pop(dialogContext);
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _getCategoryLabel(VendorCategory category) {
+    return switch (category) {
+      VendorCategory.restaurant => 'مطعم',
+      VendorCategory.grocery => 'بقالة',
+      VendorCategory.pharmacy => 'صيدلية',
+      VendorCategory.electronics => 'إلكترونيات',
+      VendorCategory.fashion => 'أزياء',
+      VendorCategory.other => 'أخرى',
+    };
+  }
+
+  String _getStatusLabel(VendorStatus status) {
+    return switch (status) {
+      VendorStatus.active => 'نشط',
+      VendorStatus.inactive => 'غير نشط',
+      VendorStatus.pending => 'قيد المراجعة',
+      VendorStatus.suspended => 'موقوف',
+    };
+  }
+
+  String _getDayLabel(DayOfWeek day) {
+    return switch (day) {
+      DayOfWeek.monday => 'الاثنين',
+      DayOfWeek.tuesday => 'الثلاثاء',
+      DayOfWeek.wednesday => 'الأربعاء',
+      DayOfWeek.thursday => 'الخميس',
+      DayOfWeek.friday => 'الجمعة',
+      DayOfWeek.saturday => 'السبت',
+      DayOfWeek.sunday => 'الأحد',
+    };
+  }
+}
+
+class _VendorAvatar extends StatelessWidget {
+  final String? logoUrl;
+  final VendorCategory category;
+
+  const _VendorAvatar({this.logoUrl, required this.category});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 56,
+      height: 56,
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+      ),
+      child: logoUrl != null && logoUrl!.isNotEmpty
+          ? ClipRRect(
+              borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+              child: Image.network(
+                logoUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _buildPlaceholder(),
+              ),
+            )
+          : _buildPlaceholder(),
+    );
+  }
+
+  Widget _buildPlaceholder() {
+    return Center(
+      child: Icon(
+        _getCategoryIcon(),
+        color: AppColors.primary,
+        size: 28,
+      ),
+    );
+  }
+
+  IconData _getCategoryIcon() {
+    return switch (category) {
+      VendorCategory.restaurant => Icons.restaurant,
+      VendorCategory.grocery => Icons.local_grocery_store,
+      VendorCategory.pharmacy => Icons.local_pharmacy,
+      VendorCategory.electronics => Icons.devices,
+      VendorCategory.fashion => Icons.checkroom,
+      VendorCategory.other => Icons.store,
+    };
+  }
+}
+
+class _InfoCard extends StatelessWidget {
+  final IconData icon;
+  final Color? iconColor;
+  final String label;
+  final String value;
+  final String? sublabel;
+
+  const _InfoCard({
+    required this.icon,
+    this.iconColor,
+    required this.label,
+    required this.value,
+    this.sublabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppConstants.spacingMd),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 16, color: iconColor ?? AppColors.textTertiary),
+              const SizedBox(width: AppConstants.spacingXs),
+              Text(
+                label,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textTertiary,
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppConstants.spacingXs),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                value,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+              if (sublabel != null) ...[
+                const SizedBox(width: 4),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: Text(
+                    sublabel!,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ContactRow extends StatelessWidget {
+  final IconData icon;
+  final String value;
+
+  const _ContactRow({required this.icon, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppConstants.spacingXs),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: AppColors.textTertiary),
+          const SizedBox(width: AppConstants.spacingMd),
+          Expanded(
+            child: Text(
+              value,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _ActionButton({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: color.withValues(alpha: 0.1),
+      borderRadius: BorderRadius.circular(AppConstants.radiusSm),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppConstants.radiusSm),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppConstants.spacingSm,
+            vertical: AppConstants.spacingSm,
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 16, color: color),
+              const SizedBox(width: AppConstants.spacingXs),
+              Text(
+                label,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color? color;
+
+  const _StatCard({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppConstants.spacingMd),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color ?? AppColors.textTertiary),
+          const SizedBox(height: AppConstants.spacingSm),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+          ),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textTertiary,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
