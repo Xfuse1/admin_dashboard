@@ -1,12 +1,12 @@
 {
-  "buildCommand": "flutter build web --release --web-renderer canvaskit",
+  "buildCommand": "flutter build web --release",
   "outputDirectory": "build/web",
   "framework": null,
-  "installCommand": "if [ ! -d \"$HOME/flutter\" ]; then git clone https://github.com/flutter/flutter.git $HOME/flutter; fi && $HOME/flutter/bin/flutter channel stable && $HOME/flutter/bin/flutter upgrade && export PATH=\"$PATH:$HOME/flutter/bin\" && flutter doctor && flutter pub get",
-  "routes": [
+  "installCommand": "bash install.sh",
+  "rewrites": [
     {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ],
   "headers": [
