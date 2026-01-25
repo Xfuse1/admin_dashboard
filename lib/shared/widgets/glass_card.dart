@@ -1,3 +1,4 @@
+import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/constants/app_colors.dart';
@@ -102,6 +103,7 @@ class StatCard extends StatelessWidget {
       onTap: onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -156,32 +158,48 @@ class StatCard extends StatelessWidget {
                 ),
             ],
           ),
-          const Spacer(),
-          // Value
-          Text(
-            value,
-            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.bold,
+          const SizedBox(height: AppConstants.spacingSm),
+          Flexible(
+            fit: FlexFit.loose,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Value
+                AutoSizeText(
+                  value,
+                  maxLines: 1,
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.bold,
+                      ),
                 ),
-          ),
-          const SizedBox(height: AppConstants.spacingXs),
-          // Title
-          Text(
-            title,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
+                const SizedBox(height: AppConstants.spacingXs),
+                // Title
+                AutoSizeText(
+                  title,
+                  maxLines: 2,
+                  minFontSize: 10,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
                 ),
-          ),
-          if (subtitle != null) ...[
-            const SizedBox(height: AppConstants.spacingXs),
-            Text(
-              subtitle!,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textMuted,
+                if (subtitle != null) ...[
+                  const SizedBox(height: AppConstants.spacingXs),
+                  AutoSizeText(
+                    subtitle!,
+                    maxLines: 1,
+                    minFontSize: 8,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textMuted,
+                        ),
                   ),
+                ],
+              ],
             ),
-          ],
+          ),
         ],
       ),
     );

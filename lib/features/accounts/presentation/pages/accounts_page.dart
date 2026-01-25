@@ -1,9 +1,13 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../shared/widgets/responsive_layout.dart';
+import '../../../../shared/widgets/common_widgets.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../domain/entities/account_entities.dart';
@@ -277,22 +281,10 @@ class _AccountsPageState extends State<AccountsPage>
     }
 
     if (state is AccountsError) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Iconsax.warning_2, size: 64, color: AppColors.error),
-            const SizedBox(height: 16),
-            Text(state.message, style: Theme.of(context).textTheme.bodyLarge),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () {
-                context.read<AccountsBloc>().add(const LoadAccountStats());
-              },
-              child: const Text('إعادة المحاولة'),
-            ),
-          ],
-        ),
+      return ErrorState(
+        message: state.message,
+        onRetry: () =>
+            context.read<AccountsBloc>().add(const LoadAccountStats()),
       );
     }
 
@@ -381,6 +373,7 @@ class _AccountsPageState extends State<AccountsPage>
         onToggleStatus: (isActive) => context.read<AccountsBloc>().add(
               ToggleDriverStatusEvent(driverId: driver.id, isActive: isActive),
             ),
+        onViewLocation: () => _showDriverLocation(driver),
       ),
       deviceType: deviceType,
     );
@@ -503,6 +496,145 @@ class _AccountsPageState extends State<AccountsPage>
           reviewerId: adminId,
         ),
       ),
+    );
+  }
+
+  void _showDriverLocation(DriverEntity driver) {
+    if (driver.latitude == null || driver.longitude == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('لا يوجد موقع متاح لهذا السائق'),
+          backgroundColor: AppColors.warning,
+        ),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.8,
+          height: MediaQuery.of(context).size.height * 0.7,
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+                    backgroundImage: driver.imageUrl != null && driver.imageUrl!.isNotEmpty
+                        ? CachedNetworkImageProvider(driver.imageUrl!)
+                        : null,
+                    child: (driver.imageUrl == null || driver.imageUrl!.isEmpty)
+                        ? Text(
+                            driver.name.isNotEmpty ? driver.name[0] : '؟',
+                            style: const TextStyle(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          driver.name,
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                        ),
+                        Row(
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: driver.isOnline
+                                    ? AppColors.success
+                                    : AppColors.textSecondary,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              driver.isOnline ? 'متصل الآن' : 'غير متصل',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: driver.isOnline
+                                        ? AppColors.success
+                                        : AppColors.textSecondary,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              // Map
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: _buildMapWidget(driver.latitude!, driver.longitude!),
+                ),
+              ),
+              const SizedBox(height: 12),
+              // Location info
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Iconsax.location, color: AppColors.primary),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'الإحداثيات: ${driver.latitude!.toStringAsFixed(6)}, ${driver.longitude!.toStringAsFixed(6)}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMapWidget(double latitude, double longitude) {
+    // Using Google Maps Flutter for web
+    return GoogleMap(
+      initialCameraPosition: CameraPosition(
+        target: LatLng(latitude, longitude),
+        zoom: 15,
+      ),
+      markers: {
+        Marker(
+          markerId: const MarkerId('driver_location'),
+          position: LatLng(latitude, longitude),
+          infoWindow: const InfoWindow(title: 'موقع السائق'),
+        ),
+      },
+      zoomControlsEnabled: true,
+      mapToolbarEnabled: false,
     );
   }
 }

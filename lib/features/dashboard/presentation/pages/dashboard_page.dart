@@ -177,7 +177,7 @@ class _DashboardContent extends StatelessWidget {
         crossAxisCount: crossAxisCount,
         crossAxisSpacing: AppConstants.spacingMd,
         mainAxisSpacing: AppConstants.spacingMd,
-        childAspectRatio: isDesktop ? 1.5 : 1.8,
+        mainAxisExtent: 185,
       ),
       itemCount: statsCards.length,
       itemBuilder: (context, index) {
@@ -283,7 +283,7 @@ class _DashboardSkeleton extends StatelessWidget {
             crossAxisCount: crossAxisCount,
             crossAxisSpacing: AppConstants.spacingMd,
             mainAxisSpacing: AppConstants.spacingMd,
-            childAspectRatio: isDesktop ? 1.5 : 1.8,
+            mainAxisExtent: 185,
           ),
           itemCount: 4,
           itemBuilder: (_, __) => const StatCardSkeleton(),

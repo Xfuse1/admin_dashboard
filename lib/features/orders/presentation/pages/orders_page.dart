@@ -6,6 +6,7 @@ import 'package:iconsax_flutter/iconsax_flutter.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../../shared/widgets/common_widgets.dart';
 import '../../../../shared/widgets/glass_card.dart';
 import '../../../../shared/widgets/responsive_layout.dart';
 import '../../domain/entities/order_entities.dart';
@@ -341,38 +342,10 @@ class _OrdersPageState extends State<OrdersPage>
   }
 
   Widget _buildErrorState(String message) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(
-            Iconsax.warning_2,
-            size: 80,
-            color: AppColors.error,
-          ),
-          const SizedBox(height: AppConstants.spacingMd),
-          Text(
-            'حدث خطأ',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
-          const SizedBox(height: AppConstants.spacingSm),
-          Text(
-            message,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: AppConstants.spacingLg),
-          ElevatedButton.icon(
-            onPressed: () {
-              context.read<OrdersBloc>().add(const LoadOrders(refresh: true));
-            },
-            icon: const Icon(Iconsax.refresh),
-            label: const Text('إعادة المحاولة'),
-          ),
-        ],
-      ),
+    return ErrorState(
+      message: message,
+      onRetry: () =>
+          context.read<OrdersBloc>().add(const LoadOrders(refresh: true)),
     );
   }
 
@@ -394,7 +367,7 @@ class _OrdersPageState extends State<OrdersPage>
           crossAxisCount: crossAxisCount,
           mainAxisSpacing: AppConstants.spacingMd,
           crossAxisSpacing: AppConstants.spacingMd,
-          mainAxisExtent: 180,
+          mainAxisExtent: 205,
         ),
         itemCount: orders.length,
         itemBuilder: (context, index) {

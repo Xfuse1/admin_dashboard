@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
+import 'package:go_router/go_router.dart';
 import 'package:toastification/toastification.dart';
 
 import 'config/di/injection_container.dart';
@@ -62,11 +63,13 @@ class AdminDashboardApp extends StatefulWidget {
 
 class _AdminDashboardAppState extends State<AdminDashboardApp> {
   late final AuthBloc _authBloc;
+  late final GoRouter _router;
 
   @override
   void initState() {
     super.initState();
     _authBloc = sl<AuthBloc>()..add(const AuthCheckStatus());
+    _router = AppRouter.createRouter(authBloc: _authBloc);
   }
 
   @override
@@ -85,36 +88,26 @@ class _AdminDashboardAppState extends State<AdminDashboardApp> {
         ),
       ],
       child: ToastificationWrapper(
-        child: BlocBuilder<AuthBloc, AuthState>(
-          buildWhen: (previous, current) =>
-              previous.runtimeType != current.runtimeType,
-          builder: (context, state) {
-            final isAuthenticated = state is AuthAuthenticated;
-//معالجة عدم المصادقة
-            return MaterialApp.router(
-              title: 'لوحة تحكم التوصيل',
-              debugShowCheckedModeBanner: false,
+        child: MaterialApp.router(
+          title: 'لوحة تحكم التوصيل',
+          debugShowCheckedModeBanner: false,
 
-              // Theme
-              theme: AppTheme.lightTheme,
-              darkTheme: AppTheme.darkTheme,
-              themeMode: ThemeMode.dark,
+          // Theme
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: ThemeMode.dark,
 
-              // Localization
-              locale: const Locale('ar'),
-              supportedLocales: const [Locale('ar')],
-              localizationsDelegates: const [
-                GlobalMaterialLocalizations.delegate,
-                GlobalWidgetsLocalizations.delegate,
-                GlobalCupertinoLocalizations.delegate,
-              ],
+          // Localization
+          locale: const Locale('ar'),
+          supportedLocales: const [Locale('ar')],
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
 
-              // Router
-              routerConfig: AppRouter.createRouter(
-                isAuthenticated: isAuthenticated,
-              ),
-            );
-          },
+          // Router
+          routerConfig: _router,
         ),
       ),
     );

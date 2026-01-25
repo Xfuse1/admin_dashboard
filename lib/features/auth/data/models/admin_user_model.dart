@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../domain/entities/admin_user.dart';
 
 /// Admin user data model.
@@ -14,16 +15,29 @@ class AdminUserModel extends AdminUser {
 
   /// Creates model from JSON map.
   factory AdminUserModel.fromJson(Map<String, dynamic> json) {
+    DateTime parseDate(dynamic value) {
+      if (value is Timestamp) {
+        return value.toDate();
+      } else if (value is String) {
+        try {
+          return DateTime.parse(value);
+        } catch (_) {
+          return DateTime.now();
+        }
+      } else if (value is DateTime) {
+        return value;
+      }
+      return DateTime.now(); // Fallback
+    }
+
     return AdminUserModel(
-      id: json['id'] as String,
-      email: json['email'] as String,
-      name: json['name'] as String,
-      photoUrl: json['photoUrl'] as String?,
-      role: json['role'] as String,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      lastLoginAt: json['lastLoginAt'] != null
-          ? DateTime.parse(json['lastLoginAt'] as String)
-          : null,
+      id: (json['id'] ?? '').toString(),
+      email: (json['email'] ?? '').toString(),
+      name: (json['name'] ?? 'Admin').toString(),
+      photoUrl: json['photoUrl']?.toString(),
+      role: (json['role'] ?? 'admin').toString(),
+      createdAt: parseDate(json['createdAt']),
+      lastLoginAt: json['lastLoginAt'] != null ? parseDate(json['lastLoginAt']) : null,
     );
   }
 

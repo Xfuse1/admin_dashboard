@@ -2,7 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/utils/app_logger.dart';
+
 import '../../config/di/injection_container.dart';
+import '../../core/utils/go_router_refresh_stream.dart';
+import '../../features/auth/presentation/bloc/auth_bloc.dart';
+import '../../features/auth/presentation/bloc/auth_state.dart' as auth_bloc_state;
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/orders/presentation/bloc/orders_bloc.dart';
@@ -17,7 +22,6 @@ import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/settings/presentation/bloc/settings_bloc.dart';
 import '../../features/settings/presentation/bloc/settings_event.dart';
 import '../../features/settings/presentation/pages/settings_page.dart';
-import '../../features/fleet/presentation/pages/fleet_page.dart';
 import '../../features/vendors/presentation/pages/vendors_page.dart';
 import '../../shared/widgets/admin_shell.dart';
 
@@ -33,8 +37,6 @@ abstract final class AppRoutes {
   static const String onboarding = '/onboarding';
   static const String vendors = '/vendors';
   static const String vendorDetails = '/vendors/:id';
-  static const String fleet = '/fleet';
-  static const String driverDetails = '/fleet/:id';
   static const String accounts = '/accounts';
   static const String settings = '/settings';
 }
@@ -47,12 +49,22 @@ final class AppRouter {
   static final _shellNavigatorKey = GlobalKey<NavigatorState>();
 
   /// Creates the GoRouter instance.
-  static GoRouter createRouter({required bool isAuthenticated}) {
+  static GoRouter createRouter({required AuthBloc authBloc}) {
     return GoRouter(
       navigatorKey: _rootNavigatorKey,
       initialLocation: AppRoutes.dashboard,
       debugLogDiagnostics: true,
+      refreshListenable: GoRouterRefreshStream(authBloc.stream),
       redirect: (context, state) {
+        final authState = authBloc.state;
+        
+        // Don't redirect while checking auth status
+        if (authState is auth_bloc_state.AuthInitial ||
+            authState is auth_bloc_state.AuthLoading) {
+          return null;
+        }
+
+        final isAuthenticated = authState is auth_bloc_state.AuthAuthenticated;
         final isLoginPage = state.matchedLocation == AppRoutes.login;
 
         // If not authenticated and not on login page, redirect to login
@@ -149,29 +161,6 @@ final class AppRouter {
                     return CustomTransitionPage(
                       key: state.pageKey,
                       child: _PlaceholderPage(title: 'المتجر #$vendorId'),
-                      transitionsBuilder: _slideTransition,
-                    );
-                  },
-                ),
-              ],
-            ),
-
-            // Fleet
-            GoRoute(
-              path: AppRoutes.fleet,
-              pageBuilder: (context, state) => CustomTransitionPage(
-                key: state.pageKey,
-                child: const FleetPage(),
-                transitionsBuilder: _fadeTransition,
-              ),
-              routes: [
-                GoRoute(
-                  path: ':id',
-                  pageBuilder: (context, state) {
-                    final driverId = state.pathParameters['id']!;
-                    return CustomTransitionPage(
-                      key: state.pageKey,
-                      child: _PlaceholderPage(title: 'السائق #$driverId'),
                       transitionsBuilder: _slideTransition,
                     );
                   },

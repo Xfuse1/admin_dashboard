@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:photo_view/photo_view.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
@@ -28,9 +31,16 @@ class RequestDetailsSheet extends StatelessWidget {
       maxChildSize: 0.95,
       builder: (context, scrollController) {
         return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          decoration: BoxDecoration(
+            color: AppColors.background,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.5),
+                blurRadius: 20,
+                spreadRadius: 5,
+              ),
+            ],
           ),
           child: Column(
             children: [
@@ -174,14 +184,17 @@ class RequestDetailsSheet extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: AppColors.surface,
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 10,
+                        color: Colors.black.withValues(alpha: 0.2),
+                        blurRadius: 15,
                         offset: const Offset(0, -5),
                       ),
                     ],
+                    border: Border(
+                      top: BorderSide(color: AppColors.glassBorder),
+                    ),
                   ),
                   child: SafeArea(
                     child: Row(
@@ -195,6 +208,9 @@ class RequestDetailsSheet extends StatelessWidget {
                               foregroundColor: AppColors.error,
                               side: const BorderSide(color: AppColors.error),
                               padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                           ),
                         ),
@@ -206,7 +222,12 @@ class RequestDetailsSheet extends StatelessWidget {
                             label: const Text('قبول الطلب'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.success,
+                              foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 16),
+                              elevation: 0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                           ),
                         ),
@@ -362,41 +383,259 @@ class RequestDetailsSheet extends StatelessWidget {
     BuildContext context,
     DriverOnboardingEntity driver,
   ) {
-    return _buildSection(
-      context,
-      title: 'معلومات السائق',
+    return Column(
       children: [
-        _buildInfoTile(
+        _buildSection(
           context,
-          icon: Iconsax.card,
-          label: 'رقم الهوية',
-          value: driver.idNumber,
+          title: 'معلومات السائق',
+          children: [
+            _buildInfoTile(
+              context,
+              icon: Iconsax.card,
+              label: 'رقم الهوية',
+              value: driver.idNumber,
+            ),
+            _buildInfoTile(
+              context,
+              icon: Iconsax.document,
+              label: 'رقم الرخصة',
+              value: driver.licenseNumber,
+            ),
+            _buildInfoTile(
+              context,
+              icon: Iconsax.calendar,
+              label: 'تاريخ انتهاء الرخصة',
+              value: DateFormatter.date(driver.licenseExpiryDate),
+            ),
+            _buildInfoTile(
+              context,
+              icon: Iconsax.car,
+              label: 'نوع المركبة',
+              value: driver.vehicleType,
+            ),
+            _buildInfoTile(
+              context,
+              icon: Iconsax.tag,
+              label: 'رقم اللوحة',
+              value: driver.vehiclePlate,
+            ),
+          ],
         ),
-        _buildInfoTile(
+        const SizedBox(height: 20),
+        _buildSection(
           context,
-          icon: Iconsax.document,
-          label: 'رقم الرخصة',
-          value: driver.licenseNumber,
-        ),
-        _buildInfoTile(
-          context,
-          icon: Iconsax.calendar,
-          label: 'تاريخ انتهاء الرخصة',
-          value: DateFormatter.date(driver.licenseExpiryDate),
-        ),
-        _buildInfoTile(
-          context,
-          icon: Iconsax.car,
-          label: 'نوع المركبة',
-          value: driver.vehicleType,
-        ),
-        _buildInfoTile(
-          context,
-          icon: Iconsax.tag,
-          label: 'رقم اللوحة',
-          value: driver.vehiclePlate,
+          title: 'الوثائق والمستندات',
+          children: [
+            _buildDocumentSection(
+              context,
+              title: 'الصورة الشخصية',
+              imageUrl: driver.photoUrl,
+            ),
+            const Divider(height: 1, indent: 16, endIndent: 16),
+            _buildDocumentSection(
+              context,
+              title: 'صورة الهوية',
+              imageUrl: driver.idDocumentUrl,
+            ),
+            const Divider(height: 1, indent: 16, endIndent: 16),
+            _buildDocumentSection(
+              context,
+              title: 'رخصة القيادة',
+              imageUrl: driver.licenseUrl,
+            ),
+            const Divider(height: 1, indent: 16, endIndent: 16),
+            _buildDocumentSection(
+              context,
+              title: 'استمارة المركبة',
+              imageUrl: driver.vehicleRegistrationUrl,
+            ),
+            const Divider(height: 1, indent: 16, endIndent: 16),
+            _buildDocumentSection(
+              context,
+              title: 'تأمين المركبة',
+              imageUrl: driver.vehicleInsuranceUrl,
+            ),
+          ],
         ),
       ],
+    ).animate().fadeIn(duration: 400.ms);
+  }
+
+  Widget _buildDocumentSection(
+    BuildContext context, {
+    required String title,
+    String? imageUrl,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+          ),
+          const SizedBox(height: 10),
+          if (imageUrl != null && imageUrl.isNotEmpty)
+            GestureDetector(
+              onTap: () => _showFullScreenImage(context, imageUrl, title),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  height: 160,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    border: Border.all(color: AppColors.glassBorder),
+                  ),
+                  child: CachedNetworkImage(
+                    imageUrl: imageUrl,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Center(
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation(AppColors.primary.withValues(alpha: 0.5)),
+                      ),
+                    ),
+                    errorWidget: (context, url, error) => const Center(
+                      child: Icon(Icons.image_not_supported_outlined, color: AppColors.error),
+                    ),
+                  ),
+                ),
+              ),
+            )
+          else
+            Container(
+              height: 120,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: AppColors.background.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.glassBorder,
+                  style: BorderStyle.solid,
+                ),
+              ),
+              child: const Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.image_not_supported_outlined, color: AppColors.textTertiary),
+                    SizedBox(height: 4),
+                    Text(
+                      'لم يتم رفع المستند',
+                      style: TextStyle(
+                        color: AppColors.textTertiary,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _showFullScreenImage(
+    BuildContext context,
+    String imageUrl,
+    String title,
+  ) {
+    showGeneralDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.9),
+      barrierDismissible: true,
+      barrierLabel: 'Close',
+      transitionDuration: 300.ms,
+      pageBuilder: (context, anim1, anim2) {
+        return Scaffold(
+          backgroundColor: Colors.transparent,
+          body: Stack(
+            children: [
+              // Photo View
+              PhotoView(
+                imageProvider: CachedNetworkImageProvider(imageUrl),
+                backgroundDecoration: const BoxDecoration(color: Colors.transparent),
+                minScale: PhotoViewComputedScale.contained,
+                maxScale: PhotoViewComputedScale.covered * 2.5,
+                heroAttributes: PhotoViewHeroAttributes(tag: imageUrl),
+                loadingBuilder: (context, event) => const Center(
+                  child: CircularProgressIndicator(color: Colors.white),
+                ),
+              ),
+
+              // Close Button
+              Positioned(
+                top: 40,
+                right: 20,
+                child: SafeArea(
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.5),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white24),
+                      ),
+                      child: const Icon(Icons.close, color: Colors.white, size: 24),
+                    ),
+                  ),
+                ).animate().scale(delay: 200.ms, duration: 300.ms),
+              ),
+
+              // Title Overlay
+              Positioned(
+                bottom: 0,
+                left: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(24, 40, 24, 24),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Colors.black.withValues(alpha: 0.8),
+                      ],
+                    ),
+                  ),
+                  child: SafeArea(
+                    top: false,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          title,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'يمكنك التكبير/التصغير لرؤية التفاصيل بوضوح',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.7),
+                            fontSize: 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ).animate().slideY(begin: 1.0, end: 0, delay: 100.ms),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

@@ -12,6 +12,7 @@ import '../widgets/vendor_card.dart';
 import '../widgets/vendor_details_panel.dart';
 import '../widgets/vendors_filters.dart';
 import '../widgets/vendors_stats_cards.dart';
+import '../../../../shared/widgets/common_widgets.dart';
 
 /// Vendors management page.
 class VendorsPage extends StatelessWidget {
@@ -119,31 +120,9 @@ class VendorsView extends StatelessWidget {
     }
 
     if (state is VendorsError) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: AppColors.error.withValues(alpha: 0.5),
-            ),
-            const SizedBox(height: AppConstants.spacingMd),
-            Text(
-              state.message,
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
-            ),
-            const SizedBox(height: AppConstants.spacingMd),
-            ElevatedButton.icon(
-              onPressed: () =>
-                  context.read<VendorsBloc>().add(const LoadVendors()),
-              icon: const Icon(Icons.refresh),
-              label: const Text('إعادة المحاولة'),
-            ),
-          ],
-        ),
+      return ErrorState(
+        message: state.message,
+        onRetry: () => context.read<VendorsBloc>().add(const LoadVendors()),
       );
     }
 

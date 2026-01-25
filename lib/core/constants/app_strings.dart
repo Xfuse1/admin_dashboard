@@ -31,7 +31,6 @@ abstract final class AppStrings {
   static const String orders = 'الطلبات';
   static const String onboarding = 'طلبات الانضمام';
   static const String vendors = 'المتاجر';
-  static const String fleet = 'الأسطول';
   static const String accounts = 'الحسابات';
   static const String settings = 'الإعدادات';
 

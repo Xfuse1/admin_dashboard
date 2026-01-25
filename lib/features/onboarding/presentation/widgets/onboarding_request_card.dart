@@ -36,95 +36,107 @@ class OnboardingRequestCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Header
-              Row(
+              // Info Content
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Type Icon
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: isStore
-                          ? Colors.purple.withValues(alpha: 0.1)
-                          : Colors.blue.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      isStore ? Iconsax.shop : Iconsax.car,
-                      color: isStore ? Colors.purple : Colors.blue,
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
+                  // Header
+                  Row(
+                    children: [
+                      // Type Icon
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: isStore
+                              ? Colors.purple.withValues(alpha: 0.1)
+                              : Colors.blue.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          isStore ? Iconsax.shop : Iconsax.car,
+                          color: isStore ? Colors.purple : Colors.blue,
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
 
-                  // Name & Type
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          request.name,
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                      // Name & Type
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              request.name,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(
                                     fontWeight: FontWeight.bold,
                                   ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          request.type.arabicName,
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              request.type.arabicName,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
                                     color: AppColors.textSecondary,
                                   ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+
+                      // Status Badge
+                      _buildStatusBadge(context),
+                    ],
                   ),
 
-                  // Status Badge
-                  _buildStatusBadge(context),
+                  const SizedBox(height: 8),
+
+                  // Details
+                  if (isStore) ...[
+                    _buildInfoRow(
+                      context,
+                      icon: Iconsax.building,
+                      label: (request as StoreOnboardingEntity).storeName,
+                    ),
+                  ] else ...[
+                    _buildInfoRow(
+                      context,
+                      icon: Iconsax.car,
+                      label: (request as DriverOnboardingEntity).vehicleType,
+                    ),
+                  ],
+
+                  _buildInfoRow(
+                    context,
+                    icon: Iconsax.call,
+                    label: request.phone,
+                  ),
+
+                  _buildInfoRow(
+                    context,
+                    icon: Iconsax.calendar,
+                    label: DateFormatter.date(request.createdAt),
+                  ),
                 ],
               ),
-
-              const SizedBox(height: 12),
-
-              // Details
-              if (isStore) ...[
-                _buildInfoRow(
-                  context,
-                  icon: Iconsax.building,
-                  label: (request as StoreOnboardingEntity).storeName,
-                ),
-              ] else ...[
-                _buildInfoRow(
-                  context,
-                  icon: Iconsax.car,
-                  label: (request as DriverOnboardingEntity).vehicleType,
-                ),
-              ],
-
-              _buildInfoRow(
-                context,
-                icon: Iconsax.call,
-                label: request.phone,
-              ),
-
-              _buildInfoRow(
-                context,
-                icon: Iconsax.calendar,
-                label: DateFormatter.date(request.createdAt),
-              ),
-
-              const Spacer(),
 
               // Actions
               if (request.status == OnboardingStatus.pending ||
                   request.status == OnboardingStatus.underReview) ...[
-                const Divider(),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 6),
+                  child: Divider(height: 1),
+                ),
                 Row(
                   children: [
                     Expanded(
@@ -135,6 +147,7 @@ class OnboardingRequestCard extends StatelessWidget {
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.error,
                           side: const BorderSide(color: AppColors.error),
+                          padding: const EdgeInsets.symmetric(vertical: 8),
                         ),
                       ),
                     ),
@@ -146,6 +159,7 @@ class OnboardingRequestCard extends StatelessWidget {
                         label: const Text('قبول'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.success,
+                          padding: const EdgeInsets.symmetric(vertical: 10),
                         ),
                       ),
                     ),

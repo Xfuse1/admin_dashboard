@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
@@ -271,6 +273,10 @@ class ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Check for Firebase index link
+    final linkMatch = RegExp(r'https://[^\s]+').firstMatch(message);
+    final link = linkMatch?.group(0);
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(AppConstants.spacingXl),
@@ -284,7 +290,7 @@ class ErrorState extends StatelessWidget {
                 color: AppColors.error.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
+              child: const Icon(
                 Icons.error_outline,
                 size: 40,
                 color: AppColors.error,
@@ -299,18 +305,43 @@ class ErrorState extends StatelessWidget {
                   ),
             ),
             const SizedBox(height: AppConstants.spacingSm),
-            Text(
-              message,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppColors.textMuted,
-                  ),
-              textAlign: TextAlign.center,
+            Container(
+              constraints: const BoxConstraints(maxHeight: 200),
+              child: SingleChildScrollView(
+                child: SelectableText(
+                  message,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textMuted,
+                      ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
             ),
+            if (link != null) ...[
+              const SizedBox(height: AppConstants.spacingMd),
+              OutlinedButton.icon(
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: link));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('تم نسخ الرابط! افتحه في المتصفح لتفعيل الـ Index'),
+                      backgroundColor: AppColors.primary,
+                    ),
+                  );
+                },
+                icon: const Icon(Iconsax.copy, size: 18),
+                label: const Text('نسخ رابط الـ Index'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                ),
+              ),
+            ],
             if (onRetry != null) ...[
               const SizedBox(height: AppConstants.spacingLg),
-              TextButton.icon(
+              ElevatedButton.icon(
                 onPressed: onRetry,
-                icon: const Icon(Icons.refresh),
+                icon: const Icon(Iconsax.refresh),
                 label: const Text('إعادة المحاولة'),
               ),
             ],

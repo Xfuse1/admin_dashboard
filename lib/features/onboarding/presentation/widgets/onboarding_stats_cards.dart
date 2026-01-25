@@ -1,3 +1,4 @@
+import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 
@@ -16,7 +17,7 @@ class OnboardingStatsCards extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 100,
+      height: 110,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: ListView(
         scrollDirection: Axis.horizontal,
@@ -89,28 +90,32 @@ class OnboardingStatsCards extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
             children: [
               Icon(icon, color: iconColor, size: 20),
-              const Spacer(),
-              Text(
-                value,
-                style: theme.textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: iconColor,
+              const SizedBox(width: 8),
+              Expanded(
+                child: AutoSizeText(
+                  value,
+                  maxLines: 1,
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: iconColor,
+                  ),
+                  textAlign: TextAlign.end,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
+          AutoSizeText(
             title,
             style: theme.textTheme.labelSmall?.copyWith(
               color: AppColors.textSecondary,
             ),
             maxLines: 1,
+            minFontSize: 8,
             overflow: TextOverflow.ellipsis,
           ),
         ],

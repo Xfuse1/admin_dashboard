@@ -41,14 +41,14 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
       totalRatings: 0,
       totalDeliveries: 0,
       walletBalance: 0.0,
-      latitude: null,
-      longitude: null,
-      vehicleType: null,
-      vehiclePlate: null,
-      licenseImage: null,
-      idCardImage: null,
-      vehicleImage: null,
-      criminalRecordImage: null,
+      latitude: data['latitude'] != null ? (data['latitude'] as num).toDouble() : null,
+      longitude: data['longitude'] != null ? (data['longitude'] as num).toDouble() : null,
+      vehicleType: data['vehicleType'] as String?,
+      vehiclePlate: data['vehiclePlate'] as String?,
+      licenseImage: data['licenseImage'] as String?,
+      idCardImage: data['idCardImage'] as String?,
+      vehicleImage: data['vehicleImage'] as String?,
+      criminalRecordImage: data['criminalRecordImage'] as String?,
     );
   }
 

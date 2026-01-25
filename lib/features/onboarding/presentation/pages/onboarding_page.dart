@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/utils/app_logger.dart';
 import '../../../../shared/widgets/responsive_layout.dart';
 import '../../domain/entities/onboarding_entities.dart';
 import '../bloc/onboarding_bloc.dart';
@@ -42,6 +43,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
             ),
           );
         } else if (state is OnboardingError) {
+          // Log error to console
+          logger.error('Onboarding Error: ${state.message}');
+          
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(state.message),
@@ -128,15 +132,6 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 children: [
                   _buildFilterChip(
                     context,
-                    label: 'الكل',
-                    isSelected: currentType == null,
-                    onTap: () => context
-                        .read<OnboardingBloc>()
-                        .add(const FilterByType(null)),
-                  ),
-                  const SizedBox(width: 8),
-                  _buildFilterChip(
-                    context,
                     label: 'المتاجر',
                     icon: Iconsax.shop,
                     isSelected: currentType == OnboardingType.store,
@@ -162,7 +157,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
                   ),
                   const SizedBox(width: 16),
                   // Status Chips
-                  ...OnboardingStatus.values.map((status) {
+                  ...OnboardingStatus.values
+                      .where((status) => status != OnboardingStatus.underReview)
+                      .map((status) {
                     return Padding(
                       padding: const EdgeInsets.only(left: 8),
                       child: _buildFilterChip(
@@ -238,16 +235,25 @@ class _OnboardingPageState extends State<OnboardingPage> {
     }
 
     if (state is OnboardingError) {
+      logger.error('UI Onboarding Error Displayed: ${state.message}');
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Iconsax.warning_2, size: 64, color: AppColors.error),
             const SizedBox(height: 16),
-            Text(state.message, style: Theme.of(context).textTheme.bodyLarge),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: SelectableText(
+                state.message,
+                style: Theme.of(context).textTheme.bodyMedium,
+                textAlign: TextAlign.center,
+              ),
+            ),
             const SizedBox(height: 16),
             ElevatedButton(
               onPressed: () {
+                logger.info('Retrying load onboarding requests...');
                 context
                     .read<OnboardingBloc>()
                     .add(const LoadOnboardingRequests());
@@ -308,7 +314,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
             crossAxisCount: crossAxisCount,
             mainAxisSpacing: 16,
             crossAxisSpacing: 16,
-            childAspectRatio: deviceType == DeviceType.mobile ? 2.2 : 1.8,
+            mainAxisExtent: deviceType == DeviceType.mobile ? 260 : 280,
           ),
           itemCount: state.requests.length + (state.isLoadingMore ? 1 : 0),
           itemBuilder: (context, index) {
@@ -356,6 +362,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
     OnboardingRequestEntity request,
   ) {
     final notesController = TextEditingController();
+    final onboardingBloc = context.read<OnboardingBloc>();
 
     showDialog(
       context: context,
@@ -387,7 +394,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(dialogContext);
-              context.read<OnboardingBloc>().add(ApproveRequestEvent(
+              onboardingBloc.add(ApproveRequestEvent(
                     requestId: request.id,
                     notes: notesController.text.isNotEmpty
                         ? notesController.text
@@ -409,6 +416,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
     OnboardingRequestEntity request,
   ) {
     final reasonController = TextEditingController();
+    final onboardingBloc = context.read<OnboardingBloc>();
 
     showDialog(
       context: context,
@@ -449,7 +457,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 return;
               }
               Navigator.pop(dialogContext);
-              context.read<OnboardingBloc>().add(RejectRequestEvent(
+              onboardingBloc.add(RejectRequestEvent(
                     requestId: request.id,
                     reason: reasonController.text,
                   ));

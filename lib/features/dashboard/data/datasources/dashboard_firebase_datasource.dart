@@ -54,104 +54,194 @@ class DashboardFirebaseDataSource implements DashboardDataSource {
 
   @override
   Future<DashboardStatsModel> getStats() async {
-    // Get stats from aggregated document
-    final statsDoc =
-        await _firestore.collection('stats').doc('dashboard').get();
+    try {
+      // Get stats from aggregated document if available
+      final statsDoc =
+          await _firestore.collection('stats').doc('dashboard').get();
 
-    if (statsDoc.exists) {
-      return DashboardStatsModel.fromJson(statsDoc.data()!);
+      if (statsDoc.exists && statsDoc.data() != null) {
+        return DashboardStatsModel.fromJson(statsDoc.data()!);
+      }
+
+      // Calculate stats from Deliverzler collections
+      final ordersSnapshot = await _ordersCollection.get();
+      final driversSnapshot = await _usersCollection.get();
+
+      final orders = ordersSnapshot.docs;
+      final drivers = driversSnapshot.docs;
+
+      // Calculate today's boundaries
+      final now = DateTime.now();
+      final todayStart = DateTime(now.year, now.month, now.day);
+      final todayTimestamp = todayStart.millisecondsSinceEpoch;
+      
+      // Calculate yesterday's boundaries for growth
+      final yesterdayStart = todayStart.subtract(const Duration(days: 1));
+      final yesterdayEnd = todayStart;
+      final yesterdayStartTimestamp = yesterdayStart.millisecondsSinceEpoch;
+      final yesterdayEndTimestamp = yesterdayEnd.millisecondsSinceEpoch;
+
+      // Count orders by status
+      int pendingOrders = 0;
+      int activeOrders = 0; // Not delivered or cancelled
+      int completedOrders = 0;
+      int cancelledOrders = 0;
+      double totalRevenue = 0.0;
+      double todayRevenue = 0.0;
+      int todayOrdersCount = 0;
+      double yesterdayRevenue = 0.0;
+      int yesterdayOrdersCount = 0;
+
+      for (final doc in orders) {
+        final data = doc.data();
+        final status = _normalizeStatus(
+            data[OrderFields.deliveryStatus] as String?);
+        final orderTotal = (data['total'] as num?)?.toDouble() ?? 0.0;
+        final orderDate = data[OrderFields.date] as int?;
+
+        // Count by status
+        switch (status) {
+          case OrderStatus.pending:
+            pendingOrders++;
+            activeOrders++;
+            break;
+          case OrderStatus.confirmed:
+          case OrderStatus.preparing:
+          case OrderStatus.ready:
+          case OrderStatus.pickedUp:
+            activeOrders++;
+            break;
+          case OrderStatus.delivered:
+            completedOrders++;
+            break;
+          case OrderStatus.cancelled:
+            cancelledOrders++;
+            break;
+        }
+
+        // Calculate revenue
+        if (status == OrderStatus.delivered) {
+          totalRevenue += orderTotal;
+        }
+
+        // Today's revenue and count
+        if (orderDate != null && orderDate >= todayTimestamp) {
+          if (status == OrderStatus.delivered) {
+            todayRevenue += orderTotal;
+          }
+          todayOrdersCount++;
+        }
+
+        // Yesterday's revenue and count for growth calculation
+        if (orderDate != null &&
+            orderDate >= yesterdayStartTimestamp &&
+            orderDate < yesterdayEndTimestamp) {
+          if (status == OrderStatus.delivered) {
+            yesterdayRevenue += orderTotal;
+          }
+          yesterdayOrdersCount++;
+        }
+      }
+
+      // Calculate growth percentages
+      double revenueGrowth = 0.0;
+      double ordersGrowth = 0.0;
+
+      if (yesterdayRevenue > 0) {
+        revenueGrowth =
+            ((todayRevenue - yesterdayRevenue) / yesterdayRevenue) * 100;
+      } else if (todayRevenue > 0) {
+        revenueGrowth = 100.0; // 100% growth from zero
+      }
+
+      if (yesterdayOrdersCount > 0) {
+        ordersGrowth = ((todayOrdersCount - yesterdayOrdersCount) /
+                yesterdayOrdersCount) *
+            100;
+      } else if (todayOrdersCount > 0) {
+        ordersGrowth = 100.0;
+      }
+
+      // Deliverzler doesn't have active status for drivers, so all are considered active
+      final activeDrivers = drivers.length;
+
+      return DashboardStatsModel(
+        totalOrders: orders.length,
+        pendingOrders: pendingOrders,
+        completedOrders: completedOrders,
+        cancelledOrders: cancelledOrders,
+        totalVendors: 0, // Not used in Deliverzler
+        activeVendors: 0,
+        totalDrivers: drivers.length,
+        activeDrivers: activeDrivers,
+        totalCustomers: 0, // Not tracked separately in Deliverzler
+        totalRevenue: totalRevenue,
+        todayRevenue: todayRevenue,
+        revenueGrowth: revenueGrowth.isFinite ? revenueGrowth : 0.0,
+        ordersGrowth: ordersGrowth.isFinite ? ordersGrowth : 0.0,
+      );
+    } catch (e) {
+      // Return empty stats on error to prevent crash
+      return const DashboardStatsModel(
+        totalOrders: 0,
+        pendingOrders: 0,
+        completedOrders: 0,
+        cancelledOrders: 0,
+        totalVendors: 0,
+        activeVendors: 0,
+        totalDrivers: 0,
+        activeDrivers: 0,
+        totalCustomers: 0,
+        totalRevenue: 0.0,
+        todayRevenue: 0.0,
+        revenueGrowth: 0.0,
+        ordersGrowth: 0.0,
+      );
     }
-
-    // Calculate stats from Deliverzler collections
-    final ordersSnapshot = await _ordersCollection.get();
-    // Note: vendors/customers not used in Deliverzler, using users collection for drivers
-    final driversSnapshot = await _usersCollection.get();
-
-    final orders = ordersSnapshot.docs;
-    final pendingOrders = orders.where((d) {
-      final status =
-          _normalizeStatus(d.data()[OrderFields.deliveryStatus] as String?);
-      return status == OrderStatus.pending;
-    }).length;
-    final completedOrders = orders.where((d) {
-      final status =
-          _normalizeStatus(d.data()[OrderFields.deliveryStatus] as String?);
-      return status == OrderStatus.delivered;
-    }).length;
-    final cancelledOrders = orders.where((d) {
-      final status =
-          _normalizeStatus(d.data()[OrderFields.deliveryStatus] as String?);
-      return status == OrderStatus.cancelled;
-    }).length;
-
-    final drivers = driversSnapshot.docs;
-    // Deliverzler doesn't have isActive field for users
-    final activeDrivers = drivers.length;
-
-    // Deliverzler stores total in 'total' field (not 'amount')
-    final totalRevenue = orders.fold<double>(
-      0,
-      (total, doc) => total + (doc.data()['total'] as num? ?? 0).toDouble(),
-    );
-
-    // Deliverzler uses 'date' as Unix timestamp (milliseconds)
-    final todayStart = DateTime.now().copyWith(
-      hour: 0,
-      minute: 0,
-      second: 0,
-      millisecond: 0,
-    );
-    final todayTimestamp = todayStart.millisecondsSinceEpoch;
-    final todayOrders = orders.where((d) {
-      final date = d.data()[OrderFields.date] as int?;
-      return date != null && date >= todayTimestamp;
-    });
-    final todayRevenue = todayOrders.fold<double>(
-      0,
-      (total, doc) => total + (doc.data()['total'] as num? ?? 0).toDouble(),
-    );
-
-    return DashboardStatsModel(
-      totalOrders: orders.length,
-      pendingOrders: pendingOrders,
-      completedOrders: completedOrders,
-      cancelledOrders: cancelledOrders,
-      totalVendors: 0, // Not used in Deliverzler
-      activeVendors: 0,
-      totalDrivers: drivers.length,
-      activeDrivers: activeDrivers,
-      totalCustomers: 0, // Not tracked separately in Deliverzler
-      totalRevenue: totalRevenue,
-      todayRevenue: todayRevenue,
-      revenueGrowth: 0.0, // Would need historical data
-      ordersGrowth: 0.0,
-    );
   }
 
   @override
   Future<List<RecentOrderModel>> getRecentOrders({int limit = 10}) async {
-    // Deliverzler uses 'date' field for ordering
-    final snapshot = await _ordersCollection
-        .orderBy(OrderFields.date, descending: true)
-        .limit(limit)
-        .get();
+    try {
+      // Deliverzler uses 'date' field for ordering
+      final snapshot = await _ordersCollection
+          .orderBy(OrderFields.date, descending: true)
+          .limit(limit)
+          .get();
 
-    return snapshot.docs.map((doc) {
-      final data = doc.data();
-      // Map Deliverzler fields to expected format
-      return RecentOrderModel(
-        id: doc.id,
-        orderNumber: doc.id.substring(0, 8).toUpperCase(),
-        customerName: data[OrderFields.userName] as String? ?? 'Unknown',
-        vendorName: 'Deliverzler', // Deliverzler doesn't have vendor concept
-        amount: (data['total'] as num?)?.toDouble() ?? 0.0,
-        status: _normalizeStatus(data[OrderFields.deliveryStatus] as String?),
-        createdAt: DateTime.fromMillisecondsSinceEpoch(
-          (data[OrderFields.date] as int?) ??
-              DateTime.now().millisecondsSinceEpoch,
-        ),
-      );
-    }).toList();
+      final orders = <RecentOrderModel>[];
+
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        if (data == null) continue;
+
+        try {
+          // Map Deliverzler fields to expected format
+          final order = RecentOrderModel(
+            id: doc.id,
+            orderNumber: doc.id.substring(0, 8).toUpperCase(),
+            customerName: data[OrderFields.userName] as String? ?? 'Unknown',
+            vendorName: 'Deliverzler', // Deliverzler doesn't have vendor concept
+            amount: (data['total'] as num?)?.toDouble() ?? 0.0,
+            status:
+                _normalizeStatus(data[OrderFields.deliveryStatus] as String?),
+            createdAt: DateTime.fromMillisecondsSinceEpoch(
+              (data[OrderFields.date] as int?) ??
+                  DateTime.now().millisecondsSinceEpoch,
+            ),
+          );
+          orders.add(order);
+        } catch (e) {
+          // Skip invalid orders
+          continue;
+        }
+      }
+
+      return orders;
+    } catch (e) {
+      // Return empty list on error
+      return [];
+    }
   }
 
   @override
@@ -159,87 +249,122 @@ class DashboardFirebaseDataSource implements DashboardDataSource {
     required DateTime startDate,
     required DateTime endDate,
   }) async {
-    // Deliverzler uses Unix timestamp for date
-    final snapshot = await _ordersCollection
-        .where(OrderFields.date,
-            isGreaterThanOrEqualTo: startDate.millisecondsSinceEpoch)
-        .where(OrderFields.date,
-            isLessThanOrEqualTo: endDate.millisecondsSinceEpoch)
-        .where(OrderFields.deliveryStatus, isEqualTo: 'delivered')
-        .get();
+    try {
+      // Normalize dates to start of day
+      final normalizedStartDate =
+          DateTime(startDate.year, startDate.month, startDate.day);
+      final normalizedEndDate =
+          DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
 
-    // Group by date
-    final revenueByDate = <DateTime, double>{};
+      // Deliverzler uses Unix timestamp for date
+      final snapshot = await _ordersCollection
+          .where(OrderFields.date,
+              isGreaterThanOrEqualTo: normalizedStartDate.millisecondsSinceEpoch)
+          .where(OrderFields.date,
+              isLessThanOrEqualTo: normalizedEndDate.millisecondsSinceEpoch)
+          .get();
 
-    for (final doc in snapshot.docs) {
-      final data = doc.data();
-      final dateTimestamp = data[OrderFields.date] as int;
-      final createdAt = DateTime.fromMillisecondsSinceEpoch(dateTimestamp);
-      final dateKey = DateTime(createdAt.year, createdAt.month, createdAt.day);
-      final amount = (data['total'] as num?)?.toDouble() ?? 0.0;
+      // Group by date and only count delivered orders
+      final revenueByDate = <DateTime, double>{};
 
-      revenueByDate[dateKey] = (revenueByDate[dateKey] ?? 0) + amount;
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        final status =
+            _normalizeStatus(data[OrderFields.deliveryStatus] as String?);
+        
+        // Only count delivered orders for revenue
+        if (status != OrderStatus.delivered) continue;
+
+        final dateTimestamp = data[OrderFields.date] as int?;
+        if (dateTimestamp == null) continue;
+
+        final createdAt = DateTime.fromMillisecondsSinceEpoch(dateTimestamp);
+        final dateKey = DateTime(createdAt.year, createdAt.month, createdAt.day);
+        final amount = (data['total'] as num?)?.toDouble() ?? 0.0;
+
+        revenueByDate[dateKey] = (revenueByDate[dateKey] ?? 0) + amount;
+      }
+
+      // Fill in missing dates with zero
+      final points = <RevenueDataPointModel>[];
+      var currentDate = normalizedStartDate;
+
+      while (!currentDate.isAfter(normalizedEndDate)) {
+        final dateKey =
+            DateTime(currentDate.year, currentDate.month, currentDate.day);
+        points.add(RevenueDataPointModel(
+          date: dateKey,
+          amount: revenueByDate[dateKey] ?? 0,
+        ));
+        currentDate = currentDate.add(const Duration(days: 1));
+      }
+
+      return points;
+    } catch (e) {
+      // Return empty list on error
+      return [];
     }
-
-    // Fill in missing dates with zero
-    final points = <RevenueDataPointModel>[];
-    var currentDate = startDate;
-
-    while (!currentDate.isAfter(endDate)) {
-      final dateKey =
-          DateTime(currentDate.year, currentDate.month, currentDate.day);
-      points.add(RevenueDataPointModel(
-        date: dateKey,
-        amount: revenueByDate[dateKey] ?? 0,
-      ));
-      currentDate = currentDate.add(const Duration(days: 1));
-    }
-
-    return points;
   }
 
   @override
   Future<OrdersDistributionModel> getOrdersDistribution() async {
-    final snapshot = await _ordersCollection.get();
+    try {
+      final snapshot = await _ordersCollection.get();
 
-    int pending = 0,
-        confirmed = 0,
-        preparing = 0,
-        ready = 0,
-        pickedUp = 0,
-        delivered = 0,
-        cancelled = 0;
+      int pending = 0,
+          confirmed = 0,
+          preparing = 0,
+          ready = 0,
+          pickedUp = 0,
+          delivered = 0,
+          cancelled = 0;
 
-    for (final doc in snapshot.docs) {
-      // Deliverzler uses 'deliveryStatus' field
-      final rawStatus = doc.data()[OrderFields.deliveryStatus] as String?;
-      final status = _normalizeStatus(rawStatus);
-      switch (status) {
-        case OrderStatus.pending:
-          pending++;
-        case OrderStatus.confirmed:
-          confirmed++;
-        case OrderStatus.preparing:
-          preparing++;
-        case OrderStatus.ready:
-          ready++;
-        case OrderStatus.pickedUp:
-          pickedUp++;
-        case OrderStatus.delivered:
-          delivered++;
-        case OrderStatus.cancelled:
-          cancelled++;
+      for (final doc in snapshot.docs) {
+        final data = doc.data();
+        if (data == null) continue;
+
+        // Deliverzler uses 'deliveryStatus' field
+        final rawStatus = data[OrderFields.deliveryStatus] as String?;
+        final status = _normalizeStatus(rawStatus);
+        
+        switch (status) {
+          case OrderStatus.pending:
+            pending++;
+          case OrderStatus.confirmed:
+            confirmed++;
+          case OrderStatus.preparing:
+            preparing++;
+          case OrderStatus.ready:
+            ready++;
+          case OrderStatus.pickedUp:
+            pickedUp++;
+          case OrderStatus.delivered:
+            delivered++;
+          case OrderStatus.cancelled:
+            cancelled++;
+        }
       }
-    }
 
-    return OrdersDistributionModel(
-      pending: pending,
-      confirmed: confirmed,
-      preparing: preparing,
-      ready: ready,
-      pickedUp: pickedUp,
-      delivered: delivered,
-      cancelled: cancelled,
-    );
+      return OrdersDistributionModel(
+        pending: pending,
+        confirmed: confirmed,
+        preparing: preparing,
+        ready: ready,
+        pickedUp: pickedUp,
+        delivered: delivered,
+        cancelled: cancelled,
+      );
+    } catch (e) {
+      // Return empty distribution on error
+      return const OrdersDistributionModel(
+        pending: 0,
+        confirmed: 0,
+        preparing: 0,
+        ready: 0,
+        pickedUp: 0,
+        delivered: 0,
+        cancelled: 0,
+      );
+    }
   }
 }

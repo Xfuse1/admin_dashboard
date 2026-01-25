@@ -64,7 +64,11 @@ class _OrdersDistributionChartState extends State<OrdersDistributionChart> {
                 ),
                 const SizedBox(width: AppConstants.spacingMd),
                 Expanded(
-                  child: _buildLegend(),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerRight,
+                    child: _buildLegend(),
+                  ),
                 ),
               ],
             ),

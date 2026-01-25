@@ -187,12 +187,6 @@ List<SidebarItem> getSidebarItems() {
       route: AppRoutes.vendors,
     ),
     SidebarItem(
-      label: AppStrings.fleet,
-      icon: Icons.local_shipping_outlined,
-      activeIcon: Icons.local_shipping,
-      route: AppRoutes.fleet,
-    ),
-    SidebarItem(
       label: AppStrings.accounts,
       icon: Icons.people_outline,
       activeIcon: Icons.people,

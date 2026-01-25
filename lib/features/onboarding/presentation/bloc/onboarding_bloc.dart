@@ -1,5 +1,7 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:dartz/dartz.dart';
 
+import '../../../../core/errors/failures.dart';
 import '../../domain/entities/onboarding_entities.dart';
 import '../../domain/usecases/onboarding_usecases.dart';
 import 'onboarding_event.dart';
@@ -180,28 +182,40 @@ class OnboardingBloc extends Bloc<OnboardingEvent, OnboardingState> {
       previousState: currentState,
     ));
 
-    final result = await _approveRequest(event.requestId, notes: event.notes);
+    try {
+      final result = await _approveRequest(event.requestId, notes: event.notes)
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () => Left(ServerFailure(message: 'انتهت مهلة الطلب. يرجى المحاولة مرة أخرى')),
+          );
 
-    result.fold(
-      (failure) =>
-          emit(OnboardingError(failure.message, previousState: currentState)),
-      (_) {
-        final updatedRequests = currentState.requests.map((r) {
-          if (r.id == event.requestId) {
-            return _updateRequestStatus(r, OnboardingStatus.approved);
-          }
-          return r;
-        }).toList();
+      result.fold(
+        (failure) {
+          emit(OnboardingError(failure.message, previousState: currentState));
+        },
+        (_) {
+          final updatedRequests = currentState.requests.map((r) {
+            if (r.id == event.requestId) {
+              return _updateRequestStatus(r, OnboardingStatus.approved);
+            }
+            return r;
+          }).toList();
 
-        emit(OnboardingActionSuccess(
-          message: 'تم قبول الطلب بنجاح',
-          updatedState: currentState.copyWith(
-            requests: updatedRequests,
-            clearSelectedRequest: true,
-          ),
-        ));
-      },
-    );
+          emit(OnboardingActionSuccess(
+            message: 'تم قبول الطلب بنجاح',
+            updatedState: currentState.copyWith(
+              requests: updatedRequests,
+              clearSelectedRequest: true,
+            ),
+          ));
+        },
+      );
+    } catch (e) {
+      emit(OnboardingError(
+        'حدث خطأ أثناء قبول الطلب: ${e.toString()}',
+        previousState: currentState,
+      ));
+    }
   }
 
   Future<void> _onRejectRequest(
@@ -217,28 +231,40 @@ class OnboardingBloc extends Bloc<OnboardingEvent, OnboardingState> {
       previousState: currentState,
     ));
 
-    final result = await _rejectRequest(event.requestId, event.reason);
+    try {
+      final result = await _rejectRequest(event.requestId, event.reason)
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () => Left(ServerFailure(message: 'انتهت مهلة الطلب. يرجى المحاولة مرة أخرى')),
+          );
 
-    result.fold(
-      (failure) =>
-          emit(OnboardingError(failure.message, previousState: currentState)),
-      (_) {
-        final updatedRequests = currentState.requests.map((r) {
-          if (r.id == event.requestId) {
-            return _updateRequestStatus(r, OnboardingStatus.rejected);
-          }
-          return r;
-        }).toList();
+      result.fold(
+        (failure) {
+          emit(OnboardingError(failure.message, previousState: currentState));
+        },
+        (_) {
+          final updatedRequests = currentState.requests.map((r) {
+            if (r.id == event.requestId) {
+              return _updateRequestStatus(r, OnboardingStatus.rejected);
+            }
+            return r;
+          }).toList();
 
-        emit(OnboardingActionSuccess(
-          message: 'تم رفض الطلب',
-          updatedState: currentState.copyWith(
-            requests: updatedRequests,
-            clearSelectedRequest: true,
-          ),
-        ));
-      },
-    );
+          emit(OnboardingActionSuccess(
+            message: 'تم رفض الطلب',
+            updatedState: currentState.copyWith(
+              requests: updatedRequests,
+              clearSelectedRequest: true,
+            ),
+          ));
+        },
+      );
+    } catch (e) {
+      emit(OnboardingError(
+        'حدث خطأ أثناء رفض الطلب: ${e.toString()}',
+        previousState: currentState,
+      ));
+    }
   }
 
   Future<void> _onMarkUnderReview(

@@ -41,7 +41,7 @@ class RevenueChart extends StatelessWidget {
                 gridData: FlGridData(
                   show: true,
                   drawVerticalLine: false,
-                  horizontalInterval: range / 4,
+                  horizontalInterval: range > 0 ? range / 4 : 1.0,
                   getDrawingHorizontalLine: (value) => FlLine(
                     color: AppColors.border.withValues(alpha: 0.3),
                     strokeWidth: 1,

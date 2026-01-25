@@ -76,7 +76,17 @@ class AuthFirebaseDataSource implements AuthDataSource {
   @override
   Future<AdminUserModel?> checkAuthStatus() async {
     try {
-      final user = _auth.currentUser;
+      // Give Firebase Auth a bit of time to initialize persistence on Web
+      User? user = _auth.currentUser;
+      if (user == null) {
+        // We wait for the first emission from authStateChanges.
+        // On web, this is more reliable for session recovery.
+        user = await _auth.authStateChanges().first.timeout(
+          const Duration(seconds: 2),
+          onTimeout: () => null,
+        );
+      }
+
       if (user == null) return null;
 
       final doc = await _firestore.collection('admins').doc(user.uid).get();

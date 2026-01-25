@@ -24,6 +24,7 @@ class StatCardSkeleton extends StatelessWidget {
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -46,17 +47,22 @@ class StatCardSkeleton extends StatelessWidget {
                 ),
               ],
             ),
-            const Spacer(),
-            Container(
-              width: 80,
-              height: 32,
-              color: AppColors.skeleton,
-            ),
             const SizedBox(height: AppConstants.spacingSm),
-            Container(
-              width: 120,
-              height: 16,
-              color: AppColors.skeleton,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 80,
+                  height: 32,
+                  color: AppColors.skeleton,
+                ),
+                const SizedBox(height: AppConstants.spacingSm),
+                Container(
+                  width: 120,
+                  height: 16,
+                  color: AppColors.skeleton,
+                ),
+              ],
             ),
           ],
         ),

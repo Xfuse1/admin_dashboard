@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 
@@ -9,12 +10,14 @@ class DriverCard extends StatelessWidget {
   final DriverEntity driver;
   final VoidCallback? onTap;
   final void Function(bool isActive)? onToggleStatus;
+  final VoidCallback? onViewLocation;
 
   const DriverCard({
     super.key,
     required this.driver,
     this.onTap,
     this.onToggleStatus,
+    this.onViewLocation,
   });
 
   @override
@@ -40,10 +43,10 @@ class DriverCard extends StatelessWidget {
                   CircleAvatar(
                     radius: 28,
                     backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                    backgroundImage: driver.imageUrl != null
-                        ? NetworkImage(driver.imageUrl!)
+                    backgroundImage: driver.imageUrl != null && driver.imageUrl!.isNotEmpty
+                        ? CachedNetworkImageProvider(driver.imageUrl!)
                         : null,
-                    child: driver.imageUrl == null
+                    child: (driver.imageUrl == null || driver.imageUrl!.isEmpty)
                         ? Text(
                             driver.name.isNotEmpty ? driver.name[0] : '؟',
                             style: Theme.of(context)
@@ -149,6 +152,8 @@ class DriverCard extends StatelessWidget {
                 onSelected: (value) {
                   if (value == 'toggle') {
                     onToggleStatus?.call(!driver.isActive);
+                  } else if (value == 'location') {
+                    onViewLocation?.call();
                   }
                 },
                 itemBuilder: (context) => [

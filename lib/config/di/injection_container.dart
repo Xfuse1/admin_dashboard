@@ -55,15 +55,6 @@ import '../../features/settings/domain/repositories/settings_repository.dart';
 import '../../features/settings/domain/usecases/settings_usecases.dart';
 import '../../features/settings/presentation/bloc/settings_bloc.dart';
 
-// Fleet Feature
-import '../../features/fleet/data/datasources/fleet_datasource.dart';
-import '../../features/fleet/data/datasources/fleet_mock_datasource.dart';
-import '../../features/fleet/data/datasources/fleet_firebase_datasource.dart';
-import '../../features/fleet/data/repositories/fleet_repository_impl.dart';
-import '../../features/fleet/domain/repositories/fleet_repository.dart';
-import '../../features/fleet/domain/usecases/fleet_usecases.dart';
-import '../../features/fleet/presentation/bloc/fleet_bloc.dart';
-
 // Vendors Feature
 import '../../features/vendors/data/datasources/vendors_datasource.dart';
 import '../../features/vendors/data/datasources/vendors_mock_datasource.dart';
@@ -119,11 +110,6 @@ Future<void> initDependencies() async {
   // 🏪 VENDORS FEATURE
   // ============================================
   await _initVendorsDependencies();
-
-  // ============================================
-  // 🚗 FLEET FEATURE
-  // ============================================
-  await _initFleetDependencies();
 
   // ============================================
   // 📝 ONBOARDING FEATURE
@@ -371,57 +357,6 @@ Future<void> _initSettingsDependencies() async {
       addDeliveryZone: sl(),
       updateDeliveryZone: sl(),
       deleteDeliveryZone: sl(),
-    ),
-  );
-}
-
-/// Initializes Fleet feature dependencies.
-Future<void> _initFleetDependencies() async {
-  // Data Sources
-  if (useMockData) {
-    sl.registerLazySingleton<FleetDataSource>(
-      () => FleetMockDataSource(),
-    );
-  } else {
-    sl.registerLazySingleton<FleetDataSource>(
-      () => FleetFirebaseDataSource(),
-    );
-  }
-
-  // Repository
-  sl.registerLazySingleton<FleetRepository>(
-    () => FleetRepositoryImpl(sl()),
-  );
-
-  // Use Cases
-  sl.registerLazySingleton(() => GetVehicles(sl()));
-  sl.registerLazySingleton(() => GetVehicleById(sl()));
-  sl.registerLazySingleton(() => AddVehicle(sl()));
-  sl.registerLazySingleton(() => UpdateVehicle(sl()));
-  sl.registerLazySingleton(() => DeleteVehicle(sl()));
-  sl.registerLazySingleton(() => UpdateVehicleStatus(sl()));
-  sl.registerLazySingleton(() => AssignDriverToVehicle(sl()));
-  sl.registerLazySingleton(() => UnassignDriverFromVehicle(sl()));
-  sl.registerLazySingleton(() => GetFleetStats(sl()));
-  sl.registerLazySingleton(() => WatchVehicles(sl()));
-  sl.registerLazySingleton(() => SearchVehicles(sl()));
-  sl.registerLazySingleton(() => GetVehiclesWithAlerts(sl()));
-
-  // BLoC
-  sl.registerFactory(
-    () => FleetBloc(
-      getVehicles: sl(),
-      getVehicleById: sl(),
-      addVehicle: sl(),
-      updateVehicle: sl(),
-      deleteVehicle: sl(),
-      updateVehicleStatus: sl(),
-      assignDriver: sl(),
-      unassignDriver: sl(),
-      getFleetStats: sl(),
-      watchVehicles: sl(),
-      searchVehicles: sl(),
-      getVehiclesWithAlerts: sl(),
     ),
   );
 }

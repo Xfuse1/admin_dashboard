@@ -23,56 +23,72 @@ class VendorsStatsCards extends StatelessWidget {
       decimalDigits: 0,
     );
 
-    return Padding(
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
       padding: const EdgeInsets.all(AppConstants.spacingMd),
       child: Row(
         children: [
-          Expanded(
-            child: _StatCard(
-              title: 'إجمالي المتاجر',
-              value: totalVendors.toString(),
-              icon: Icons.store,
-              color: AppColors.primary,
-            ),
+          _buildCard(
+            context,
+            'إجمالي المتاجر',
+            totalVendors.toString(),
+            Icons.store,
+            AppColors.primary,
           ),
           const SizedBox(width: AppConstants.spacingMd),
-          Expanded(
-            child: _StatCard(
-              title: 'متاجر نشطة',
-              value: activeVendors.toString(),
-              icon: Icons.check_circle,
-              color: AppColors.success,
-              subtitle: _calculatePercentage(activeVendors, totalVendors),
-            ),
+          _buildCard(
+            context,
+            'متاجر نشطة',
+            activeVendors.toString(),
+            Icons.check_circle,
+            AppColors.success,
+            _calculatePercentage(activeVendors, totalVendors),
           ),
           const SizedBox(width: AppConstants.spacingMd),
-          Expanded(
-            child: _StatCard(
-              title: 'بانتظار الموافقة',
-              value: pendingVendors.toString(),
-              icon: Icons.pending_actions,
-              color: AppColors.warning,
-            ),
+          _buildCard(
+            context,
+            'بانتظار الموافقة',
+            pendingVendors.toString(),
+            Icons.pending_actions,
+            AppColors.warning,
           ),
           const SizedBox(width: AppConstants.spacingMd),
-          Expanded(
-            child: _StatCard(
-              title: 'إجمالي الإيرادات',
-              value: currencyFormatter.format(totalRevenue),
-              icon: Icons.attach_money,
-              color: AppColors.success,
-            ),
+          _buildCard(
+            context,
+            'إجمالي الإيرادات',
+            currencyFormatter.format(totalRevenue),
+            Icons.attach_money,
+            AppColors.success,
           ),
           const SizedBox(width: AppConstants.spacingMd),
-          Expanded(
-            child: _StatCard(
-              title: 'إجمالي الطلبات',
-              value: NumberFormat('#,###').format(totalOrders),
-              icon: Icons.shopping_bag,
-              color: AppColors.info,
-            ),
+          _buildCard(
+            context,
+            'إجمالي الطلبات',
+            NumberFormat('#,###').format(totalOrders),
+            Icons.shopping_bag,
+            AppColors.info,
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildCard(
+    BuildContext context,
+    String title,
+    String value,
+    IconData icon,
+    Color color, [
+    String? subtitle,
+  ]) {
+    return SizedBox(
+      width: 220,
+      child: _StatCard(
+        title: title,
+        value: value,
+        icon: icon,
+        color: color,
+        subtitle: subtitle,
       ),
     );
   }
