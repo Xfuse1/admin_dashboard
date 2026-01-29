@@ -47,17 +47,10 @@ class _SettingsPageState extends State<SettingsPage>
   void initState() {
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
-    _tabController.addListener(_onTabChanged);
-  }
-
-  void _onTabChanged() {
-    if (_tabController.indexIsChanging) return;
-    context.read<SettingsBloc>().add(SwitchSettingsTab(_tabController.index));
   }
 
   @override
   void dispose() {
-    _tabController.removeListener(_onTabChanged);
     _tabController.dispose();
     super.dispose();
   }
@@ -389,13 +382,11 @@ class _SettingsPageState extends State<SettingsPage>
                     );
 
                     if (isEditing) {
-                      this
-                          .context
+                      context
                           .read<SettingsBloc>()
                           .add(UpdateDeliveryZoneEvent(newZone));
                     } else {
-                      this
-                          .context
+                      context
                           .read<SettingsBloc>()
                           .add(AddDeliveryZoneEvent(newZone));
                     }
@@ -425,8 +416,7 @@ class _SettingsPageState extends State<SettingsPage>
             ),
             ElevatedButton(
               onPressed: () {
-                this
-                    .context
+                context
                     .read<SettingsBloc>()
                     .add(DeleteDeliveryZoneEvent(zoneId));
                 Navigator.pop(context);

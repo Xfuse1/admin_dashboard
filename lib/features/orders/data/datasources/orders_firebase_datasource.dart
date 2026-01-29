@@ -35,31 +35,9 @@ class OrdersFirebaseDataSource implements OrdersDataSource {
     int limit = 20,
     String? lastOrderId,
   }) async {
-    Query<Map<String, dynamic>> query = _ordersCollection;
-
-    // Deliverzler uses 'deliveryStatus' field
-    if (status != null) {
-      query = query.where(OrderFields.deliveryStatus, isEqualTo: status.value);
-    }
-    // Note: storeId not used in Deliverzler structure, kept for compatibility
-    if (storeId != null) {
-      query = query.where('storeId', isEqualTo: storeId);
-    }
-    // Deliverzler uses 'deliveryId' for driver
-    if (driverId != null) {
-      query = query.where(OrderFields.deliveryId, isEqualTo: driverId);
-    }
-    // Deliverzler uses 'date' as Unix timestamp (milliseconds)
-    if (fromDate != null) {
-      query = query.where(OrderFields.date,
-          isGreaterThanOrEqualTo: fromDate.millisecondsSinceEpoch);
-    }
-    if (toDate != null) {
-      query = query.where(OrderFields.date,
-          isLessThanOrEqualTo: toDate.millisecondsSinceEpoch);
-    }
-
-    query = query.orderBy(OrderFields.date, descending: true).limit(limit);
+    // 1. Fetch orders ordered by date
+    Query<Map<String, dynamic>> query = 
+        _ordersCollection.orderBy(OrderFields.date, descending: true).limit(100);
 
     if (lastOrderId != null) {
       final lastDoc = await _ordersCollection.doc(lastOrderId).get();
@@ -69,10 +47,38 @@ class OrdersFirebaseDataSource implements OrdersDataSource {
     }
 
     final snapshot = await query.get();
-
-    return snapshot.docs.map((doc) {
+    
+    // 2. Map Key-Value to OrderModel
+    var orders = snapshot.docs.map((doc) {
       return OrderModel.fromDeliverzler(doc.data(), documentId: doc.id);
     }).toList();
+
+    // 3. Apply filters in Memory (Client-side filtering)
+    // This avoids needing complex composite indexes for every combination
+    if (status != null) {
+      orders = orders.where((o) => o.status == status).toList();
+    }
+
+    if (storeId != null) {
+      orders = orders.where((o) => o.storeId == storeId).toList();
+    }
+
+    if (driverId != null) {
+      orders = orders.where((o) => o.driverId == driverId).toList();
+    }
+
+    if (fromDate != null) {
+      orders = orders.where((o) => o.createdAt.isAfter(fromDate)).toList();
+    }
+
+    if (toDate != null) {
+      // Add one day to include the end date fully
+      final end = toDate.add(const Duration(days: 1)).subtract(const Duration(seconds: 1));
+      orders = orders.where((o) => o.createdAt.isBefore(end)).toList();
+    }
+
+    // 4. Return limited results
+    return orders.take(limit).toList();
   }
 
   @override

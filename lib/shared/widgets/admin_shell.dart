@@ -192,11 +192,5 @@ List<SidebarItem> getSidebarItems() {
       activeIcon: Icons.people,
       route: AppRoutes.accounts,
     ),
-    SidebarItem(
-      label: AppStrings.settings,
-      icon: Icons.settings_outlined,
-      activeIcon: Icons.settings,
-      route: AppRoutes.settings,
-    ),
   ];
 }

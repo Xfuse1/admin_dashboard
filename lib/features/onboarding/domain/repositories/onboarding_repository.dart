@@ -37,6 +37,14 @@ class OnboardingStats {
   final int rejectedRequests;
   final int pendingStoreRequests;
   final int pendingDriverRequests;
+  
+  // Growth rates (percentage change compared to previous period)
+  final double? totalRequestsGrowth;
+  final double? pendingRequestsGrowth;
+  final double? approvedRequestsGrowth;
+  final double? rejectedRequestsGrowth;
+  final double? pendingStoreRequestsGrowth;
+  final double? pendingDriverRequestsGrowth;
 
   const OnboardingStats({
     required this.totalRequests,
@@ -45,5 +53,11 @@ class OnboardingStats {
     required this.rejectedRequests,
     required this.pendingStoreRequests,
     required this.pendingDriverRequests,
+    this.totalRequestsGrowth,
+    this.pendingRequestsGrowth,
+    this.approvedRequestsGrowth,
+    this.rejectedRequestsGrowth,
+    this.pendingStoreRequestsGrowth,
+    this.pendingDriverRequestsGrowth,
   });
 }

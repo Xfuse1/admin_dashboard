@@ -47,14 +47,6 @@ import '../../features/onboarding/domain/usecases/onboarding_usecases.dart';
 import '../../features/onboarding/presentation/bloc/onboarding_bloc.dart';
 
 // Settings Feature
-import '../../features/settings/data/datasources/settings_datasource.dart';
-import '../../features/settings/data/datasources/settings_mock_datasource.dart';
-import '../../features/settings/data/datasources/settings_firebase_datasource.dart';
-import '../../features/settings/data/repositories/settings_repository_impl.dart';
-import '../../features/settings/domain/repositories/settings_repository.dart';
-import '../../features/settings/domain/usecases/settings_usecases.dart';
-import '../../features/settings/presentation/bloc/settings_bloc.dart';
-
 // Vendors Feature
 import '../../features/vendors/data/datasources/vendors_datasource.dart';
 import '../../features/vendors/data/datasources/vendors_mock_datasource.dart';
@@ -115,11 +107,6 @@ Future<void> initDependencies() async {
   // 📝 ONBOARDING FEATURE
   // ============================================
   await _initOnboardingDependencies();
-
-  // ============================================
-  // ⚙️ SETTINGS FEATURE
-  // ============================================
-  await _initSettingsDependencies();
 }
 
 /// Initializes Auth feature dependencies.
@@ -314,49 +301,6 @@ Future<void> _initOnboardingDependencies() async {
       rejectRequest: sl(),
       markUnderReview: sl(),
       getStats: sl(),
-    ),
-  );
-}
-
-/// Initializes Settings feature dependencies.
-Future<void> _initSettingsDependencies() async {
-  // Data Sources
-  if (useMockData) {
-    sl.registerLazySingleton<SettingsDataSource>(
-      () => SettingsMockDataSource(),
-    );
-  } else {
-    sl.registerLazySingleton<SettingsDataSource>(
-      () => SettingsFirebaseDataSource(),
-    );
-  }
-
-  // Repository
-  sl.registerLazySingleton<SettingsRepository>(
-    () => SettingsRepositoryImpl(sl()),
-  );
-
-  // Use Cases
-  sl.registerLazySingleton(() => GetSettings(sl()));
-  sl.registerLazySingleton(() => UpdateGeneralSettings(sl()));
-  sl.registerLazySingleton(() => UpdateDeliverySettings(sl()));
-  sl.registerLazySingleton(() => UpdateCommissionSettings(sl()));
-  sl.registerLazySingleton(() => UpdateNotificationSettings(sl()));
-  sl.registerLazySingleton(() => AddDeliveryZone(sl()));
-  sl.registerLazySingleton(() => UpdateDeliveryZone(sl()));
-  sl.registerLazySingleton(() => DeleteDeliveryZone(sl()));
-
-  // BLoC
-  sl.registerFactory(
-    () => SettingsBloc(
-      getSettings: sl(),
-      updateGeneralSettings: sl(),
-      updateDeliverySettings: sl(),
-      updateCommissionSettings: sl(),
-      updateNotificationSettings: sl(),
-      addDeliveryZone: sl(),
-      updateDeliveryZone: sl(),
-      deleteDeliveryZone: sl(),
     ),
   );
 }

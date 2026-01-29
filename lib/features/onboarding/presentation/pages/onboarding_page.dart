@@ -27,7 +27,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
     super.initState();
     context.read<OnboardingBloc>()
       ..add(const LoadOnboardingStats())
-      ..add(const LoadOnboardingRequests());
+      // Explicitly load all requests (clear filters) by default
+      ..add(const LoadOnboardingRequests(type: null, status: null));
   }
 
   @override
@@ -55,6 +56,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
         }
       },
       builder: (context, state) {
+        final effectiveState = _getEffectiveState(state);
+        
         return Scaffold(
           body: Column(
             children: [
@@ -62,21 +65,31 @@ class _OnboardingPageState extends State<OnboardingPage> {
               _buildHeader(context, deviceType),
 
               // Stats Cards
-              if (state is OnboardingLoaded && state.stats != null)
-                OnboardingStatsCards(stats: state.stats!),
+              if (effectiveState != null && effectiveState.stats != null)
+                OnboardingStatsCards(stats: effectiveState.stats!),
 
               // Filters
-              _buildFilters(context, state),
+              _buildFilters(context, effectiveState),
 
               // Content
               Expanded(
-                child: _buildContent(context, state, deviceType),
+                child: _buildContent(context, state, effectiveState, deviceType),
               ),
             ],
           ),
         );
       },
     );
+  }
+
+  OnboardingLoaded? _getEffectiveState(OnboardingState state) {
+    if (state is OnboardingLoaded) return state;
+    if (state is OnboardingActionSuccess) return state.updatedState;
+    if (state is OnboardingActionInProgress) return state.previousState;
+    if (state is OnboardingError && state.previousState is OnboardingLoaded) {
+      return state.previousState as OnboardingLoaded;
+    }
+    return null;
   }
 
   Widget _buildHeader(BuildContext context, DeviceType deviceType) {
@@ -111,74 +124,85 @@ class _OnboardingPageState extends State<OnboardingPage> {
     );
   }
 
-  Widget _buildFilters(BuildContext context, OnboardingState state) {
+  Widget _buildFilters(BuildContext context, OnboardingLoaded? state) {
     OnboardingType? currentType;
     OnboardingStatus? currentStatus;
 
-    if (state is OnboardingLoaded) {
+    if (state != null) {
       currentType = state.filterType;
       currentStatus = state.filterStatus;
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        children: [
-          // Type Filter
-          Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _buildFilterChip(
-                    context,
-                    label: 'المتاجر',
-                    icon: Iconsax.shop,
-                    isSelected: currentType == OnboardingType.store,
-                    onTap: () => context
-                        .read<OnboardingBloc>()
-                        .add(const FilterByType(OnboardingType.store)),
-                  ),
-                  const SizedBox(width: 8),
-                  _buildFilterChip(
-                    context,
-                    label: 'السائقين',
-                    icon: Iconsax.car,
-                    isSelected: currentType == OnboardingType.driver,
-                    onTap: () => context
-                        .read<OnboardingBloc>()
-                        .add(const FilterByType(OnboardingType.driver)),
-                  ),
-                  const SizedBox(width: 16),
-                  Container(
-                    width: 1,
-                    height: 24,
-                    color: AppColors.border,
-                  ),
-                  const SizedBox(width: 16),
-                  // Status Chips
-                  ...OnboardingStatus.values
-                      .where((status) => status != OnboardingStatus.underReview)
-                      .map((status) {
-                    return Padding(
-                      padding: const EdgeInsets.only(left: 8),
-                      child: _buildFilterChip(
-                        context,
-                        label: status.arabicName,
-                        isSelected: currentStatus == status,
-                        color: _getStatusColor(status),
-                        onTap: () =>
-                            context.read<OnboardingBloc>().add(FilterByStatus(
-                                  currentStatus == status ? null : status,
-                                )),
+      width: double.infinity,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        clipBehavior: Clip.none,
+        child: Row(
+          children: [
+            // Type Filter
+            Row(
+              children: [
+                _buildFilterChip(
+                  context,
+                  label: 'المتاجر',
+                  icon: Iconsax.shop,
+                  isSelected: currentType == OnboardingType.store,
+                  color: Colors.purple,
+                  onTap: () => context.read<OnboardingBloc>().add(
+                        FilterByType(
+                          currentType == OnboardingType.store
+                              ? null
+                              : OnboardingType.store,
+                        ),
                       ),
-                    );
-                  }),
-                ],
-              ),
+                ),
+                const SizedBox(width: 8),
+                _buildFilterChip(
+                  context,
+                  label: 'السائقين',
+                  icon: Iconsax.car,
+                  isSelected: currentType == OnboardingType.driver,
+                  color: Colors.teal,
+                  onTap: () => context.read<OnboardingBloc>().add(
+                        FilterByType(
+                          currentType == OnboardingType.driver
+                              ? null
+                              : OnboardingType.driver,
+                        ),
+                      ),
+                ),
+                const SizedBox(width: 16),
+                Container(
+                  width: 1,
+                  height: 24,
+                  color: AppColors.border,
+                ),
+                const SizedBox(width: 16),
+                // Status Chips
+                ...OnboardingStatus.values
+                    .where((status) => status != OnboardingStatus.underReview)
+                    .map((status) {
+                  return Padding(
+                    padding: const EdgeInsets.only(left: 8),
+                    child: _buildFilterChip(
+                      context,
+                      label: status.arabicName,
+                      isSelected: currentStatus == status,
+                      color: _getStatusColor(status),
+                      onTap: () => context.read<OnboardingBloc>().add(
+                            FilterByStatus(
+                              currentStatus == status ? null : status,
+                            ),
+                          ),
+                    ),
+                  );
+                }),
+              ],
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -194,47 +218,48 @@ class _OnboardingPageState extends State<OnboardingPage> {
     final chipColor = color ?? AppColors.primary;
 
     return FilterChip(
-      label: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (icon != null) ...[
-            Icon(
+      avatar: icon != null
+          ? Icon(
               icon,
-              size: 16,
+              size: 20,
               color: isSelected ? Colors.white : chipColor,
-            ),
-            const SizedBox(width: 4),
-          ],
-          Text(label),
-        ],
-      ),
+            )
+          : null,
+      label: Text(label),
       selected: isSelected,
       onSelected: (_) => onTap(),
       selectedColor: chipColor,
       backgroundColor: chipColor.withValues(alpha: 0.1),
       labelStyle: TextStyle(
-        color: isSelected ? Colors.white : chipColor,
+        color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.9),
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        fontSize: 13,
+        height: 1.4, // Optimal line height for Arabic to avoid clipping
+      ),
+      side: BorderSide(
+        color: isSelected ? chipColor : chipColor.withValues(alpha: 0.5),
       ),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(20),
-        side: BorderSide(
-          color: isSelected ? chipColor : chipColor.withValues(alpha: 0.3),
-        ),
       ),
       showCheckmark: false,
+      // Fine-tuned padding to center text visually considering Arabic metrics
+      labelPadding: const EdgeInsets.only(left: 6, right: 6, top: 0, bottom: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
     );
   }
 
   Widget _buildContent(
     BuildContext context,
     OnboardingState state,
+    OnboardingLoaded? effectiveState,
     DeviceType deviceType,
   ) {
     if (state is OnboardingLoading) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (state is OnboardingError) {
+    if (state is OnboardingError && effectiveState == null) {
       logger.error('UI Onboarding Error Displayed: ${state.message}');
       return Center(
         child: Column(
@@ -265,11 +290,11 @@ class _OnboardingPageState extends State<OnboardingPage> {
       );
     }
 
-    if (state is! OnboardingLoaded) {
+    if (effectiveState == null) {
       return const Center(child: CircularProgressIndicator());
     }
 
-    if (state.requests.isEmpty) {
+    if (effectiveState.requests.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -281,7 +306,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
             ),
             const SizedBox(height: 16),
             Text(
-              'لا توجد طلبات',
+              'لا توجد طلبات حالياً',
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     color: AppColors.textSecondary,
                   ),
@@ -301,8 +326,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
       onNotification: (notification) {
         if (notification is ScrollEndNotification &&
             notification.metrics.extentAfter < 200 &&
-            state.hasMore &&
-            !state.isLoadingMore) {
+            effectiveState.hasMore &&
+            !effectiveState.isLoadingMore) {
           context.read<OnboardingBloc>().add(const LoadMoreRequests());
         }
         return false;
@@ -316,13 +341,14 @@ class _OnboardingPageState extends State<OnboardingPage> {
             crossAxisSpacing: 16,
             mainAxisExtent: deviceType == DeviceType.mobile ? 260 : 280,
           ),
-          itemCount: state.requests.length + (state.isLoadingMore ? 1 : 0),
+          itemCount:
+              effectiveState.requests.length + (effectiveState.isLoadingMore ? 1 : 0),
           itemBuilder: (context, index) {
-            if (index >= state.requests.length) {
+            if (index >= effectiveState.requests.length) {
               return const Center(child: CircularProgressIndicator());
             }
 
-            final request = state.requests[index];
+            final request = effectiveState.requests[index];
             return OnboardingRequestCard(
               request: request,
               onTap: () => _showRequestDetails(context, request),
@@ -343,14 +369,14 @@ class _OnboardingPageState extends State<OnboardingPage> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => RequestDetailsSheet(
+      builder: (sheetContext) => RequestDetailsSheet(
         request: request,
         onApprove: () {
-          Navigator.pop(context);
+          Navigator.pop(sheetContext);
           _showApproveDialog(context, request);
         },
         onReject: () {
-          Navigator.pop(context);
+          Navigator.pop(sheetContext);
           _showRejectDialog(context, request);
         },
       ),

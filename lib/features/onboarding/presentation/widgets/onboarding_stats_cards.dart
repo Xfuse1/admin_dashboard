@@ -28,6 +28,7 @@ class OnboardingStatsCards extends StatelessWidget {
             iconColor: Colors.blue,
             title: 'إجمالي الطلبات',
             value: stats.totalRequests.toString(),
+            growthRate: stats.totalRequestsGrowth,
           ),
           _buildStatCard(
             context,
@@ -35,6 +36,7 @@ class OnboardingStatsCards extends StatelessWidget {
             iconColor: Colors.orange,
             title: 'قيد الانتظار',
             value: stats.pendingRequests.toString(),
+            growthRate: stats.pendingRequestsGrowth,
           ),
           _buildStatCard(
             context,
@@ -42,6 +44,7 @@ class OnboardingStatsCards extends StatelessWidget {
             iconColor: AppColors.success,
             title: 'مقبولة',
             value: stats.approvedRequests.toString(),
+            growthRate: stats.approvedRequestsGrowth,
           ),
           _buildStatCard(
             context,
@@ -49,6 +52,7 @@ class OnboardingStatsCards extends StatelessWidget {
             iconColor: AppColors.error,
             title: 'مرفوضة',
             value: stats.rejectedRequests.toString(),
+            growthRate: stats.rejectedRequestsGrowth,
           ),
           _buildStatCard(
             context,
@@ -56,6 +60,7 @@ class OnboardingStatsCards extends StatelessWidget {
             iconColor: Colors.purple,
             title: 'متاجر معلقة',
             value: stats.pendingStoreRequests.toString(),
+            growthRate: stats.pendingStoreRequestsGrowth,
           ),
           _buildStatCard(
             context,
@@ -63,6 +68,7 @@ class OnboardingStatsCards extends StatelessWidget {
             iconColor: Colors.teal,
             title: 'سائقين معلقين',
             value: stats.pendingDriverRequests.toString(),
+            growthRate: stats.pendingDriverRequestsGrowth,
           ),
         ],
       ),
@@ -75,12 +81,17 @@ class OnboardingStatsCards extends StatelessWidget {
     required Color iconColor,
     required String title,
     required String value,
+    double? growthRate, // Optional growth rate percentage
   }) {
     final theme = Theme.of(context);
+    final hasGrowth = growthRate != null;
+    final isPositive = hasGrowth && growthRate > 0;
+    final isNegative = hasGrowth && growthRate < 0;
+    
     return Container(
-      width: 140,
+      width: 160,
       margin: const EdgeInsets.only(left: 12),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: iconColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(16),
@@ -109,14 +120,65 @@ class OnboardingStatsCards extends StatelessWidget {
               ),
             ],
           ),
-          AutoSizeText(
-            title,
-            style: theme.textTheme.labelSmall?.copyWith(
-              color: AppColors.textSecondary,
-            ),
-            maxLines: 1,
-            minFontSize: 8,
-            overflow: TextOverflow.ellipsis,
+          Row(
+            children: [
+              Expanded(
+                child: AutoSizeText(
+                  title,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+                  maxLines: 1,
+                  minFontSize: 8,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              if (hasGrowth) ...[
+                const SizedBox(width: 4),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: isPositive 
+                        ? AppColors.success.withValues(alpha: 0.1)
+                        : isNegative
+                            ? AppColors.error.withValues(alpha: 0.1)
+                            : Colors.grey.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isPositive 
+                            ? Iconsax.arrow_up_3
+                            : isNegative
+                                ? Iconsax.arrow_down
+                                : Iconsax.minus,
+                        size: 10,
+                        color: isPositive 
+                            ? AppColors.success
+                            : isNegative
+                                ? AppColors.error
+                                : Colors.grey,
+                      ),
+                      const SizedBox(width: 2),
+                      Text(
+                        '${growthRate.abs().toStringAsFixed(1)}%',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: isPositive 
+                              ? AppColors.success
+                              : isNegative
+                                  ? AppColors.error
+                                  : Colors.grey,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 9,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
           ),
         ],
       ),

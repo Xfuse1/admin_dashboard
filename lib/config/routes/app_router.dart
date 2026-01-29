@@ -7,7 +7,8 @@ import '../../core/utils/app_logger.dart';
 import '../../config/di/injection_container.dart';
 import '../../core/utils/go_router_refresh_stream.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
-import '../../features/auth/presentation/bloc/auth_state.dart' as auth_bloc_state;
+import '../../features/auth/presentation/bloc/auth_state.dart'
+    as auth_bloc_state;
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/orders/presentation/bloc/orders_bloc.dart';
@@ -19,9 +20,6 @@ import '../../features/accounts/presentation/pages/accounts_page.dart';
 import '../../features/onboarding/presentation/bloc/onboarding_bloc.dart';
 import '../../features/onboarding/presentation/bloc/onboarding_event.dart';
 import '../../features/onboarding/presentation/pages/onboarding_page.dart';
-import '../../features/settings/presentation/bloc/settings_bloc.dart';
-import '../../features/settings/presentation/bloc/settings_event.dart';
-import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/vendors/presentation/pages/vendors_page.dart';
 import '../../shared/widgets/admin_shell.dart';
 
@@ -38,7 +36,6 @@ abstract final class AppRoutes {
   static const String vendors = '/vendors';
   static const String vendorDetails = '/vendors/:id';
   static const String accounts = '/accounts';
-  static const String settings = '/settings';
 }
 
 /// Application router configuration.
@@ -57,7 +54,7 @@ final class AppRouter {
       refreshListenable: GoRouterRefreshStream(authBloc.stream),
       redirect: (context, state) {
         final authState = authBloc.state;
-        
+
         // Don't redirect while checking auth status
         if (authState is auth_bloc_state.AuthInitial ||
             authState is auth_bloc_state.AuthLoading) {
@@ -137,8 +134,7 @@ final class AppRouter {
               pageBuilder: (context, state) => CustomTransitionPage(
                 key: state.pageKey,
                 child: BlocProvider(
-                  create: (_) =>
-                      sl<OnboardingBloc>()..add(const LoadOnboardingRequests()),
+                  create: (_) => sl<OnboardingBloc>(),
                   child: const OnboardingPage(),
                 ),
                 transitionsBuilder: _fadeTransition,
@@ -176,19 +172,6 @@ final class AppRouter {
                 child: BlocProvider(
                   create: (_) => sl<AccountsBloc>()..add(const LoadCustomers()),
                   child: const AccountsPage(),
-                ),
-                transitionsBuilder: _fadeTransition,
-              ),
-            ),
-
-            // Settings
-            GoRoute(
-              path: AppRoutes.settings,
-              pageBuilder: (context, state) => CustomTransitionPage(
-                key: state.pageKey,
-                child: BlocProvider(
-                  create: (_) => sl<SettingsBloc>()..add(const LoadSettings()),
-                  child: const SettingsPage(),
                 ),
                 transitionsBuilder: _fadeTransition,
               ),

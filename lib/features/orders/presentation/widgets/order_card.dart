@@ -163,11 +163,14 @@ class OrderCard extends StatelessWidget {
                   color: AppColors.textMuted,
                 ),
                 const SizedBox(width: 4),
-                Text(
-                  order.driverName!,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppColors.textMuted,
-                      ),
+                Flexible(
+                  child: Text(
+                    order.driverName!,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textMuted,
+                        ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ],

@@ -17,9 +17,19 @@ class OrderFiltersSheet extends StatefulWidget {
 
 class _OrderFiltersSheetState extends State<OrderFiltersSheet> {
   DateTimeRange? _dateRange;
+  OrdersBloc? _ordersBloc;
 
   @override
   Widget build(BuildContext context) {
+    // Capture bloc at build time safely
+    if (_ordersBloc == null) {
+      try {
+        _ordersBloc = context.read<OrdersBloc>();
+      } catch (e) {
+        // Bloc not available in this context, will try again later
+      }
+    }
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -188,14 +198,14 @@ class _OrderFiltersSheetState extends State<OrderFiltersSheet> {
       _dateRange = null;
     });
     Navigator.of(context).pop();
-    context.read<OrdersBloc>().add(const LoadOrders());
+    _ordersBloc?.add(const LoadOrders());
   }
 
   void _applyFilters() {
     Navigator.of(context).pop();
 
     if (_dateRange != null) {
-      context.read<OrdersBloc>().add(FilterOrdersByDate(
+      _ordersBloc?.add(FilterOrdersByDate(
             fromDate: _dateRange!.start,
             toDate: _dateRange!.end,
           ));

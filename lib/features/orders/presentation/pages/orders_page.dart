@@ -87,24 +87,30 @@ class _OrdersPageState extends State<OrdersPage>
 
   Widget _buildMobileLayout() {
     return Scaffold(
-      body: Column(
-        children: [
-          _buildHeader(),
-          _buildTabBar(),
-          Expanded(child: _buildOrdersList()),
-        ],
+      body: SingleChildScrollView(
+        controller: _scrollController,
+        child: Column(
+          children: [
+            _buildHeader(),
+            _buildTabBar(),
+            _buildOrdersList(),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildTabletLayout() {
     return Scaffold(
-      body: Column(
-        children: [
-          _buildHeader(),
-          _buildTabBar(),
-          Expanded(child: _buildOrdersList()),
-        ],
+      body: SingleChildScrollView(
+        controller: _scrollController,
+        child: Column(
+          children: [
+            _buildHeader(),
+            _buildTabBar(),
+            _buildOrdersList(),
+          ],
+        ),
       ),
     );
   }
@@ -112,16 +118,20 @@ class _OrdersPageState extends State<OrdersPage>
   Widget _buildDesktopLayout() {
     return Scaffold(
       body: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Main content
           Expanded(
             flex: 2,
-            child: Column(
-              children: [
-                _buildHeader(),
-                _buildTabBar(),
-                Expanded(child: _buildOrdersList()),
-              ],
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              child: Column(
+                children: [
+                  _buildHeader(),
+                  _buildTabBar(),
+                  _buildOrdersList(), // No Expanded here
+                ],
+              ),
             ),
           ),
 
@@ -299,6 +309,8 @@ class _OrdersPageState extends State<OrdersPage>
   Widget _buildLoadingState() {
     return ListView.builder(
       padding: const EdgeInsets.all(AppConstants.spacingLg),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       itemCount: 6,
       itemBuilder: (context, index) {
         return GlassCard(
@@ -355,33 +367,28 @@ class _OrdersPageState extends State<OrdersPage>
 
     final crossAxisCount = isDesktop ? 2 : (isTablet ? 2 : 1);
 
-    return RefreshIndicator(
-      onRefresh: () async {
-        context.read<OrdersBloc>().add(const LoadOrders(refresh: true));
-        await Future.delayed(const Duration(seconds: 1));
-      },
-      child: GridView.builder(
-        controller: _scrollController,
-        padding: const EdgeInsets.all(AppConstants.spacingLg),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: crossAxisCount,
-          mainAxisSpacing: AppConstants.spacingMd,
-          crossAxisSpacing: AppConstants.spacingMd,
-          mainAxisExtent: 205,
-        ),
-        itemCount: orders.length,
-        itemBuilder: (context, index) {
-          final order = orders[index];
-          return OrderCard(
-            order: order,
-            onTap: () => _onOrderTap(order),
-            onStatusChange: (status) => _onOrderStatusChange(order.id, status),
-          ).animate().fadeIn(
-                delay: Duration(milliseconds: index * 50),
-                duration: 300.ms,
-              );
-        },
+    return GridView.builder(
+      padding: const EdgeInsets.all(AppConstants.spacingLg),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: crossAxisCount,
+        mainAxisSpacing: AppConstants.spacingMd,
+        crossAxisSpacing: AppConstants.spacingMd,
+        mainAxisExtent: 205,
       ),
+      itemCount: orders.length,
+      itemBuilder: (context, index) {
+        final order = orders[index];
+        return OrderCard(
+          order: order,
+          onTap: () => _onOrderTap(order),
+          onStatusChange: (status) => _onOrderStatusChange(order.id, status),
+        ).animate().fadeIn(
+              delay: Duration(milliseconds: index * 50),
+              duration: 300.ms,
+            );
+      },
     );
   }
 
@@ -408,11 +415,15 @@ class _OrdersPageState extends State<OrdersPage>
   }
 
   void _showFiltersSheet(BuildContext context) {
+    final ordersBloc = context.read<OrdersBloc>();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => const OrderFiltersSheet(),
+      builder: (_) => BlocProvider.value(
+        value: ordersBloc,
+        child: const OrderFiltersSheet(),
+      ),
     );
   }
 }
