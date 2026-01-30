@@ -114,12 +114,17 @@ class VendorCard extends StatelessWidget {
                             color: AppColors.textTertiary,
                           ),
                           const SizedBox(width: 4),
-                          Text(
-                            vendor.address.city,
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: AppColors.textTertiary,
-                                    ),
+                          Flexible(
+                            child: Text(
+                              vendor.address.city,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: AppColors.textTertiary,
+                                  ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ],
                       ),
@@ -127,49 +132,59 @@ class VendorCard extends StatelessWidget {
                       Row(
                         children: [
                           // Rating
-                          _InfoChip(
-                            icon: Icons.star,
-                            iconColor: AppColors.warning,
-                            label: vendor.rating.toStringAsFixed(1),
-                            sublabel: '(${vendor.totalRatings})',
+                          Flexible(
+                            child: _InfoChip(
+                              icon: Icons.star,
+                              iconColor: AppColors.warning,
+                              label: vendor.rating.toStringAsFixed(1),
+                              sublabel: '(${vendor.totalRatings})',
+                            ),
                           ),
                           const SizedBox(width: AppConstants.spacingMd),
                           // Orders
-                          _InfoChip(
-                            icon: Icons.shopping_bag_outlined,
-                            label: NumberFormat.compact()
-                                .format(vendor.totalOrders),
-                            sublabel: 'طلب',
+                          Flexible(
+                            child: _InfoChip(
+                              icon: Icons.shopping_bag_outlined,
+                              label: NumberFormat.compact()
+                                  .format(vendor.totalOrders),
+                              sublabel: 'طلب',
+                            ),
                           ),
                           const SizedBox(width: AppConstants.spacingMd),
                           // Revenue
-                          _InfoChip(
-                            icon: Icons.attach_money,
-                            iconColor: AppColors.success,
-                            label: NumberFormat.compact()
-                                .format(vendor.totalRevenue),
+                          Flexible(
+                            child: _InfoChip(
+                              icon: Icons.attach_money,
+                              iconColor: AppColors.success,
+                              label: NumberFormat.compact()
+                                  .format(vendor.totalRevenue),
+                            ),
                           ),
-                          const Spacer(),
+                          const SizedBox(width: AppConstants.spacingMd),
                           // Commission
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppConstants.spacingSm,
-                              vertical: AppConstants.spacingXs,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.background,
-                              borderRadius:
-                                  BorderRadius.circular(AppConstants.radiusSm),
-                            ),
-                            child: Text(
-                              '${vendor.commissionRate.toStringAsFixed(0)}% عمولة',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    color: AppColors.textSecondary,
-                                    fontWeight: FontWeight.w500,
-                                  ),
+                          Flexible(
+                            fit: FlexFit.loose,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: AppConstants.spacingSm,
+                                vertical: AppConstants.spacingXs,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.background,
+                                borderRadius: BorderRadius.circular(
+                                    AppConstants.radiusSm),
+                              ),
+                              child: Text(
+                                '${vendor.commissionRate.toStringAsFixed(0)}% عمولة',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: AppColors.textSecondary,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ),
                         ],
@@ -371,20 +386,26 @@ class _InfoChip extends StatelessWidget {
           color: iconColor ?? AppColors.textTertiary,
         ),
         const SizedBox(width: 4),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
+        Flexible(
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
         if (sublabel != null) ...[
           const SizedBox(width: 2),
-          Text(
-            sublabel!,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textTertiary,
-                ),
+          Flexible(
+            child: Text(
+              sublabel!,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ],

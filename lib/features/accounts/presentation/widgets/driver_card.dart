@@ -43,9 +43,10 @@ class DriverCard extends StatelessWidget {
                   CircleAvatar(
                     radius: 28,
                     backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                    backgroundImage: driver.imageUrl != null && driver.imageUrl!.isNotEmpty
-                        ? CachedNetworkImageProvider(driver.imageUrl!)
-                        : null,
+                    backgroundImage:
+                        driver.imageUrl != null && driver.imageUrl!.isNotEmpty
+                            ? CachedNetworkImageProvider(driver.imageUrl!)
+                            : null,
                     child: (driver.imageUrl == null || driver.imageUrl!.isEmpty)
                         ? Text(
                             driver.name.isNotEmpty ? driver.name[0] : '؟',
@@ -102,7 +103,11 @@ class DriverCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        _buildStatusBadge(context),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          fit: FlexFit.loose,
+                          child: _buildStatusBadge(context),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -116,29 +121,36 @@ class DriverCard extends StatelessWidget {
                           color: AppColors.textSecondary,
                         ),
                         const SizedBox(width: 4),
-                        Text(
-                          driver.vehicleType ?? 'غير محدد',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
+                        Flexible(
+                          child: Text(
+                            driver.vehicleType ?? 'غير محدد',
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        _buildStatChip(
-                          context,
-                          icon: Iconsax.truck,
-                          label: '${driver.totalDeliveries} توصيلة',
+                        Flexible(
+                          child: _buildStatChip(
+                            context,
+                            icon: Iconsax.truck,
+                            label: '${driver.totalDeliveries} توصيلة',
+                          ),
                         ),
                         const SizedBox(width: 12),
-                        _buildStatChip(
-                          context,
-                          icon: Iconsax.wallet_3,
-                          label:
-                              '${driver.walletBalance.toStringAsFixed(0)} ر.س',
+                        Flexible(
+                          child: _buildStatChip(
+                            context,
+                            icon: Iconsax.wallet_3,
+                            label:
+                                '${driver.walletBalance.toStringAsFixed(0)} ر.س',
+                          ),
                         ),
                       ],
                     ),
@@ -221,6 +233,7 @@ class DriverCard extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                     fontSize: 10,
                   ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         Container(
@@ -238,6 +251,7 @@ class DriverCard extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                   fontSize: 10,
                 ),
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],
@@ -254,17 +268,23 @@ class DriverCard extends StatelessWidget {
           color: Colors.amber,
         ),
         const SizedBox(width: 2),
-        Text(
-          driver.rating.toStringAsFixed(1),
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+        Flexible(
+          child: Text(
+            driver.rating.toStringAsFixed(1),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
-        Text(
-          ' (${driver.totalRatings})',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: AppColors.textSecondary,
-              ),
+        Flexible(
+          child: Text(
+            ' (${driver.totalRatings})',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
       ],
     );
@@ -286,11 +306,14 @@ class DriverCard extends StatelessWidget {
         children: [
           Icon(icon, size: 14, color: AppColors.textSecondary),
           const SizedBox(width: 4),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+          Flexible(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),

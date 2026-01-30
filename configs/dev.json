@@ -1,0 +1,8 @@
+{
+    "USE_MOCK_DATA": false,
+    "ENABLE_LOGGING": true,
+    "ENABLE_ANALYTICS": false,
+    "APP_ENV": "dev",
+    "API_BASE_URL": "",
+    "FIREBASE_PROJECT_ID": "cveeerz-5139s"
+}

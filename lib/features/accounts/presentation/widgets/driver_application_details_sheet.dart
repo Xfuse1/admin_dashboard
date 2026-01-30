@@ -71,11 +71,16 @@ class DriverApplicationDetailsSheet extends StatelessWidget {
                                 .textTheme
                                 .bodySmall
                                 ?.copyWith(color: AppColors.textSecondary),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
                     ),
-                    _buildStatusBadge(context),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      fit: FlexFit.loose,
+                      child: _buildStatusBadge(context),
+                    ),
                   ],
                 ),
               ),
@@ -188,11 +193,14 @@ class DriverApplicationDetailsSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
-          Text(
-            application.status.arabicName,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.w600,
+          Flexible(
+            child: Text(
+              application.status.arabicName,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w600,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

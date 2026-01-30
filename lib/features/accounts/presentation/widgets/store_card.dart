@@ -83,7 +83,11 @@ class StoreCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        _buildStatusBadges(context),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          fit: FlexFit.loose,
+                          child: _buildStatusBadges(context),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -91,29 +95,36 @@ class StoreCard extends StatelessWidget {
                       children: [
                         _buildRating(context),
                         const SizedBox(width: 12),
-                        Text(
-                          _getStoreTypeName(),
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
+                        Flexible(
+                          child: Text(
+                            _getStoreTypeName(),
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        _buildStatChip(
-                          context,
-                          icon: Iconsax.shopping_cart,
-                          label: '${store.totalOrders} طلب',
+                        Flexible(
+                          child: _buildStatChip(
+                            context,
+                            icon: Iconsax.shopping_cart,
+                            label: '${store.totalOrders} طلب',
+                          ),
                         ),
                         const SizedBox(width: 12),
-                        _buildStatChip(
-                          context,
-                          icon: Iconsax.money,
-                          label:
-                              '${(store.commissionRate * 100).toInt()}% عمولة',
+                        Flexible(
+                          child: _buildStatChip(
+                            context,
+                            icon: Iconsax.money,
+                            label:
+                                '${(store.commissionRate * 100).toInt()}% عمولة',
+                          ),
                         ),
                       ],
                     ),
@@ -189,12 +200,15 @@ class StoreCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 4),
-                Text(
-                  'مفتوح',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: AppColors.success,
-                        fontSize: 10,
-                      ),
+                Flexible(
+                  child: Text(
+                    'مفتوح',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: AppColors.success,
+                          fontSize: 10,
+                        ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
             ),
@@ -214,6 +228,7 @@ class StoreCard extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                   fontSize: 10,
                 ),
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],
@@ -230,17 +245,23 @@ class StoreCard extends StatelessWidget {
           color: Colors.amber,
         ),
         const SizedBox(width: 2),
-        Text(
-          store.rating.toStringAsFixed(1),
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+        Flexible(
+          child: Text(
+            store.rating.toStringAsFixed(1),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
-        Text(
-          ' (${store.totalRatings})',
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: AppColors.textSecondary,
-              ),
+        Flexible(
+          child: Text(
+            ' (${store.totalRatings})',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
       ],
     );
@@ -262,11 +283,14 @@ class StoreCard extends StatelessWidget {
         children: [
           Icon(icon, size: 14, color: AppColors.textSecondary),
           const SizedBox(width: 4),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+          Flexible(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),

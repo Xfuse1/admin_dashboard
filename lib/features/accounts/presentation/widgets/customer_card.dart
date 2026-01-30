@@ -69,7 +69,11 @@ class CustomerCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        _buildStatusBadge(context),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          fit: FlexFit.loose,
+                          child: _buildStatusBadge(context),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -81,29 +85,36 @@ class CustomerCard extends StatelessWidget {
                           color: AppColors.textSecondary,
                         ),
                         const SizedBox(width: 4),
-                        Text(
-                          customer.phone,
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
+                        Flexible(
+                          child: Text(
+                            customer.phone,
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: AppColors.textSecondary,
+                                    ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 8),
                     Row(
                       children: [
-                        _buildStatChip(
-                          context,
-                          icon: Iconsax.shopping_cart,
-                          label: '${customer.totalOrders} طلب',
+                        Flexible(
+                          child: _buildStatChip(
+                            context,
+                            icon: Iconsax.shopping_cart,
+                            label: '${customer.totalOrders} طلب',
+                          ),
                         ),
                         const SizedBox(width: 12),
-                        _buildStatChip(
-                          context,
-                          icon: Iconsax.wallet_3,
-                          label:
-                              '${customer.totalSpent.toStringAsFixed(0)} ر.س',
+                        Flexible(
+                          child: _buildStatChip(
+                            context,
+                            icon: Iconsax.wallet_3,
+                            label:
+                                '${customer.totalSpent.toStringAsFixed(0)} ر.س',
+                          ),
                         ),
                       ],
                     ),
@@ -162,6 +173,7 @@ class CustomerCard extends StatelessWidget {
               color: customer.isActive ? AppColors.success : AppColors.error,
               fontWeight: FontWeight.bold,
             ),
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }
@@ -182,11 +194,14 @@ class CustomerCard extends StatelessWidget {
         children: [
           Icon(icon, size: 14, color: AppColors.textSecondary),
           const SizedBox(width: 4),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AppColors.textSecondary,
-                ),
+          Flexible(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: AppColors.textSecondary,
+                  ),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),

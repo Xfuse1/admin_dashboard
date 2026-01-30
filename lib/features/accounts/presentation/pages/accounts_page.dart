@@ -229,10 +229,12 @@ class _AccountsPageState extends State<AccountsPage>
         ),
         indicatorSize: TabBarIndicatorSize.tab,
         dividerHeight: 0,
+        isScrollable: true,
+        tabAlignment: TabAlignment.start,
         tabs: const [
           Tab(
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Iconsax.people, size: 18),
                 SizedBox(width: 8),
@@ -242,7 +244,7 @@ class _AccountsPageState extends State<AccountsPage>
           ),
           Tab(
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Iconsax.shop, size: 18),
                 SizedBox(width: 8),
@@ -252,7 +254,7 @@ class _AccountsPageState extends State<AccountsPage>
           ),
           Tab(
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Iconsax.car, size: 18),
                 SizedBox(width: 8),
@@ -262,7 +264,7 @@ class _AccountsPageState extends State<AccountsPage>
           ),
           Tab(
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(Iconsax.document_text, size: 18),
                 SizedBox(width: 8),
@@ -387,12 +389,6 @@ class _AccountsPageState extends State<AccountsPage>
     required Widget Function(T item) itemBuilder,
     required DeviceType deviceType,
   }) {
-    final crossAxisCount = switch (deviceType) {
-      DeviceType.mobile => 1,
-      DeviceType.tablet => 2,
-      DeviceType.desktop => 3,
-    };
-
     return NotificationListener<ScrollNotification>(
       onNotification: (notification) {
         if (notification is ScrollEndNotification &&
@@ -406,11 +402,11 @@ class _AccountsPageState extends State<AccountsPage>
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: GridView.builder(
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
+          gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 600,
+            mainAxisExtent: 160,
             mainAxisSpacing: 16,
             crossAxisSpacing: 16,
-            childAspectRatio: deviceType == DeviceType.mobile ? 2.5 : 2.2,
           ),
           itemCount: items.length + (isLoadingMore ? 1 : 0),
           itemBuilder: (context, index) {
@@ -458,15 +454,11 @@ class _AccountsPageState extends State<AccountsPage>
     return Padding(
       padding: const EdgeInsets.all(16),
       child: GridView.builder(
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: deviceType == DeviceType.mobile
-              ? 1
-              : deviceType == DeviceType.tablet
-                  ? 2
-                  : 3,
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 600,
+          mainAxisExtent: 175,
           mainAxisSpacing: 16,
           crossAxisSpacing: 16,
-          childAspectRatio: deviceType == DeviceType.mobile ? 1.8 : 1.5,
         ),
         itemCount: applications.length,
         itemBuilder: (context, index) {
@@ -527,9 +519,10 @@ class _AccountsPageState extends State<AccountsPage>
                   CircleAvatar(
                     radius: 24,
                     backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                    backgroundImage: driver.imageUrl != null && driver.imageUrl!.isNotEmpty
-                        ? CachedNetworkImageProvider(driver.imageUrl!)
-                        : null,
+                    backgroundImage:
+                        driver.imageUrl != null && driver.imageUrl!.isNotEmpty
+                            ? CachedNetworkImageProvider(driver.imageUrl!)
+                            : null,
                     child: (driver.imageUrl == null || driver.imageUrl!.isEmpty)
                         ? Text(
                             driver.name.isNotEmpty ? driver.name[0] : '؟',
@@ -547,9 +540,10 @@ class _AccountsPageState extends State<AccountsPage>
                       children: [
                         Text(
                           driver.name,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                         ),
                         Row(
                           children: [
@@ -564,13 +558,19 @@ class _AccountsPageState extends State<AccountsPage>
                               ),
                             ),
                             const SizedBox(width: 4),
-                            Text(
-                              driver.isOnline ? 'متصل الآن' : 'غير متصل',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: driver.isOnline
-                                        ? AppColors.success
-                                        : AppColors.textSecondary,
-                                  ),
+                            Flexible(
+                              child: Text(
+                                driver.isOnline ? 'متصل الآن' : 'غير متصل',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: driver.isOnline
+                                          ? AppColors.success
+                                          : AppColors.textSecondary,
+                                    ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ],
                         ),
