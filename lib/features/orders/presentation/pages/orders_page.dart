@@ -34,7 +34,7 @@ class _OrdersPageState extends State<OrdersPage>
 
   final _tabs = [
     const _OrderTab(null, 'الكل', Iconsax.document),
-    const _OrderTab(OrderStatus.pending, 'جديد', Iconsax.timer_1),
+    const _OrderTab(OrderStatus.pending, 'قيد الانتظار', Iconsax.timer_1),
     const _OrderTab(OrderStatus.preparing, 'قيد التجهيز', Iconsax.clock),
     const _OrderTab(OrderStatus.ready, 'جاهز', Iconsax.tick_circle),
     const _OrderTab(OrderStatus.onTheWay, 'في الطريق', Iconsax.truck_fast),

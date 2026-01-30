@@ -23,6 +23,7 @@ class DriverApplicationCard extends StatelessWidget {
     return GlassCard(
       onTap: onTap,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header with status
@@ -60,78 +61,55 @@ class DriverApplicationCard extends StatelessWidget {
             ],
           ),
 
-          const SizedBox(height: AppConstants.spacingSm),
-          const Divider(),
-          const SizedBox(height: AppConstants.spacingSm),
+          const SizedBox(height: 6),
+          const Divider(height: 1),
+          const SizedBox(height: 6),
 
-          // Application details
+          // Application details - show only essential info
           _buildInfoRow(
             context,
             Iconsax.call,
             'الهاتف',
             application.phone,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           _buildInfoRow(
             context,
             Iconsax.truck,
             'نوع المركبة',
             application.vehicleType.arabicName,
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           _buildInfoRow(
             context,
             Iconsax.hashtag,
             'رقم اللوحة',
             application.vehiclePlate,
           ),
-          const SizedBox(height: 8),
+          // Show date - either reviewed date or submission date
+          const SizedBox(height: 4),
           _buildInfoRow(
             context,
-            Iconsax.calendar,
-            'تاريخ التقديم',
-            DateFormat('dd/MM/yyyy').format(application.createdAt),
+            application.reviewedAt != null
+                ? Iconsax.calendar_tick
+                : Iconsax.calendar,
+            application.reviewedAt != null ? 'تاريخ المراجعة' : 'تاريخ التقديم',
+            DateFormat('dd/MM/yyyy').format(
+              application.reviewedAt ?? application.createdAt,
+            ),
           ),
 
-          // Show reviewed date if reviewed
-          if (application.reviewedAt != null) ...[
-            const SizedBox(height: 8),
-            _buildInfoRow(
-              context,
-              Iconsax.calendar_tick,
-              'تاريخ المراجعة',
-              DateFormat('dd/MM/yyyy').format(application.reviewedAt!),
-            ),
-          ],
-
-          // Show rejection reason if rejected
+          // Show rejection reason if rejected (compact)
           if (application.status == ApplicationStatus.rejected &&
               application.rejectionReason != null) ...[
-            const SizedBox(height: AppConstants.spacingSm),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.error.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Iconsax.info_circle,
-                    size: 16,
+            const SizedBox(height: 6),
+            Text(
+              application.rejectionReason!,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppColors.error,
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      application.rejectionReason!,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppColors.error,
-                          ),
-                    ),
-                  ),
-                ],
-              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ],

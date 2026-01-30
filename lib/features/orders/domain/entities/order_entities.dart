@@ -232,7 +232,7 @@ class OrderTimeline extends Equatable {
 /// Values are designed to be compatible with Deliverzler's DeliveryStatus.
 /// Includes mapping for legacy values.
 enum OrderStatus {
-  pending('pending', 'جديد'),
+  pending('pending', 'قيد الانتظار'),
   confirmed('confirmed', 'تم التأكيد'),
   preparing('preparing', 'قيد التجهيز'),
   ready('ready', 'جاهز'),
@@ -264,7 +264,7 @@ enum OrderStatus {
 
   /// Mapping from legacy Deliverzler values to new unified values.
   static const Map<String, String> _legacyMapping = {
-    'upcoming': 'confirmed',
+    'upcoming': 'preparing',
     'onTheWay': 'on_the_way',
     'canceled': 'cancelled',
   };

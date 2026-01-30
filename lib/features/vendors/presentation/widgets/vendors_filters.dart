@@ -489,26 +489,6 @@ class _AddVendorDialogState extends State<_AddVendorDialog> {
                       ),
 
                       const SizedBox(height: AppConstants.spacingLg),
-
-                      // Commission Section
-                      _buildSectionTitle(context, 'العمولة'),
-                      const SizedBox(height: AppConstants.spacingMd),
-                      SizedBox(
-                        width: 200,
-                        child: _buildTextField(
-                          controller: _commissionController,
-                          label: 'نسبة العمولة (%)',
-                          keyboardType: TextInputType.number,
-                          validator: (v) {
-                            if (v?.isEmpty == true) return 'العمولة مطلوبة';
-                            final rate = double.tryParse(v!);
-                            if (rate == null || rate < 0 || rate > 100) {
-                              return 'نسبة غير صالحة';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
                     ],
                   ),
                 ),

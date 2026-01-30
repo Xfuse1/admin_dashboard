@@ -26,6 +26,7 @@ dependencies:
   # ============================================
   flutter_bloc: ^8.1.6
   bloc: ^8.1.4
+  bloc_concurrency: ^0.2.5
   
   # ============================================
   # 💉 DEPENDENCY INJECTION

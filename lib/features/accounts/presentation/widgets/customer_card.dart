@@ -113,7 +113,7 @@ class CustomerCard extends StatelessWidget {
                             context,
                             icon: Iconsax.wallet_3,
                             label:
-                                '${customer.totalSpent.toStringAsFixed(0)} ر.س',
+                                '${customer.totalSpent.toStringAsFixed(0)} ج.م',
                           ),
                         ),
                       ],

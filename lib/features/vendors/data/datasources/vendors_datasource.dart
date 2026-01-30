@@ -1,3 +1,4 @@
+import '../../domain/entities/product_entity.dart';
 import '../../domain/entities/vendor_entity.dart';
 
 /// Abstract data source for vendors.
@@ -53,4 +54,7 @@ abstract class VendorsDataSource {
 
   /// Verify a vendor.
   Future<VendorEntity> verifyVendor(String id);
+
+  /// Get products for a vendor.
+  Future<List<ProductEntity>> getVendorProducts(String vendorId);
 }

@@ -74,10 +74,14 @@ class OrderModel extends OrderEntity {
       storeId: null, // Deliverzler doesn't have store info
       storeName: null,
       driverId: json['deliveryId'] as String?,
-      driverName: null, // Deliverzler doesn't have driver name
+      driverName: json['deliveryName'] as String?,
       driverLatitude: geoPoint?.latitude,
       driverLongitude: geoPoint?.longitude,
-      items: const [], // Deliverzler doesn't have items in order doc
+      items: (json['items'] as List<dynamic>?)
+              ?.map((item) =>
+                  OrderItemModel.fromJson(item as Map<String, dynamic>))
+              .toList() ??
+          const [],
       status: OrderStatus.fromValue(
         json['deliveryStatus'] as String? ?? 'pending',
       ),
@@ -85,9 +89,9 @@ class OrderModel extends OrderEntity {
         json['pickupOption'] as String? ?? 'delivery',
       ),
       paymentMethod: json['paymentMethod'] as String? ?? 'cash',
-      subtotal: null,
-      deliveryFee: null,
-      total: null,
+      subtotal: (json['subtotal'] as num?)?.toDouble(),
+      deliveryFee: (json['deliveryFee'] as num?)?.toDouble(),
+      total: (json['total'] as num?)?.toDouble(),
       address: address,
       deliveryAddressString: null,
       timeline: const [], // Deliverzler doesn't have timeline
@@ -319,12 +323,12 @@ class OrderItemModel extends OrderItem {
 
   factory OrderItemModel.fromJson(Map<String, dynamic> json) {
     return OrderItemModel(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      imageUrl: json['imageUrl'] as String?,
-      quantity: json['quantity'] as int,
-      price: (json['price'] as num).toDouble(),
-      total: (json['total'] as num).toDouble(),
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? 'Unknown Product',
+      imageUrl: json['imageUrl'] as String? ?? json['image'] as String?,
+      quantity: (json['quantity'] as num?)?.toInt() ?? 1,
+      price: (json['price'] as num?)?.toDouble() ?? 0.0,
+      total: (json['total'] as num?)?.toDouble() ?? 0.0,
       notes: json['notes'] as String?,
     );
   }

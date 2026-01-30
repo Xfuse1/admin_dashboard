@@ -71,7 +71,10 @@ class OperatingHours extends Equatable {
 
   factory OperatingHours.fromMap(Map<String, dynamic> map) {
     return OperatingHours(
-      day: DayOfWeek.values.firstWhere((e) => e.name == map['day']),
+      day: DayOfWeek.values.firstWhere(
+        (e) => e.name == map['day'],
+        orElse: () => DayOfWeek.monday,
+      ),
       openTime: map['openTime'] ?? '09:00',
       closeTime: map['closeTime'] ?? '22:00',
       isClosed: map['isClosed'] ?? false,

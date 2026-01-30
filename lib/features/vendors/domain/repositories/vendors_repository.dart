@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 
 import '../../../../core/errors/failures.dart';
+import '../entities/product_entity.dart';
 import '../entities/vendor_entity.dart';
 
 /// Repository interface for vendors.
@@ -64,4 +65,7 @@ abstract class VendorsRepository {
 
   /// Verify a vendor.
   Future<Either<Failure, VendorEntity>> verifyVendor(String id);
+
+  /// Get products for a vendor.
+  Future<Either<Failure, List<ProductEntity>>> getVendorProducts(String vendorId);
 }

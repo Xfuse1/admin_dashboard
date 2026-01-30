@@ -153,3 +153,13 @@ class WatchVendorsEvent extends VendorsEvent {
 class RefreshVendors extends VendorsEvent {
   const RefreshVendors();
 }
+
+/// Load vendor products.
+class LoadVendorProductsEvent extends VendorsEvent {
+  final String vendorId;
+
+  const LoadVendorProductsEvent(this.vendorId);
+
+  @override
+  List<Object?> get props => [vendorId];
+}

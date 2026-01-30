@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 
 import '../../../../core/errors/failures.dart';
+import '../entities/product_entity.dart';
 import '../entities/vendor_entity.dart';
 import '../repositories/vendors_repository.dart';
 
@@ -166,5 +167,16 @@ class VerifyVendor {
 
   Future<Either<Failure, VendorEntity>> call(String id) {
     return repository.verifyVendor(id);
+  }
+}
+
+/// Get vendor products use case.
+class GetVendorProducts {
+  final VendorsRepository repository;
+
+  GetVendorProducts(this.repository);
+
+  Future<Either<Failure, List<ProductEntity>>> call(String vendorId) {
+    return repository.getVendorProducts(vendorId);
   }
 }

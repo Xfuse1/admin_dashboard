@@ -218,7 +218,7 @@ class _DriverApplicationsPageState extends State<DriverApplicationsPage>
       padding: const EdgeInsets.all(AppConstants.spacingMd),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: ResponsiveLayout.isDesktop(context) ? 3 : 2,
-        childAspectRatio: 1.5,
+        childAspectRatio: ResponsiveLayout.isDesktop(context) ? 1.3 : 1.1,
         crossAxisSpacing: AppConstants.spacingSm,
         mainAxisSpacing: AppConstants.spacingSm,
       ),

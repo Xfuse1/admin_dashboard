@@ -1,6 +1,5 @@
-import 'dart:async';
-
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:bloc_concurrency/bloc_concurrency.dart';
 
 import '../../domain/entities/vendor_entity.dart';
 import '../../domain/usecases/vendors_usecases.dart';
@@ -18,8 +17,7 @@ class VendorsBloc extends Bloc<VendorsEvent, VendorsState> {
   final GetVendorStats getVendorStats;
   final WatchVendors watchVendors;
   final UpdateVendorRating updateVendorRating;
-
-  StreamSubscription<dynamic>? _vendorsSubscription;
+  final GetVendorProducts getVendorProducts;
 
   VendorsBloc({
     required this.getVendors,
@@ -31,8 +29,10 @@ class VendorsBloc extends Bloc<VendorsEvent, VendorsState> {
     required this.getVendorStats,
     required this.watchVendors,
     required this.updateVendorRating,
+    required this.getVendorProducts,
   }) : super(const VendorsInitial()) {
     on<LoadVendors>(_onLoadVendors);
+    on<LoadVendorProductsEvent>(_onLoadVendorProducts);
     on<LoadMoreVendors>(_onLoadMoreVendors);
     on<SearchVendors>(_onSearchVendors);
     on<FilterByStatus>(_onFilterByStatus);
@@ -45,13 +45,12 @@ class VendorsBloc extends Bloc<VendorsEvent, VendorsState> {
     on<ToggleVendorStatusEvent>(_onToggleVendorStatus);
     on<ToggleFeaturedStatusEvent>(_onToggleFeaturedStatus);
     on<VerifyVendorEvent>(_onVerifyVendor);
-    on<WatchVendorsEvent>(_onWatchVendors);
+    on<WatchVendorsEvent>(_onWatchVendors, transformer: restartable());
     on<RefreshVendors>(_onRefreshVendors);
   }
 
   @override
   Future<void> close() {
-    _vendorsSubscription?.cancel();
     return super.close();
   }
 
@@ -150,6 +149,12 @@ class VendorsBloc extends Bloc<VendorsEvent, VendorsState> {
   ) async {
     final currentState = state;
     if (currentState is VendorsLoaded) {
+      // Restart watch with new status filter
+      add(WatchVendorsEvent(
+        status: event.status,
+        category: currentState.currentCategoryFilter,
+      ));
+      // Also load immediately for faster feedback
       add(LoadVendors(
         status: event.status,
         category: currentState.currentCategoryFilter,
@@ -164,6 +169,12 @@ class VendorsBloc extends Bloc<VendorsEvent, VendorsState> {
   ) async {
     final currentState = state;
     if (currentState is VendorsLoaded) {
+      // Restart watch with new category filter
+      add(WatchVendorsEvent(
+        status: currentState.currentStatusFilter,
+        category: event.category,
+      ));
+      // Also load immediately for faster feedback
       add(LoadVendors(
         status: currentState.currentStatusFilter,
         category: event.category,
@@ -183,7 +194,10 @@ class VendorsBloc extends Bloc<VendorsEvent, VendorsState> {
 
     result.fold(
       (failure) => emit(VendorsError(failure.message)),
-      (vendor) => emit(currentState.copyWith(selectedVendor: vendor)),
+      (vendor) {
+        emit(currentState.copyWith(selectedVendor: vendor));
+        add(LoadVendorProductsEvent(vendor.id));
+      },
     );
   }
 
@@ -316,7 +330,8 @@ class VendorsBloc extends Bloc<VendorsEvent, VendorsState> {
     // This would need a use case for toggleFeaturedStatus
     // For now, we'll update the vendor directly
     final vendorToUpdate =
-        currentState.vendors.firstWhere((v) => v.id == event.vendorId);
+        currentState.vendors.where((v) => v.id == event.vendorId).firstOrNull;
+    if (vendorToUpdate == null) return;
     final updatedVendor = vendorToUpdate.copyWith(isFeatured: event.isFeatured);
 
     final result = await updateVendor(updatedVendor);
@@ -354,7 +369,8 @@ class VendorsBloc extends Bloc<VendorsEvent, VendorsState> {
     // This would need a use case for verifyVendor
     // For now, we'll update the vendor directly
     final vendorToUpdate =
-        currentState.vendors.firstWhere((v) => v.id == event.vendorId);
+        currentState.vendors.where((v) => v.id == event.vendorId).firstOrNull;
+    if (vendorToUpdate == null) return;
     final updatedVendor = vendorToUpdate.copyWith(isVerified: true);
 
     final result = await updateVendor(updatedVendor);
@@ -379,25 +395,70 @@ class VendorsBloc extends Bloc<VendorsEvent, VendorsState> {
     );
   }
 
-  void _onWatchVendors(
+  Future<void> _onWatchVendors(
     WatchVendorsEvent event,
     Emitter<VendorsState> emit,
-  ) {
-    _vendorsSubscription?.cancel();
-    _vendorsSubscription = watchVendors(
-      status: event.status,
-      category: event.category,
-    ).listen((result) {
-      result.fold(
-        (failure) => add(const LoadVendors()),
-        (vendors) {
-          final currentState = state;
-          if (currentState is VendorsLoaded) {
-            emit(currentState.copyWith(vendors: vendors));
-          }
-        },
+  ) async {
+    final currentState = state;
+    
+    // Load stats once if not loaded yet
+    Map<String, dynamic>? stats;
+    if (currentState is! VendorsLoaded || currentState.stats == null) {
+      final statsResult = await getVendorStats();
+      statsResult.fold(
+        (failure) => stats = null,
+        (s) => stats = s as Map<String, dynamic>,
       );
-    });
+    } else {
+      stats = currentState.stats;
+    }
+
+    return emit.forEach(
+      watchVendors(
+        status: event.status,
+        category: event.category,
+      ),
+      onData: (result) {
+        return result.fold(
+          (failure) {
+            // On error, return current state or initial state
+            final state = this.state;
+            if (state is VendorsLoaded) {
+              return state;
+            }
+            return const VendorsInitial();
+          },
+          (vendors) {
+            final state = this.state;
+            
+            if (state is VendorsLoaded) {
+              return state.copyWith(
+                vendors: vendors,
+                currentStatusFilter: event.status,
+                currentCategoryFilter: event.category,
+                clearStatusFilter: event.status == null,
+                clearCategoryFilter: event.category == null,
+              );
+            } else {
+              return VendorsLoaded(
+                vendors: vendors,
+                stats: stats,
+                currentStatusFilter: event.status,
+                currentCategoryFilter: event.category,
+                hasMore: vendors.length >= 20,
+              );
+            }
+          },
+        );
+      },
+      onError: (error, stackTrace) {
+        final state = this.state;
+        if (state is VendorsLoaded) {
+          return state;
+        }
+        return VendorsError(error.toString());
+      },
+    );
   }
 
   Future<void> _onRefreshVendors(
@@ -414,5 +475,31 @@ class VendorsBloc extends Bloc<VendorsEvent, VendorsState> {
     } else {
       add(const LoadVendors());
     }
+  }
+
+  Future<void> _onLoadVendorProducts(
+    LoadVendorProductsEvent event,
+    Emitter<VendorsState> emit,
+  ) async {
+    final currentState = state;
+    if (currentState is! VendorsLoaded) return;
+
+    emit(currentState.copyWith(isProductsLoading: true));
+
+    final result = await getVendorProducts(event.vendorId);
+
+    result.fold(
+      (failure) => emit(currentState.copyWith(
+        isProductsLoading: false,
+        // Optional: show error toast or something.
+        // For now just stop loading.
+      )),
+      (products) {
+        emit(currentState.copyWith(
+          vendorProducts: products,
+          isProductsLoading: false,
+        ));
+      },
+    );
   }
 }

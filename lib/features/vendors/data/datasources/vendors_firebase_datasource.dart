@@ -1,12 +1,13 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../domain/entities/product_entity.dart';
 import '../../domain/entities/vendor_entity.dart';
 import 'vendors_datasource.dart';
 
 /// Firebase Firestore implementation for vendors.
 class VendorsFirebaseDataSource implements VendorsDataSource {
   final FirebaseFirestore _firestore;
-  final String _collection = 'vendors';
+  final String _collection = 'stores';
 
   VendorsFirebaseDataSource({FirebaseFirestore? firestore})
       : _firestore = firestore ?? FirebaseFirestore.instance;
@@ -46,10 +47,13 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
     }
 
     final snapshot = await query.get();
+
+    // Use stored rating values for list performance
+    // Detailed ratings are fetched in getVendor() for individual vendor details
     var vendors = snapshot.docs.map((doc) {
       final data = doc.data();
       data['id'] = doc.id;
-      return VendorEntity.fromMap(data);
+      return VendorEntity.fromMap(_processVendorData(data));
     }).toList();
 
     // Client-side search filtering
@@ -73,7 +77,30 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
     }
     final data = doc.data()!;
     data['id'] = doc.id;
-    return VendorEntity.fromMap(data);
+
+    // Fetch ratings from store_reviews
+    try {
+      final reviewsSnapshot = await _firestore
+          .collection('store_reviews')
+          .where('storeId', isEqualTo: id)
+          .get();
+
+      if (reviewsSnapshot.docs.isNotEmpty) {
+        final totalRatings = reviewsSnapshot.docs.length;
+        final ratingSum = reviewsSnapshot.docs.fold<double>(
+          0.0,
+          (sum, doc) => sum + (doc.data()['rating'] as num).toDouble(),
+        );
+        final averageRating = ratingSum / totalRatings;
+
+        data['rating'] = averageRating;
+        data['totalRatings'] = totalRatings;
+      }
+    } catch (e) {
+      // Ignore error if reviews fail to load
+    }
+
+    return VendorEntity.fromMap(_processVendorData(data));
   }
 
   @override
@@ -87,7 +114,7 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
     final newDoc = await docRef.get();
     final newData = newDoc.data()!;
     newData['id'] = newDoc.id;
-    return VendorEntity.fromMap(newData);
+    return VendorEntity.fromMap(_processVendorData(newData));
   }
 
   @override
@@ -134,8 +161,9 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
   @override
   Future<Map<String, dynamic>> getVendorStats() async {
     final snapshot = await _vendorsRef.get();
-    final vendors =
-        snapshot.docs.map((doc) => VendorEntity.fromMap(doc.data())).toList();
+    final vendors = snapshot.docs
+        .map((doc) => VendorEntity.fromMap(_processVendorData(doc.data())))
+        .toList();
 
     final activeCount =
         vendors.where((v) => v.status == VendorStatus.active).length;
@@ -196,7 +224,7 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
       return snapshot.docs.map((doc) {
         final data = doc.data();
         data['id'] = doc.id;
-        return VendorEntity.fromMap(data);
+        return VendorEntity.fromMap(_processVendorData(data));
       }).toList();
     });
   }
@@ -213,7 +241,7 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
     return snapshot.docs.map((doc) {
       final data = doc.data();
       data['id'] = doc.id;
-      return VendorEntity.fromMap(data);
+      return VendorEntity.fromMap(_processVendorData(data));
     }).toList();
   }
 
@@ -227,7 +255,7 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
     return snapshot.docs.map((doc) {
       final data = doc.data();
       data['id'] = doc.id;
-      return VendorEntity.fromMap(data);
+      return VendorEntity.fromMap(_processVendorData(data));
     }).toList();
   }
 
@@ -247,5 +275,64 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
       'updatedAt': FieldValue.serverTimestamp(),
     });
     return getVendor(id);
+  }
+
+  @override
+  Future<List<ProductEntity>> getVendorProducts(String vendorId) async {
+    try {
+      final snapshot =
+          await _vendorsRef.doc(vendorId).collection('products').get();
+
+      return snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        return ProductEntity.fromMap(data);
+      }).toList();
+    } catch (e) {
+      return [];
+    }
+  }
+
+  Map<String, dynamic> _processVendorData(Map<String, dynamic> data) {
+    if (data['createdAt'] is Timestamp) {
+      data['createdAt'] =
+          (data['createdAt'] as Timestamp).toDate().toIso8601String();
+    }
+    if (data['updatedAt'] is Timestamp) {
+      data['updatedAt'] =
+          (data['updatedAt'] as Timestamp).toDate().toIso8601String();
+    }
+
+    // Derive status from isApproved and isActive if missing
+    if (data['status'] == null) {
+      final isApproved = data['isApproved'] ?? false;
+      final isActive = data['isActive'] ?? false;
+      
+      if (!isApproved) {
+        data['status'] = VendorStatus.pending.name;
+      } else {
+        data['status'] = isActive ? VendorStatus.active.name : VendorStatus.inactive.name;
+      }
+    }
+    // Handle address being a String instead of Map
+    if (data['address'] is String) {
+      data['address'] = {
+        'street': data['address'],
+        'city': '',
+        'country': '',
+      };
+    } else if (data['address'] == null) {
+      data['address'] = {};
+    }
+
+    // Ensure name is String (handle localized map)
+    if (data['name'] is Map) {
+      final nameMap = data['name'] as Map;
+      data['name'] = nameMap['en'] ?? nameMap['ar'] ?? nameMap.values.firstOrNull ?? 'Unknown';
+    } else if (data['name'] == null) {
+      data['name'] = 'Unknown';
+    }
+
+    return data;
   }
 }

@@ -20,8 +20,14 @@ class DashboardFirebaseDataSource implements DashboardDataSource {
   CollectionReference<Map<String, dynamic>> get _ordersCollection =>
       _firestore.collection(FirestoreCollections.orders);
 
-  CollectionReference<Map<String, dynamic>> get _usersCollection =>
-      _firestore.collection(FirestoreCollections.users);
+  CollectionReference<Map<String, dynamic>> get _driversCollection =>
+      _firestore.collection(FirestoreCollections.drivers);
+
+  CollectionReference<Map<String, dynamic>> get _customersCollection =>
+      _firestore.collection('profiles');
+
+  CollectionReference<Map<String, dynamic>> get _storesCollection =>
+      _firestore.collection(FirestoreCollections.stores);
 
   /// Normalize legacy status values from Deliverzler to OrderStatus enum
   OrderStatus _normalizeStatus(String? status) {
@@ -63,12 +69,23 @@ class DashboardFirebaseDataSource implements DashboardDataSource {
         return DashboardStatsModel.fromJson(statsDoc.data()!);
       }
 
-      // Calculate stats from Deliverzler collections
-      final ordersSnapshot = await _ordersCollection.get();
-      final driversSnapshot = await _usersCollection.get();
+      // Calculate stats from collections in parallel for performance
+      final results = await Future.wait([
+        _ordersCollection.get(),
+        _driversCollection.get(),
+        _customersCollection.get(),
+        _storesCollection.get(),
+      ]);
+
+      final ordersSnapshot = results[0];
+      final driversSnapshot = results[1];
+      final customersSnapshot = results[2];
+      final storesSnapshot = results[3];
 
       final orders = ordersSnapshot.docs;
       final drivers = driversSnapshot.docs;
+      final customers = customersSnapshot.docs;
+      final stores = storesSnapshot.docs;
 
       // Calculate today's boundaries
       final now = DateTime.now();
@@ -83,7 +100,6 @@ class DashboardFirebaseDataSource implements DashboardDataSource {
 
       // Count orders by status
       int pendingOrders = 0;
-      int activeOrders = 0; // Not delivered or cancelled
       int completedOrders = 0;
       int cancelledOrders = 0;
       double totalRevenue = 0.0;
@@ -103,20 +119,15 @@ class DashboardFirebaseDataSource implements DashboardDataSource {
         switch (status) {
           case OrderStatus.pending:
             pendingOrders++;
-            activeOrders++;
-            break;
           case OrderStatus.confirmed:
           case OrderStatus.preparing:
           case OrderStatus.ready:
           case OrderStatus.pickedUp:
-            activeOrders++;
-            break;
+            break; // These are counted as active but we don't track active separately
           case OrderStatus.delivered:
             completedOrders++;
-            break;
           case OrderStatus.cancelled:
             cancelledOrders++;
-            break;
         }
 
         // Calculate revenue
@@ -162,19 +173,36 @@ class DashboardFirebaseDataSource implements DashboardDataSource {
         ordersGrowth = 100.0;
       }
 
-      // Deliverzler doesn't have active status for drivers, so all are considered active
-      final activeDrivers = drivers.length;
+      // Count active vendors (stores with active status)
+      int activeVendors = 0;
+      for (final store in stores) {
+        final data = store.data();
+        final status = data['status'] as String?;
+        if (status == 'active') {
+          activeVendors++;
+        }
+      }
+
+      // Count active drivers
+      int activeDrivers = 0;
+      for (final driver in drivers) {
+        final data = driver.data();
+        final isActive = data['isActive'] as bool? ?? false;
+        if (isActive) {
+          activeDrivers++;
+        }
+      }
 
       return DashboardStatsModel(
         totalOrders: orders.length,
         pendingOrders: pendingOrders,
         completedOrders: completedOrders,
         cancelledOrders: cancelledOrders,
-        totalVendors: 0, // Not used in Deliverzler
-        activeVendors: 0,
+        totalVendors: stores.length,
+        activeVendors: activeVendors,
         totalDrivers: drivers.length,
         activeDrivers: activeDrivers,
-        totalCustomers: 0, // Not tracked separately in Deliverzler
+        totalCustomers: customers.length,
         totalRevenue: totalRevenue,
         todayRevenue: todayRevenue,
         revenueGrowth: revenueGrowth.isFinite ? revenueGrowth : 0.0,
@@ -213,15 +241,27 @@ class DashboardFirebaseDataSource implements DashboardDataSource {
 
       for (final doc in snapshot.docs) {
         final data = doc.data();
-        if (data == null) continue;
 
         try {
-          // Map Deliverzler fields to expected format
+          // Get vendor name from storeId if available
+          String vendorName = 'غير محدد';
+          final storeId = data['storeId'] as String?;
+          if (storeId != null) {
+            try {
+              final storeDoc = await _storesCollection.doc(storeId).get();
+              if (storeDoc.exists && storeDoc.data() != null) {
+                vendorName = storeDoc.data()!['name'] as String? ?? 'غير محدد';
+              }
+            } catch (_) {
+              // Use default if store fetch fails
+            }
+          }
+
           final order = RecentOrderModel(
             id: doc.id,
             orderNumber: doc.id.substring(0, 8).toUpperCase(),
             customerName: data[OrderFields.userName] as String? ?? 'Unknown',
-            vendorName: 'Deliverzler', // Deliverzler doesn't have vendor concept
+            vendorName: vendorName,
             amount: (data['total'] as num?)?.toDouble() ?? 0.0,
             status:
                 _normalizeStatus(data[OrderFields.deliveryStatus] as String?),
@@ -321,7 +361,6 @@ class DashboardFirebaseDataSource implements DashboardDataSource {
 
       for (final doc in snapshot.docs) {
         final data = doc.data();
-        if (data == null) continue;
 
         // Deliverzler uses 'deliveryStatus' field
         final rawStatus = data[OrderFields.deliveryStatus] as String?;

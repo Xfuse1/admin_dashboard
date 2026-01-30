@@ -7,7 +7,6 @@ import 'package:iconsax_flutter/iconsax_flutter.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../shared/widgets/responsive_layout.dart';
 import '../../../../shared/widgets/common_widgets.dart';
-import '../../../../core/constants/app_constants.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../domain/entities/account_entities.dart';
@@ -15,11 +14,11 @@ import '../bloc/accounts_bloc.dart';
 import '../bloc/accounts_event.dart';
 import '../bloc/accounts_state.dart';
 import '../widgets/customer_card.dart';
-import '../widgets/driver_application_card.dart';
-import '../widgets/driver_application_details_sheet.dart';
 import '../widgets/driver_card.dart';
 import '../widgets/store_card.dart';
 import '../widgets/account_stats_cards.dart';
+import '../widgets/customer_details_panel.dart';
+import '../widgets/driver_details_panel.dart';
 
 /// Accounts management page with 3 tabs: Customers, Stores, Drivers.
 class AccountsPage extends StatefulWidget {
@@ -37,7 +36,7 @@ class _AccountsPageState extends State<AccountsPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(_onTabChanged);
 
     // Load initial data
@@ -56,13 +55,6 @@ class _AccountsPageState extends State<AccountsPage>
 
   void _onTabChanged() {
     if (_tabController.indexIsChanging) return;
-
-    if (_tabController.index == 3) {
-      // Driver Applications tab
-      context.read<AccountsBloc>().add(const LoadDriverApplications());
-      _searchController.clear();
-      return;
-    }
 
     final tab = switch (_tabController.index) {
       0 => AccountType.customer,
@@ -100,6 +92,20 @@ class _AccountsPageState extends State<AccountsPage>
       builder: (context, constraints) {
         final deviceType = ResponsiveLayout.getDeviceType(context);
         return BlocConsumer<AccountsBloc, AccountsState>(
+          listenWhen: (previous, current) {
+            // Check for customer selection only on mobile
+            if (deviceType == DeviceType.mobile) {
+              if (previous is AccountsLoaded && current is AccountsLoaded) {
+                return (previous.selectedCustomer != current.selectedCustomer &&
+                        current.selectedCustomer != null) ||
+                    (previous.selectedDriver != current.selectedDriver &&
+                        current.selectedDriver != null) ||
+                    (previous.selectedStore != current.selectedStore &&
+                        current.selectedStore != null);
+              }
+            }
+            return current is AccountActionSuccess || current is AccountsError;
+          },
           listener: (context, state) {
             if (state is AccountActionSuccess) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -115,25 +121,49 @@ class _AccountsPageState extends State<AccountsPage>
                   backgroundColor: AppColors.error,
                 ),
               );
+            } else if (state is AccountsLoaded &&
+                state.selectedCustomer != null &&
+                deviceType == DeviceType.mobile) {
+              _showCustomerDetailsSheet(context, state.selectedCustomer!);
+            } else if (state is AccountsLoaded &&
+                state.selectedDriver != null &&
+                deviceType == DeviceType.mobile) {
+              _showDriverDetailsSheet(context, state.selectedDriver!);
             }
           },
           builder: (context, state) {
+            
+            // Unwrap state to keep showing content during actions or after success
+            final effectiveState = switch (state) {
+              AccountActionSuccess(updatedState: final s) => s,
+              AccountActionInProgress(previousState: final s) => s,
+              AccountsLoaded() => state,
+              _ => state is AccountsLoaded ? state : null,
+            };
+
+            // If we are still loading initial data or error
+            if (effectiveState == null) {
+              if (state is AccountsLoading) return const Center(child: CircularProgressIndicator());
+               if (state is AccountsError) return Center(child: Text(state.message)); // Simplified error
+               return const SizedBox.shrink();
+            }
+
             return Scaffold(
               body: Column(
                 children: [
-                  // Header
+                   // Header
                   _buildHeader(deviceType),
 
                   // Stats Cards
-                  if (state is AccountsLoaded && state.stats != null)
-                    AccountStatsCards(stats: state.stats!),
+                  if (effectiveState.stats != null)
+                    AccountStatsCards(stats: effectiveState.stats!),
 
                   // Tab Bar
                   _buildTabBar(deviceType),
 
                   // Content
                   Expanded(
-                    child: _buildContent(state, deviceType),
+                    child: _buildContentWithSidePanel(effectiveState, deviceType),
                   ),
                 ],
               ),
@@ -141,6 +171,119 @@ class _AccountsPageState extends State<AccountsPage>
           },
         );
       },
+    );
+  }
+  
+  void _showCustomerDetailsSheet(BuildContext context, CustomerEntity customer) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => BlocProvider.value(
+        value: context.read<AccountsBloc>(),
+        child: DraggableScrollableSheet(
+          initialChildSize: 0.9,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          builder: (_, controller) => Container(
+            decoration: const BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: CustomerDetailsPanel(
+              customer: customer,
+              onClose: () {
+                Navigator.pop(ctx);
+                context.read<AccountsBloc>().add(const SelectCustomer(null));
+              },
+            ),
+          ),
+        ),
+      ),
+    ).whenComplete(() {
+      context.read<AccountsBloc>().add(const SelectCustomer(null));
+    });
+  }
+
+  void _showDriverDetailsSheet(BuildContext context, DriverEntity driver) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => BlocProvider.value(
+        value: context.read<AccountsBloc>(),
+        child: DraggableScrollableSheet(
+          initialChildSize: 0.9,
+          minChildSize: 0.5,
+          maxChildSize: 0.95,
+          builder: (_, controller) => Container(
+            decoration: const BoxDecoration(
+              color: AppColors.background,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: DriverDetailsPanel(
+              driver: driver,
+              onClose: () {
+                Navigator.pop(ctx);
+                context.read<AccountsBloc>().add(const SelectDriver(null));
+              },
+            ),
+          ),
+        ),
+      ),
+    ).whenComplete(() {
+      context.read<AccountsBloc>().add(const SelectDriver(null));
+    });
+  }
+
+  Widget _buildContentWithSidePanel(AccountsLoaded state, DeviceType deviceType) {
+    bool showSidePanel = deviceType != DeviceType.mobile &&
+        (state.selectedCustomer != null || state.selectedDriver != null);
+
+    Widget? sidePanel;
+    if (state.selectedCustomer != null) {
+      sidePanel = CustomerDetailsPanel(
+        customer: state.selectedCustomer!,
+        onClose: () => context.read<AccountsBloc>().add(const SelectCustomer(null)),
+      );
+    } else if (state.selectedDriver != null) {
+      sidePanel = DriverDetailsPanel(
+        driver: state.selectedDriver!,
+        onClose: () => context.read<AccountsBloc>().add(const SelectDriver(null)),
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Main List
+        Expanded(
+          flex: showSidePanel ? 7 : 1,
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              _buildCustomersTab(state, deviceType),
+              _buildStoresTab(state, deviceType),
+              _buildDriversTab(state, deviceType),
+            ],
+          ),
+        ),
+
+        // Side Panel (Desktop/Tablet)
+        if (showSidePanel && sidePanel != null) ...[
+          Container(
+            width: 1,
+            color: AppColors.border,
+          ),
+          Expanded(
+            flex: 3,
+            child: Container(
+              color: AppColors.surface,
+              child: sidePanel,
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -262,58 +405,25 @@ class _AccountsPageState extends State<AccountsPage>
               ],
             ),
           ),
-          Tab(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Iconsax.document_text, size: 18),
-                SizedBox(width: 8),
-                Text('طلبات السائقين'),
-              ],
-            ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildContent(AccountsState state, DeviceType deviceType) {
-    if (state is AccountsLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (state is AccountsError) {
-      return ErrorState(
-        message: state.message,
-        onRetry: () =>
-            context.read<AccountsBloc>().add(const LoadAccountStats()),
-      );
-    }
-
-    return TabBarView(
-      controller: _tabController,
-      children: [
-        _buildCustomersTab(state, deviceType),
-        _buildStoresTab(state, deviceType),
-        _buildDriversTab(state, deviceType),
-        _buildDriverApplicationsTab(state, deviceType),
-      ],
-    );
-  }
+  // Removed old _buildContent as it is replaced by _buildContentWithSidePanel called inside build
 
   Widget _buildCustomersTab(AccountsState state, DeviceType deviceType) {
-    if (state is! AccountsLoaded) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (state.customers.isEmpty) {
+    // Cast to AccountsLoaded is safe here because we check before calling
+    final loadedState = state as AccountsLoaded;
+    
+    if (loadedState.customers.isEmpty) {
       return _buildEmptyState('لا يوجد عملاء', Iconsax.people);
     }
 
     return _buildAccountList(
-      items: state.customers,
-      isLoadingMore: state.isLoadingMoreCustomers,
-      hasMore: state.hasMoreCustomers,
+      items: loadedState.customers,
+      isLoadingMore: loadedState.isLoadingMoreCustomers,
+      hasMore: loadedState.hasMoreCustomers,
       onLoadMore: () =>
           context.read<AccountsBloc>().add(const LoadMoreCustomers()),
       itemBuilder: (customer) => CustomerCard(
@@ -327,6 +437,7 @@ class _AccountsPageState extends State<AccountsPage>
       deviceType: deviceType,
     );
   }
+
 
   Widget _buildStoresTab(AccountsState state, DeviceType deviceType) {
     if (state is! AccountsLoaded) {
@@ -439,57 +550,7 @@ class _AccountsPageState extends State<AccountsPage>
     );
   }
 
-  Widget _buildDriverApplicationsTab(
-      AccountsState state, DeviceType deviceType) {
-    if (state is! AccountsLoaded) {
-      return const Center(child: CircularProgressIndicator());
-    }
 
-    final applications = state.driverApplications;
-
-    if (applications.isEmpty) {
-      return _buildEmptyState('لا توجد طلبات', Iconsax.document_text);
-    }
-
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: GridView.builder(
-        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: 600,
-          mainAxisExtent: 175,
-          mainAxisSpacing: 16,
-          crossAxisSpacing: 16,
-        ),
-        itemCount: applications.length,
-        itemBuilder: (context, index) {
-          return DriverApplicationCard(
-            application: applications[index],
-            onTap: () => _showApplicationDetails(applications[index]),
-          );
-        },
-      ),
-    );
-  }
-
-  void _showApplicationDetails(application) {
-    // Get admin ID from auth state
-    final authBloc = context.read<AuthBloc>();
-    final authState = authBloc.state;
-    final adminId = authState is AuthAuthenticated ? authState.user.id : '';
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => BlocProvider.value(
-        value: context.read<AccountsBloc>(),
-        child: DriverApplicationDetailsSheet(
-          application: application,
-          reviewerId: adminId,
-        ),
-      ),
-    );
-  }
 
   void _showDriverLocation(DriverEntity driver) {
     if (driver.latitude == null || driver.longitude == null) {

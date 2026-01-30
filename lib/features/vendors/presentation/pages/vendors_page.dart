@@ -21,7 +21,9 @@ class VendorsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => sl<VendorsBloc>()..add(const LoadVendors()),
+      create: (_) => sl<VendorsBloc>()
+        ..add(const LoadVendors())
+        ..add(const WatchVendorsEvent()),
       child: const VendorsView(),
     );
   }

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter/services.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../../../core/firebase/firebase_service.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
@@ -73,6 +76,12 @@ class OrderDetailsSheet extends StatelessWidget {
                       ),
                     ),
                     _buildStatusBadge(context),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Iconsax.close_circle),
+                      color: AppColors.textSecondary,
+                    ),
                   ],
                 ),
               ),
@@ -117,15 +126,10 @@ class OrderDetailsSheet extends StatelessWidget {
                       const SizedBox(height: AppConstants.spacingMd),
 
                       // Driver section
-                      if (order.driverName != null)
-                        _buildSection(
-                          context,
-                          'السائق',
-                          Iconsax.truck,
-                          [
-                            _buildInfoRow(
-                                context, 'اسم السائق', order.driverName!),
-                          ],
+                      if (order.driverId != null)
+                        _DriverInfoCard(
+                          driverId: order.driverId!,
+                          driverName: order.driverName,
                         ),
 
                       const SizedBox(height: AppConstants.spacingMd),
@@ -606,5 +610,159 @@ class OrderDetailsSheet extends StatelessWidget {
       OrderStatus.delivered => AppColors.success,
       OrderStatus.cancelled => AppColors.error,
     };
+  }
+}
+
+class _DriverInfoCard extends StatelessWidget {
+  final String driverId;
+  final String? driverName;
+
+  const _DriverInfoCard({
+    required this.driverId,
+    this.driverName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseService.instance.firestore
+          .collection(FirestoreCollections.users)
+          .doc(driverId)
+          .get(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        String name = driverName ?? 'جاري التحميل...';
+        String phone = 'غير متوفر';
+        String? image;
+        bool isActive = false;
+
+        if (snapshot.hasData && snapshot.data!.exists) {
+          final data = snapshot.data!.data() as Map<String, dynamic>;
+          name = data['name'] ?? name;
+          phone = data['phone'] ?? phone;
+          image = data['image'];
+          isActive = data['isActive'] ?? false;
+        }
+
+        return GlassCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Iconsax.truck,
+                          size: 20, color: AppColors.primary),
+                      const SizedBox(width: 8),
+                      Text(
+                        'بيانات السائق',
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                    ],
+                  ),
+                  if (isActive)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Text(
+                        'نشط',
+                        style: TextStyle(
+                          color: AppColors.success,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: AppConstants.spacingMd),
+              Row(
+                children: [
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.surfaceLight,
+                    ),
+                    child: image != null
+                        ? ClipOval(
+                            child: Image.network(
+                              image,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Icon(Iconsax.user,
+                                    color: AppColors.textSecondary);
+                              },
+                            ),
+                          )
+                        : const Icon(Iconsax.user,
+                            color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          name,
+                          style: Theme.of(context).textTheme.titleSmall,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (phone != 'غير متوفر')
+                          Row(
+                            children: [
+                              Text(
+                                phone,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: AppColors.textSecondary,
+                                      fontFamily: 'Roboto',
+                                    ),
+                                textDirection: TextDirection.ltr,
+                              ),
+                              const Spacer(),
+                              IconButton(
+                                onPressed: () {
+                                  Clipboard.setData(ClipboardData(text: phone));
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('تم نسخ رقم الهاتف'),
+                                      duration: Duration(seconds: 1),
+                                    ),
+                                  );
+                                },
+                                icon: const Icon(Iconsax.copy, size: 18),
+                                color: AppColors.primary,
+                                tooltip: 'نسخ الرقم',
+                                constraints: const BoxConstraints(),
+                                padding: const EdgeInsets.all(8),
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }

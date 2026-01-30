@@ -149,16 +149,19 @@ class DriverApplicationDetailsSheet extends StatelessWidget {
                       // Documents
                       _buildDocumentsSection(context),
 
-                      const SizedBox(height: AppConstants.spacingMd),
+                      const SizedBox(height: 12),
 
                       // Application Timeline
                       _buildTimelineSection(context),
 
-                      const SizedBox(height: AppConstants.spacingLg),
+                      const SizedBox(height: 12),
 
                       // Actions (if pending or under review)
                       if (application.status.isPending)
                         _buildActionsSection(context),
+
+                      // Extra padding at bottom to avoid overflow
+                      const SizedBox(height: 24),
                     ],
                   ),
                 ),
@@ -239,7 +242,7 @@ class DriverApplicationDetailsSheet extends StatelessWidget {
 
   Widget _buildInfoRow(BuildContext context, String label, String value) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 6),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -413,12 +416,12 @@ class DriverApplicationDetailsSheet extends StatelessWidget {
             icon: const Icon(Iconsax.tick_circle),
             label: const Text('قبول الطلب'),
             style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
               backgroundColor: AppColors.success,
             ),
           ),
         ),
-        const SizedBox(height: AppConstants.spacingSm),
+        const SizedBox(height: 8),
         // Reject button
         SizedBox(
           width: double.infinity,
@@ -430,7 +433,7 @@ class DriverApplicationDetailsSheet extends StatelessWidget {
               style: TextStyle(color: AppColors.error),
             ),
             style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
               side: const BorderSide(color: AppColors.error),
             ),
           ),

@@ -208,10 +208,15 @@ class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
           return c;
         }).toList();
 
+        final updatedState = currentState.copyWith(customers: updatedCustomers);
+        
         emit(AccountActionSuccess(
           message: event.isActive ? 'تم تفعيل العميل' : 'تم تعطيل العميل',
-          updatedState: currentState.copyWith(customers: updatedCustomers),
+          updatedState: updatedState,
         ));
+        
+        // Reset state to AccountsLoaded so subsequent actions work
+        emit(updatedState);
       },
     );
   }
@@ -352,10 +357,15 @@ class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
           return s;
         }).toList();
 
+        final updatedState = currentState.copyWith(stores: updatedStores);
+
         emit(AccountActionSuccess(
           message: event.isActive ? 'تم تفعيل المتجر' : 'تم تعطيل المتجر',
-          updatedState: currentState.copyWith(stores: updatedStores),
+          updatedState: updatedState,
         ));
+        
+        // Reset state to AccountsLoaded so subsequent actions work
+        emit(updatedState);
       },
     );
   }
@@ -406,10 +416,15 @@ class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
           return s;
         }).toList();
 
+        final updatedState = currentState.copyWith(stores: updatedStores);
+
         emit(AccountActionSuccess(
           message: 'تم تحديث نسبة العمولة',
-          updatedState: currentState.copyWith(stores: updatedStores),
+          updatedState: updatedState,
         ));
+        
+        // Reset state to AccountsLoaded so subsequent actions work
+        emit(updatedState);
       },
     );
   }
@@ -553,10 +568,15 @@ class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
           return d;
         }).toList();
 
+        final updatedState = currentState.copyWith(drivers: updatedDrivers);
+
         emit(AccountActionSuccess(
           message: event.isActive ? 'تم تفعيل السائق' : 'تم تعطيل السائق',
-          updatedState: currentState.copyWith(drivers: updatedDrivers),
+          updatedState: updatedState,
         ));
+        
+        // Reset state to AccountsLoaded so subsequent actions work
+        emit(updatedState);
       },
     );
   }

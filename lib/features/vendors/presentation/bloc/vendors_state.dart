@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 
+import '../../domain/entities/product_entity.dart';
 import '../../domain/entities/vendor_entity.dart';
 
 /// Base class for vendors states.
@@ -30,6 +31,8 @@ class VendorsLoaded extends VendorsState {
   final String? searchQuery;
   final bool hasMore;
   final bool isLoadingMore;
+  final List<ProductEntity>? vendorProducts;
+  final bool isProductsLoading;
 
   const VendorsLoaded({
     required this.vendors,
@@ -40,6 +43,8 @@ class VendorsLoaded extends VendorsState {
     this.searchQuery,
     this.hasMore = true,
     this.isLoadingMore = false,
+    this.vendorProducts,
+    this.isProductsLoading = false,
   });
 
   @override
@@ -52,6 +57,8 @@ class VendorsLoaded extends VendorsState {
         searchQuery,
         hasMore,
         isLoadingMore,
+        vendorProducts,
+        isProductsLoading,
       ];
 
   VendorsLoaded copyWith({
@@ -63,6 +70,8 @@ class VendorsLoaded extends VendorsState {
     String? searchQuery,
     bool? hasMore,
     bool? isLoadingMore,
+    List<ProductEntity>? vendorProducts,
+    bool? isProductsLoading,
     bool clearSelectedVendor = false,
     bool clearStatusFilter = false,
     bool clearCategoryFilter = false,
@@ -82,6 +91,8 @@ class VendorsLoaded extends VendorsState {
       searchQuery: clearSearchQuery ? null : (searchQuery ?? this.searchQuery),
       hasMore: hasMore ?? this.hasMore,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      vendorProducts: vendorProducts ?? this.vendorProducts,
+      isProductsLoading: isProductsLoading ?? this.isProductsLoading,
     );
   }
 }

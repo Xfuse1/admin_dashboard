@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../domain/entities/account_entities.dart';
@@ -137,10 +138,21 @@ class DriverCard extends StatelessWidget {
                     Row(
                       children: [
                         Flexible(
-                          child: _buildStatChip(
-                            context,
-                            icon: Iconsax.truck,
-                            label: '${driver.totalDeliveries} توصيلة',
+                          child: FutureBuilder<AggregateQuerySnapshot>(
+                            future: FirebaseFirestore.instance
+                                .collection('orders')
+                                .where('deliveryId', isEqualTo: driver.id)
+                                .where('deliveryStatus', isEqualTo: 'delivered')
+                                .count()
+                                .get(),
+                            builder: (context, snapshot) {
+                              final count = snapshot.data?.count ?? driver.totalDeliveries;
+                              return _buildStatChip(
+                                context,
+                                icon: Iconsax.truck,
+                                label: '$count توصيلة',
+                              );
+                            },
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -149,7 +161,7 @@ class DriverCard extends StatelessWidget {
                             context,
                             icon: Iconsax.wallet_3,
                             label:
-                                '${driver.walletBalance.toStringAsFixed(0)} ر.س',
+                                '${driver.walletBalance.toStringAsFixed(0)} ج.م',
                           ),
                         ),
                       ],

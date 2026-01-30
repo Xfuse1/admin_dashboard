@@ -13,8 +13,9 @@ import 'core/theme/app_theme.dart';
 import 'core/utils/app_logger.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/auth/presentation/bloc/auth_event.dart';
-import 'features/auth/presentation/bloc/auth_state.dart';
+
 import 'features/dashboard/presentation/bloc/dashboard_bloc.dart';
+import 'core/utils/seeding.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +31,12 @@ void main() async {
 
   // Initialize dependencies
   await initDependencies();
+
+  // Temporary: fix data consistency
+  await SeedingService().fixDataConsistency();
+  
+  // Temporary: Seed stores
+  // await SeedingService().seedStores(); // Uncomment to seed once
 
   logger.info('App started successfully');
   runApp(const AdminDashboardApp());

@@ -3,12 +3,6 @@
 /// Use --dart-define or --dart-define-from-file to set values.
 /// Example: flutter run --dart-define=USE_MOCK_DATA=true
 abstract final class AppConfig {
-  /// Whether to use mock data sources instead of Firebase.
-  /// Set via: --dart-define=USE_MOCK_DATA=true
-  static const bool useMockData = bool.fromEnvironment(
-    'USE_MOCK_DATA',
-    defaultValue: false,
-  );
 
   /// Firebase project ID (optional, for validation).
   static const String firebaseProjectId = String.fromEnvironment(
@@ -59,7 +53,6 @@ abstract final class AppConfig {
 ║         APP CONFIGURATION                ║
 ╠══════════════════════════════════════════╣
 ║ Environment:    $environment
-║ Use Mock Data:  $useMockData
 ║ Enable Logging: $enableLogging
 ║ Analytics:      $enableAnalytics
 ║ Firebase ID:    ${firebaseProjectId.isEmpty ? 'Not set' : firebaseProjectId}

@@ -347,7 +347,7 @@ class _SettingsPageState extends State<SettingsPage>
                     keyboardType: TextInputType.number,
                     decoration: InputDecoration(
                       labelText: 'رسوم التوصيل',
-                      suffixText: 'ر.س',
+                      suffixText: 'ج.م',
                       prefixIcon: const Icon(Iconsax.dollar_circle),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),

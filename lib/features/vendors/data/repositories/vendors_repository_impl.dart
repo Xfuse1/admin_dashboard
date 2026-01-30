@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 
 import '../../../../core/errors/failures.dart';
+import '../../domain/entities/product_entity.dart';
 import '../../domain/entities/vendor_entity.dart';
 import '../../domain/repositories/vendors_repository.dart';
 import '../datasources/vendors_datasource.dart';
@@ -163,6 +164,18 @@ class VendorsRepositoryImpl implements VendorsRepository {
     try {
       final vendor = await dataSource.verifyVendor(id);
       return Right(vendor);
+    } catch (e) {
+      return Left(ServerFailure(message: e.toString()));
+    }
+  }
+
+  @override
+  Future<Either<Failure, List<ProductEntity>>> getVendorProducts(
+    String vendorId,
+  ) async {
+    try {
+      final products = await dataSource.getVendorProducts(vendorId);
+      return Right(products);
     } catch (e) {
       return Left(ServerFailure(message: e.toString()));
     }

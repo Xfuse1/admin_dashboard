@@ -160,33 +160,7 @@ class VendorCard extends StatelessWidget {
                                   .format(vendor.totalRevenue),
                             ),
                           ),
-                          const SizedBox(width: AppConstants.spacingMd),
-                          // Commission
-                          Flexible(
-                            fit: FlexFit.loose,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: AppConstants.spacingSm,
-                                vertical: AppConstants.spacingXs,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppColors.background,
-                                borderRadius: BorderRadius.circular(
-                                    AppConstants.radiusSm),
-                              ),
-                              child: Text(
-                                '${vendor.commissionRate.toStringAsFixed(0)}% عمولة',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                      color: AppColors.textSecondary,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ),
+
                         ],
                       ),
                     ],

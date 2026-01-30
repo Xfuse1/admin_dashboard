@@ -4,9 +4,11 @@ import 'package:intl/intl.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../domain/entities/product_entity.dart';
 import '../../domain/entities/vendor_entity.dart';
 import '../bloc/vendors_bloc.dart';
 import '../bloc/vendors_event.dart';
+import '../bloc/vendors_state.dart';
 
 /// Vendor details side panel.
 class VendorDetailsPanel extends StatelessWidget {
@@ -39,6 +41,8 @@ class VendorDetailsPanel extends StatelessWidget {
                 _buildAddressSection(context),
                 const SizedBox(height: AppConstants.spacingLg),
                 _buildStatisticsSection(context),
+                const SizedBox(height: AppConstants.spacingLg),
+                _buildProductsSection(context),
                 const SizedBox(height: AppConstants.spacingLg),
                 _buildOperatingHoursSection(context),
                 if (vendor.tags.isNotEmpty) ...[
@@ -138,27 +142,12 @@ class VendorDetailsPanel extends StatelessWidget {
             ),
           ),
         const SizedBox(height: AppConstants.spacingMd),
-        Row(
-          children: [
-            Expanded(
-              child: _InfoCard(
-                icon: Icons.star,
-                iconColor: AppColors.warning,
-                label: 'التقييم',
-                value: vendor.rating.toStringAsFixed(1),
-                sublabel: '(${vendor.totalRatings} تقييم)',
-              ),
-            ),
-            const SizedBox(width: AppConstants.spacingSm),
-            Expanded(
-              child: _InfoCard(
-                icon: Icons.percent,
-                iconColor: AppColors.primary,
-                label: 'العمولة',
-                value: '${vendor.commissionRate.toStringAsFixed(0)}%',
-              ),
-            ),
-          ],
+        _InfoCard(
+          icon: Icons.star,
+          iconColor: AppColors.warning,
+          label: 'التقييم',
+          value: vendor.rating.toStringAsFixed(1),
+          sublabel: '(${vendor.totalRatings} تقييم)',
         ),
       ],
     );
@@ -208,14 +197,16 @@ class VendorDetailsPanel extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: AppConstants.spacingMd),
-              Text(
-                statusLabel,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: statusColor,
-                      fontWeight: FontWeight.bold,
-                    ),
+              Expanded(
+                child: Text(
+                  statusLabel,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: statusColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              const Spacer(),
               PopupMenuButton<VendorStatus>(
                 icon: Icon(Icons.edit, size: 18, color: statusColor),
                 tooltip: 'تغيير الحالة',
@@ -407,15 +398,20 @@ class VendorDetailsPanel extends StatelessWidget {
                       _getDayLabel(hours.day),
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
-                    Text(
-                      hours.isClosed
-                          ? 'مغلق'
-                          : '${hours.openTime} - ${hours.closeTime}',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: hours.isClosed
-                                ? AppColors.error
-                                : AppColors.textSecondary,
-                          ),
+                    const SizedBox(width: AppConstants.spacingMd),
+                    Expanded(
+                      child: Text(
+                        hours.isClosed
+                            ? 'مغلق'
+                            : '${hours.openTime} - ${hours.closeTime}',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: hours.isClosed
+                                  ? AppColors.error
+                                  : AppColors.textSecondary,
+                            ),
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
+                      ),
                     ),
                   ],
                 ),
@@ -561,6 +557,151 @@ class VendorDetailsPanel extends StatelessWidget {
       DayOfWeek.sunday => 'الأحد',
     };
   }
+
+  Widget _buildProductsSection(BuildContext context) {
+    return BlocBuilder<VendorsBloc, VendorsState>(
+      builder: (context, state) {
+        if (state is! VendorsLoaded) return const SizedBox.shrink();
+
+        if (state.isProductsLoading) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(AppConstants.spacingMd),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        final products = state.vendorProducts;
+
+        if (products == null || products.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'المنتجات (${products.length})',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+            ),
+            const SizedBox(height: AppConstants.spacingMd),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                // Responsive grid: 1 column on small, 2 on medium
+                final crossAxisCount = constraints.maxWidth > 300 ? 2 : 1;
+                
+                return GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: crossAxisCount,
+                    childAspectRatio: 0.8, // Adjust as needed
+                    crossAxisSpacing: AppConstants.spacingSm,
+                    mainAxisSpacing: AppConstants.spacingSm,
+                  ),
+                  itemCount: products.length,
+                  itemBuilder: (context, index) {
+                    final product = products[index];
+                    return _ProductCard(product: product);
+                  },
+                );
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ProductCard extends StatelessWidget {
+  final ProductEntity product;
+
+  const _ProductCard({required this.product});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+        border: Border.all(color: AppColors.border.withValues(alpha: 0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            flex: 3,
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(AppConstants.radiusMd),
+              ),
+              child: Image.network(
+                product.imageUrl,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const Center(
+                  child: Icon(Icons.image_not_supported, color: AppColors.textTertiary),
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Padding(
+              padding: const EdgeInsets.all(AppConstants.spacingSm),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    product.name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          '${product.price} ج.م',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          'بيع: ${product.ordersCount}',
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: AppColors.textTertiary,
+                                    fontSize: 10,
+                                  ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _VendorAvatar extends StatelessWidget {
@@ -643,33 +784,44 @@ class _InfoCard extends StatelessWidget {
             children: [
               Icon(icon, size: 16, color: iconColor ?? AppColors.textTertiary),
               const SizedBox(width: AppConstants.spacingXs),
-              Text(
-                label,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textTertiary,
-                    ),
+              Flexible(
+                child: Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textTertiary,
+                      ),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),
           const SizedBox(height: AppConstants.spacingXs),
+
+
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
-                value,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+              Flexible(
+                child: Text(
+                  value,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
               if (sublabel != null) ...[
                 const SizedBox(width: 4),
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 2),
-                  child: Text(
-                    sublabel!,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppColors.textTertiary,
-                        ),
+                Flexible(
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 2),
+                    child: Text(
+                      sublabel!,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.textTertiary,
+                          ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ),
               ],
@@ -784,12 +936,16 @@ class _StatCard extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                   color: color,
                 ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
           Text(
             label,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: AppColors.textTertiary,
                 ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),

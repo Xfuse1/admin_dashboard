@@ -1,7 +1,6 @@
 import 'package:get_it/get_it.dart';
 
 // Core
-import '../../core/config/app_config.dart';
 import '../../core/utils/app_logger.dart';
 
 // Auth Feature
@@ -20,7 +19,6 @@ import '../../features/dashboard/presentation/bloc/dashboard_bloc.dart';
 
 // Orders Feature
 import '../../features/orders/data/datasources/orders_datasource.dart';
-import '../../features/orders/data/datasources/orders_mock_datasource.dart';
 import '../../features/orders/data/datasources/orders_firebase_datasource.dart';
 import '../../features/orders/data/repositories/orders_repository_impl.dart';
 import '../../features/orders/domain/repositories/orders_repository.dart';
@@ -29,7 +27,6 @@ import '../../features/orders/presentation/bloc/orders_bloc.dart';
 
 // Accounts Feature
 import '../../features/accounts/data/datasources/accounts_datasource.dart';
-import '../../features/accounts/data/datasources/accounts_mock_datasource.dart';
 import '../../features/accounts/data/datasources/accounts_firebase_datasource.dart';
 import '../../features/accounts/data/repositories/accounts_repository_impl.dart';
 import '../../features/accounts/data/driver_applications_repository.dart';
@@ -40,7 +37,6 @@ import '../../features/accounts/presentation/bloc/accounts_bloc.dart';
 // Onboarding Feature
 import '../../features/onboarding/data/datasources/onboarding_datasource.dart';
 import '../../features/onboarding/data/datasources/onboarding_firebase_datasource.dart';
-import '../../features/onboarding/data/datasources/onboarding_mock_datasource.dart';
 import '../../features/onboarding/data/repositories/onboarding_repository_impl.dart';
 import '../../features/onboarding/domain/repositories/onboarding_repository.dart';
 import '../../features/onboarding/domain/usecases/onboarding_usecases.dart';
@@ -49,7 +45,6 @@ import '../../features/onboarding/presentation/bloc/onboarding_bloc.dart';
 // Settings Feature
 // Vendors Feature
 import '../../features/vendors/data/datasources/vendors_datasource.dart';
-import '../../features/vendors/data/datasources/vendors_mock_datasource.dart';
 import '../../features/vendors/data/datasources/vendors_firebase_datasource.dart';
 import '../../features/vendors/data/repositories/vendors_repository_impl.dart';
 import '../../features/vendors/domain/repositories/vendors_repository.dart';
@@ -59,11 +54,6 @@ import '../../features/vendors/presentation/bloc/vendors_bloc.dart';
 /// Global service locator instance.
 final sl = GetIt.instance;
 
-/// Toggle between Mock and Firebase data sources.
-///
-/// Uses environment variable from --dart-define or defaults based on profile.
-/// Usage: flutter run --dart-define=USE_MOCK_DATA=true
-bool get useMockData => AppConfig.useMockData;
 
 /// Initializes all dependencies for the application.
 ///
@@ -72,7 +62,7 @@ Future<void> initDependencies() async {
   // ============================================
   // � CORE SERVICES
   // ============================================
-  logger.info('Initializing dependencies (useMockData: $useMockData)');
+  logger.info('Initializing dependencies');
 
   // ============================================
   // �🔥 FIREBASE (initialized in main.dart)
@@ -112,15 +102,9 @@ Future<void> initDependencies() async {
 /// Initializes Auth feature dependencies.
 Future<void> _initAuthDependencies() async {
   // Data Sources
-  if (useMockData) {
-    sl.registerLazySingleton<AuthDataSource>(
-      () => AuthMockDataSource(),
-    );
-  } else {
-    sl.registerLazySingleton<AuthDataSource>(
-      () => AuthFirebaseDataSource(),
-    );
-  }
+  sl.registerLazySingleton<AuthDataSource>(
+    () => AuthFirebaseDataSource(),
+  );
 
   // Repository
   sl.registerLazySingleton<AuthRepository>(
@@ -145,15 +129,9 @@ Future<void> _initAuthDependencies() async {
 /// Initializes Dashboard feature dependencies.
 Future<void> _initDashboardDependencies() async {
   // Data Sources
-  if (useMockData) {
-    sl.registerLazySingleton<DashboardDataSource>(
-      () => DashboardMockDataSource(),
-    );
-  } else {
-    sl.registerLazySingleton<DashboardDataSource>(
-      () => DashboardFirebaseDataSource(),
-    );
-  }
+  sl.registerLazySingleton<DashboardDataSource>(
+    () => DashboardFirebaseDataSource(),
+  );
 
   // Repository
   sl.registerLazySingleton<DashboardRepository>(
@@ -180,15 +158,9 @@ Future<void> _initDashboardDependencies() async {
 /// Initializes Orders feature dependencies.
 Future<void> _initOrdersDependencies() async {
   // Data Sources
-  if (useMockData) {
-    sl.registerLazySingleton<OrdersDataSource>(
-      () => OrdersMockDataSource(),
-    );
-  } else {
-    sl.registerLazySingleton<OrdersDataSource>(
-      () => OrdersFirebaseDataSource(),
-    );
-  }
+  sl.registerLazySingleton<OrdersDataSource>(
+    () => OrdersFirebaseDataSource(),
+  );
 
   // Repository
   sl.registerLazySingleton<OrdersRepository>(
@@ -221,15 +193,9 @@ Future<void> _initOrdersDependencies() async {
 /// Initializes Accounts feature dependencies.
 Future<void> _initAccountsDependencies() async {
   // Data Sources
-  if (useMockData) {
-    sl.registerLazySingleton<AccountsDataSource>(
-      () => AccountsMockDataSource(),
-    );
-  } else {
-    sl.registerLazySingleton<AccountsDataSource>(
-      () => AccountsFirebaseDataSource(),
-    );
-  }
+  sl.registerLazySingleton<AccountsDataSource>(
+    () => AccountsFirebaseDataSource(),
+  );
 
   // Repository
   sl.registerLazySingleton<AccountsRepository>(
@@ -270,15 +236,9 @@ Future<void> _initAccountsDependencies() async {
 /// Initializes Onboarding feature dependencies.
 Future<void> _initOnboardingDependencies() async {
   // Data Sources
-  if (useMockData) {
-    sl.registerLazySingleton<OnboardingDataSource>(
-      () => OnboardingMockDataSource(),
-    );
-  } else {
-    sl.registerLazySingleton<OnboardingDataSource>(
-      () => OnboardingFirebaseDataSource(),
-    );
-  }
+  sl.registerLazySingleton<OnboardingDataSource>(
+    () => OnboardingFirebaseDataSource(),
+  );
 
   // Repository
   sl.registerLazySingleton<OnboardingRepository>(
@@ -308,15 +268,9 @@ Future<void> _initOnboardingDependencies() async {
 /// Initializes Vendors feature dependencies.
 Future<void> _initVendorsDependencies() async {
   // Data Sources
-  if (useMockData) {
-    sl.registerLazySingleton<VendorsDataSource>(
-      () => VendorsMockDataSource(),
-    );
-  } else {
-    sl.registerLazySingleton<VendorsDataSource>(
-      () => VendorsFirebaseDataSource(),
-    );
-  }
+  sl.registerLazySingleton<VendorsDataSource>(
+    () => VendorsFirebaseDataSource(),
+  );
 
   // Repository
   sl.registerLazySingleton<VendorsRepository>(
@@ -333,6 +287,7 @@ Future<void> _initVendorsDependencies() async {
   sl.registerLazySingleton(() => GetVendorStats(sl()));
   sl.registerLazySingleton(() => WatchVendors(sl()));
   sl.registerLazySingleton(() => UpdateVendorRating(sl()));
+  sl.registerLazySingleton(() => GetVendorProducts(sl()));
 
   // BLoC
   sl.registerFactory(
@@ -346,6 +301,7 @@ Future<void> _initVendorsDependencies() async {
       getVendorStats: sl(),
       watchVendors: sl(),
       updateVendorRating: sl(),
+      getVendorProducts: sl(),
     ),
   );
 }
