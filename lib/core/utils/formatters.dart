@@ -25,6 +25,11 @@ abstract final class DateFormatter {
     return DateFormat('dd/MM/yyyy hh:mm a', _locale).format(dateTime);
   }
 
+  /// Formats date and time with seconds "dd/MM/yyyy hh:mm:ss a"
+  static String dateTimeWithSeconds(DateTime dateTime) {
+    return DateFormat('dd/MM/yyyy hh:mm:ss a', _locale).format(dateTime);
+  }
+
   /// Formats as relative time (e.g., "منذ 5 دقائق")
   static String relative(DateTime dateTime) {
     final now = DateTime.now();
@@ -34,13 +39,22 @@ abstract final class DateFormatter {
       return 'الآن';
     } else if (difference.inMinutes < 60) {
       final minutes = difference.inMinutes;
-      return 'منذ $minutes ${minutes == 1 ? 'دقيقة' : 'دقائق'}';
+      if (minutes == 1) return 'منذ دقيقة';
+      if (minutes == 2) return 'منذ دقيقتين';
+      if (minutes > 2 && minutes < 11) return 'منذ $minutes دقائق';
+      return 'منذ $minutes دقيقة';
     } else if (difference.inHours < 24) {
       final hours = difference.inHours;
-      return 'منذ $hours ${hours == 1 ? 'ساعة' : 'ساعات'}';
+      if (hours == 1) return 'منذ ساعة';
+      if (hours == 2) return 'منذ ساعتين';
+      if (hours > 2 && hours < 11) return 'منذ $hours ساعات';
+      return 'منذ $hours ساعة';
     } else if (difference.inDays < 7) {
       final days = difference.inDays;
-      return 'منذ $days ${days == 1 ? 'يوم' : 'أيام'}';
+      if (days == 1) return 'منذ يوم';
+      if (days == 2) return 'منذ يومين';
+      if (days > 2 && days < 11) return 'منذ $days أيام';
+      return 'منذ $days يوم';
     } else {
       return date(dateTime);
     }
@@ -147,6 +161,8 @@ abstract final class Formatters {
   static String dateFull(DateTime dt) => DateFormatter.dateFull(dt);
   static String time(DateTime dt) => DateFormatter.time(dt);
   static String dateTime(DateTime dt) => DateFormatter.dateTime(dt);
+  static String dateTimeWithSeconds(DateTime dt) =>
+      DateFormatter.dateTimeWithSeconds(dt);
   static String timeAgo(DateTime dt) => DateFormatter.relative(dt);
   static String dayMonth(DateTime dt) => DateFormatter.dayMonth(dt);
 }

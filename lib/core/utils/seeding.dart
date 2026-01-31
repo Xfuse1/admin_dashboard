@@ -156,6 +156,81 @@ class SeedingService {
     }
   }
 
+  Future<void> seedStoreRequests() async {
+    final requestsCollection = _firestore.collection('store_requests');
+
+    // Sample data to seed
+    final List<Map<String, dynamic>> requestsData = [
+      {
+        'status': 'pending',
+        'name': 'محمد عبدالله',
+        'email': 'mohammed.abdullah@example.com',
+        'phone': '+966512345678',
+        'createdAt': DateTime.now().subtract(const Duration(hours: 2)).millisecondsSinceEpoch,
+        'storeName': 'مطعم البركة',
+        'storeType': 'مطعم',
+        'address': 'الرياض - حي الملز',
+        'ownerName': 'محمد عبدالله',
+        'ownerIdNumber': '1010101010',
+        'commercialRegister': '1234567890',
+        'categories': ['مشويات', 'مأكولات شعبية'],
+      },
+      {
+        'status': 'underReview',
+        'name': 'فاطمة حسن',
+        'email': 'fatima.hassan@example.com',
+        'phone': '+966598765432',
+        'createdAt': DateTime.now().subtract(const Duration(days: 1)).millisecondsSinceEpoch,
+        'storeName': 'حلويات السعادة',
+        'storeType': 'حلويات',
+        'address': 'جدة - شارع التحلية',
+        'ownerName': 'فاطمة حسن',
+        'ownerIdNumber': '2020202020',
+        'commercialRegister': '0987654321',
+        'categories': ['كيك', 'معجنات'],
+      },
+      {
+        'status': 'approved',
+        'name': 'علي يوسف',
+        'email': 'ali.yousef@example.com',
+        'phone': '+966555555555',
+        'createdAt': DateTime.now().subtract(const Duration(days: 5)).millisecondsSinceEpoch,
+        'reviewedAt': DateTime.now().subtract(const Duration(days: 2)).millisecondsSinceEpoch,
+        'reviewedBy': 'admin',
+        'storeName': 'سوبر ماركت التوفير',
+        'storeType': 'سوبر ماركت',
+        'address': 'الدمام - الكورنيش',
+        'ownerName': 'علي يوسف',
+        'ownerIdNumber': '3030303030',
+        'commercialRegister': '1122334455',
+        'categories': ['بقالة', 'خضار'],
+      },
+      {
+        'status': 'rejected',
+        'name': 'خالد إبراهيم',
+        'email': 'khaled.ibrahim@example.com',
+        'phone': '+966544444444',
+        'createdAt': DateTime.now().subtract(const Duration(days: 10)).millisecondsSinceEpoch,
+        'reviewedAt': DateTime.now().subtract(const Duration(days: 9)).millisecondsSinceEpoch,
+        'reviewedBy': 'admin',
+        'rejectionReason': 'بيانات السجل التجاري غير واضحة',
+        'storeName': 'متجر الموضة',
+        'storeType': 'ملابس',
+        'address': 'الخبر - شارع الملك خالد',
+        'ownerName': 'خالد إبراهيم',
+        'ownerIdNumber': '4040404040',
+        'commercialRegister': '5566778899',
+        'categories': ['ملابس رجالية', 'ملابس نسائية'],
+      },
+    ];
+
+    print('Seeding store requests...');
+    for (final requestData in requestsData) {
+      await requestsCollection.add(requestData);
+    }
+    print('Store requests seeding completed.');
+  }
+
   /// Fixes data consistency issues by ensuring all documents have required fields.
   Future<void> fixDataConsistency() async {
 

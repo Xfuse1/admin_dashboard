@@ -101,7 +101,7 @@ class OnboardingFirebaseDataSource implements OnboardingDataSource {
       query = query.where('status', isEqualTo: status.name);
     }
 
-    query = query.orderBy('createdAt', descending: true);
+    // query = query.orderBy('createdAt', descending: true); // Commented out for debugging
 
     if (lastId != null) {
       final lastDoc = await _firestore
@@ -115,11 +115,31 @@ class OnboardingFirebaseDataSource implements OnboardingDataSource {
 
     query = query.limit(limit);
 
+    print("Fetching store requests... Collection: $_storeRequestsCollection, Status: $status, Limit: $limit"); // Debug log
+
     final snapshot = await query.get();
+    print("Found ${snapshot.docs.length} store requests"); // Debug log
+
     return snapshot.docs.map((doc) {
-      final data = {...doc.data(), 'id': doc.id};
+      final data = _normalizeStoreData(doc.id, doc.data());
+      print("Store Data Normalized: ${data['id']} - ${data['createdAt']}"); // Debug log
       return StoreOnboardingModel.fromJson(data);
     }).toList();
+  }
+
+  /// Normalizes store data to ensure consistent timestamp parsing.
+  Map<String, dynamic> _normalizeStoreData(
+    String docId,
+    Map<String, dynamic> data,
+  ) {
+    return {
+      ...data,
+      'id': docId,
+      'type': 'store',
+      // Convert timestamps using helper
+      'createdAt': _parseTimestamp(data['createdAt']),
+      'reviewedAt': _parseTimestamp(data['reviewedAt']),
+    };
   }
 
   @override
@@ -137,7 +157,7 @@ class OnboardingFirebaseDataSource implements OnboardingDataSource {
     doc = await _firestore.collection(_storeRequestsCollection).doc(id).get();
 
     if (doc.exists && doc.data() != null) {
-      final data = {...doc.data()!, 'id': doc.id};
+      final data = _normalizeStoreData(doc.id, doc.data()!);
       return StoreOnboardingModel.fromJson(data);
     }
 

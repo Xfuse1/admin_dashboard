@@ -437,7 +437,7 @@ class OrderDetailsSheet extends StatelessWidget {
                                   ),
                         ),
                         Text(
-                          Formatters.timeAgo(timeline.timestamp),
+                          Formatters.dateTimeWithSeconds(timeline.timestamp),
                           style:
                               Theme.of(context).textTheme.bodySmall?.copyWith(
                                     color: AppColors.textSecondary,
@@ -613,7 +613,7 @@ class OrderDetailsSheet extends StatelessWidget {
   }
 }
 
-class _DriverInfoCard extends StatelessWidget {
+class _DriverInfoCard extends StatefulWidget {
   final String driverId;
   final String? driverName;
 
@@ -622,13 +622,34 @@ class _DriverInfoCard extends StatelessWidget {
     this.driverName,
   });
 
+  @override
+  State<_DriverInfoCard> createState() => _DriverInfoCardState();
+}
+
+class _DriverInfoCardState extends State<_DriverInfoCard> {
+  late Future<Map<String, dynamic>?> _driverDataFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _driverDataFuture = _fetchDriverData();
+  }
+
+  @override
+  void didUpdateWidget(covariant _DriverInfoCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.driverId != widget.driverId) {
+      _driverDataFuture = _fetchDriverData();
+    }
+  }
+
   /// Fetches driver data from 'drivers' collection
   Future<Map<String, dynamic>?> _fetchDriverData() async {
     final firestore = FirebaseService.instance.firestore;
 
     final driversDoc = await firestore
         .collection(FirestoreCollections.drivers)
-        .doc(driverId)
+        .doc(widget.driverId)
         .get();
 
     if (driversDoc.exists) {
@@ -641,19 +662,20 @@ class _DriverInfoCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<Map<String, dynamic>?>(
-      future: _fetchDriverData(),
+      future: _driverDataFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        String name = driverName ?? 'غير معروف';
+        String name = widget.driverName ?? 'غير معروف';
         String? phone;
         String? image;
         bool isActive = false;
 
         if (snapshot.hasData && snapshot.data != null) {
           final data = snapshot.data!;
+          print("Driver Data: $data"); // Debug print
           name = data['name'] as String? ?? name;
           // Get phone - could be stored as 'phone' or empty
           final phoneValue = data['phone'] as String?;
