@@ -622,33 +622,50 @@ class _DriverInfoCard extends StatelessWidget {
     this.driverName,
   });
 
+  /// Fetches driver data from 'drivers' collection
+  Future<Map<String, dynamic>?> _fetchDriverData() async {
+    final firestore = FirebaseService.instance.firestore;
+
+    final driversDoc = await firestore
+        .collection(FirestoreCollections.drivers)
+        .doc(driverId)
+        .get();
+
+    if (driversDoc.exists) {
+      return driversDoc.data();
+    }
+
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseService.instance.firestore
-          .collection(FirestoreCollections.users)
-          .doc(driverId)
-          .get(),
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: _fetchDriverData(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        String name = driverName ?? 'جاري التحميل...';
-        String phone = 'غير متوفر';
+        String name = driverName ?? 'غير معروف';
+        String? phone;
         String? image;
         bool isActive = false;
 
-        if (snapshot.hasData && snapshot.data!.exists) {
-          final data = snapshot.data!.data() as Map<String, dynamic>;
-          name = data['name'] ?? name;
-          phone = data['phone'] ?? phone;
-          image = data['image'];
-          isActive = data['isActive'] ?? false;
+        if (snapshot.hasData && snapshot.data != null) {
+          final data = snapshot.data!;
+          name = data['name'] as String? ?? name;
+          // Get phone - could be stored as 'phone' or empty
+          final phoneValue = data['phone'] as String?;
+          phone =
+              (phoneValue != null && phoneValue.isNotEmpty) ? phoneValue : null;
+          image = data['image'] as String?;
+          isActive = data['isActive'] as bool? ?? false;
         }
 
         return GlassCard(
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
@@ -713,6 +730,7 @@ class _DriverInfoCard extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
@@ -721,24 +739,29 @@ class _DriverInfoCard extends StatelessWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        if (phone != 'غير متوفر')
+                        const SizedBox(height: 4),
+                        if (phone != null)
                           Row(
                             children: [
-                              Text(
-                                phone,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                      color: AppColors.textSecondary,
-                                      fontFamily: 'Roboto',
-                                    ),
-                                textDirection: TextDirection.ltr,
+                              Expanded(
+                                child: Text(
+                                  phone,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        color: AppColors.textSecondary,
+                                        fontFamily: 'Roboto',
+                                      ),
+                                  textDirection: TextDirection.ltr,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
-                              const Spacer(),
                               IconButton(
                                 onPressed: () {
-                                  Clipboard.setData(ClipboardData(text: phone));
+                                  Clipboard.setData(
+                                      ClipboardData(text: phone!));
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
                                       content: Text('تم نسخ رقم الهاتف'),
@@ -753,6 +776,15 @@ class _DriverInfoCard extends StatelessWidget {
                                 padding: const EdgeInsets.all(8),
                               ),
                             ],
+                          )
+                        else
+                          Text(
+                            'رقم الهاتف غير متوفر',
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: AppColors.textSecondary,
+                                      fontStyle: FontStyle.italic,
+                                    ),
                           ),
                       ],
                     ),
