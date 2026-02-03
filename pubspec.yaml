@@ -132,6 +132,7 @@ dependencies:
   shared_preferences: ^2.3.2
   logger: ^2.4.0
   uuid: ^4.5.1
+  timeago: ^3.7.0
 
 dev_dependencies:
   flutter_test:

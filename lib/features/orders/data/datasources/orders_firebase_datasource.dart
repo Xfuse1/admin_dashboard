@@ -36,8 +36,9 @@ class OrdersFirebaseDataSource implements OrdersDataSource {
     String? lastOrderId,
   }) async {
     // 1. Fetch orders ordered by date
-    Query<Map<String, dynamic>> query = 
-        _ordersCollection.orderBy(OrderFields.date, descending: true).limit(100);
+    Query<Map<String, dynamic>> query = _ordersCollection
+        .orderBy(OrderFields.date, descending: true)
+        .limit(100);
 
     if (lastOrderId != null) {
       final lastDoc = await _ordersCollection.doc(lastOrderId).get();
@@ -47,7 +48,7 @@ class OrdersFirebaseDataSource implements OrdersDataSource {
     }
 
     final snapshot = await query.get();
-    
+
     // 2. Map Key-Value to OrderModel
     var orders = snapshot.docs.map((doc) {
       return OrderModel.fromDeliverzler(doc.data(), documentId: doc.id);
@@ -73,7 +74,9 @@ class OrdersFirebaseDataSource implements OrdersDataSource {
 
     if (toDate != null) {
       // Add one day to include the end date fully
-      final end = toDate.add(const Duration(days: 1)).subtract(const Duration(seconds: 1));
+      final end = toDate
+          .add(const Duration(days: 1))
+          .subtract(const Duration(seconds: 1));
       orders = orders.where((o) => o.createdAt.isBefore(end)).toList();
     }
 
@@ -130,18 +133,23 @@ class OrdersFirebaseDataSource implements OrdersDataSource {
 
   @override
   Stream<List<OrderModel>> watchOrders({OrderStatus? status}) {
-    Query<Map<String, dynamic>> query =
-        _ordersCollection.orderBy(OrderFields.date, descending: true).limit(50);
-
-    // Deliverzler uses 'deliveryStatus' field
-    if (status != null) {
-      query = query.where(OrderFields.deliveryStatus, isEqualTo: status.value);
-    }
+    // Query without where clause to avoid index requirement
+    Query<Map<String, dynamic>> query = _ordersCollection
+        .orderBy(OrderFields.date, descending: true)
+        .limit(100);
 
     return query.snapshots().map((snapshot) {
-      return snapshot.docs.map((doc) {
+      var orders = snapshot.docs.map((doc) {
         return OrderModel.fromDeliverzler(doc.data(), documentId: doc.id);
       }).toList();
+
+      // Client-side filtering by status to avoid composite index
+      if (status != null) {
+        orders = orders.where((o) => o.status == status).toList();
+      }
+
+      // Return first 50 after filtering
+      return orders.take(50).toList();
     });
   }
 

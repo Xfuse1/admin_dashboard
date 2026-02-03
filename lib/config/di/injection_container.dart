@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:get_it/get_it.dart';
 
 // Core
@@ -33,6 +34,7 @@ import '../../features/accounts/data/driver_applications_repository.dart';
 import '../../features/accounts/domain/repositories/accounts_repository.dart';
 import '../../features/accounts/domain/usecases/accounts_usecases.dart';
 import '../../features/accounts/presentation/bloc/accounts_bloc.dart';
+import '../../features/accounts/presentation/providers/driver_cleanup_provider.dart';
 
 // Onboarding Feature
 import '../../features/onboarding/data/datasources/onboarding_datasource.dart';
@@ -41,6 +43,25 @@ import '../../features/onboarding/data/repositories/onboarding_repository_impl.d
 import '../../features/onboarding/domain/repositories/onboarding_repository.dart';
 import '../../features/onboarding/domain/usecases/onboarding_usecases.dart';
 import '../../features/onboarding/presentation/bloc/onboarding_bloc.dart';
+
+// Rejection Requests Feature
+import '../../features/rejection_requests/data/datasources/rejection_requests_datasource.dart';
+import '../../features/rejection_requests/data/repositories/rejection_requests_repository_impl.dart';
+import '../../features/rejection_requests/domain/repositories/rejection_requests_repository.dart';
+import '../../features/rejection_requests/domain/usecases/rejection_requests_usecases.dart';
+import '../../features/rejection_requests/presentation/bloc/rejection_requests_bloc.dart';
+
+// Notifications Feature
+import '../../features/notifications/data/datasources/notifications_firebase_datasource.dart';
+import '../../features/notifications/data/repositories/notifications_repository_impl.dart';
+import '../../features/notifications/domain/repositories/notifications_repository.dart';
+import '../../features/notifications/presentation/bloc/notifications_bloc.dart';
+
+// Products Feature
+import '../../features/products/data/datasources/products_firebase_datasource.dart';
+import '../../features/products/data/repositories/products_repository_impl.dart';
+import '../../features/products/domain/repositories/products_repository.dart';
+import '../../features/products/presentation/bloc/products_bloc.dart';
 
 // Settings Feature
 // Vendors Feature
@@ -53,7 +74,6 @@ import '../../features/vendors/presentation/bloc/vendors_bloc.dart';
 
 /// Global service locator instance.
 final sl = GetIt.instance;
-
 
 /// Initializes all dependencies for the application.
 ///
@@ -97,6 +117,21 @@ Future<void> initDependencies() async {
   // 📝 ONBOARDING FEATURE
   // ============================================
   await _initOnboardingDependencies();
+
+  // ============================================
+  // 🚫 REJECTION REQUESTS FEATURE
+  // ============================================
+  await _initRejectionRequestsDependencies();
+
+  // ============================================
+  // 🔔 NOTIFICATIONS FEATURE
+  // ============================================
+  await _initNotificationsDependencies();
+
+  // ============================================
+  // 📦 PRODUCTS FEATURE
+  // ============================================
+  await _initProductsDependencies();
 }
 
 /// Initializes Auth feature dependencies.
@@ -207,6 +242,11 @@ Future<void> _initAccountsDependencies() async {
     () => DriverApplicationsRepository(),
   );
 
+  // Driver Cleanup Provider
+  sl.registerLazySingleton<DriverCleanupProvider>(
+    () => DriverCleanupProvider(),
+  );
+
   // Use Cases
   sl.registerLazySingleton(() => GetCustomers(sl()));
   sl.registerLazySingleton(() => ToggleCustomerStatus(sl()));
@@ -303,5 +343,80 @@ Future<void> _initVendorsDependencies() async {
       updateVendorRating: sl(),
       getVendorProducts: sl(),
     ),
+  );
+}
+
+/// Initializes Rejection Requests feature dependencies.
+Future<void> _initRejectionRequestsDependencies() async {
+  // Data Sources
+  sl.registerLazySingleton<RejectionRequestsDataSource>(
+    () => RejectionRequestsDataSource(FirebaseFirestore.instance),
+  );
+
+  // Repository
+  sl.registerLazySingleton<RejectionRequestsRepository>(
+    () => RejectionRequestsRepositoryImpl(
+      dataSource: sl(),
+      firestore: FirebaseFirestore.instance,
+    ),
+  );
+
+  // Use Cases
+  sl.registerLazySingleton(() => GetRejectionRequests(sl()));
+  sl.registerLazySingleton(() => WatchRejectionRequests(sl()));
+  sl.registerLazySingleton(() => ApproveExcuse(sl()));
+  sl.registerLazySingleton(() => RejectExcuse(sl()));
+  sl.registerLazySingleton(() => GetRejectionStats(sl()));
+  sl.registerLazySingleton(() => GetPendingRequestsCount(sl()));
+
+  // BLoC
+  sl.registerFactory(
+    () => RejectionRequestsBloc(
+      getRejectionRequests: sl(),
+      watchRejectionRequests: sl(),
+      approveExcuse: sl(),
+      rejectExcuse: sl(),
+      getRejectionStats: sl(),
+      getPendingRequestsCount: sl(),
+    ),
+  );
+}
+
+/// Initializes Notifications feature dependencies.
+Future<void> _initNotificationsDependencies() async {
+  // Data Sources
+  sl.registerLazySingleton<NotificationsFirebaseDataSource>(
+    () => NotificationsFirebaseDataSource(
+      firestore: FirebaseFirestore.instance,
+      adminId: 'admin', // يمكن استبداله بـ ID الأدمن الحالي من Auth
+    ),
+  );
+
+  // Repository
+  sl.registerLazySingleton<NotificationsRepository>(
+    () => NotificationsRepositoryImpl(sl()),
+  );
+
+  // BLoC
+  sl.registerFactory(
+    () => NotificationsBloc(sl()),
+  );
+}
+
+/// Initializes Products feature dependencies.
+Future<void> _initProductsDependencies() async {
+  // Data Sources
+  sl.registerLazySingleton<ProductsFirebaseDatasource>(
+    () => ProductsFirebaseDatasource(FirebaseFirestore.instance),
+  );
+
+  // Repository
+  sl.registerLazySingleton<ProductsRepository>(
+    () => ProductsRepositoryImpl(sl()),
+  );
+
+  // BLoC
+  sl.registerFactory(
+    () => ProductsBloc(sl()),
   );
 }

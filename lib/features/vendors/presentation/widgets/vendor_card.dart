@@ -129,38 +129,38 @@ class VendorCard extends StatelessWidget {
                         ],
                       ),
                       const SizedBox(height: AppConstants.spacingMd),
-                      Row(
+                      Wrap(
+                        spacing: AppConstants.spacingSm,
+                        runSpacing: AppConstants.spacingSm,
                         children: [
                           // Rating
-                          Flexible(
-                            child: _InfoChip(
-                              icon: Icons.star,
-                              iconColor: AppColors.warning,
-                              label: vendor.rating.toStringAsFixed(1),
-                              sublabel: '(${vendor.totalRatings})',
-                            ),
+                          _InfoChip(
+                            icon: Icons.star,
+                            iconColor: AppColors.warning,
+                            label: vendor.rating.toStringAsFixed(1),
+                            sublabel: '(${vendor.totalRatings})',
                           ),
-                          const SizedBox(width: AppConstants.spacingMd),
+                          // Products
+                          _InfoChip(
+                            icon: Icons.inventory_2_outlined,
+                            label: NumberFormat.compact()
+                                .format(vendor.productsCount),
+                            sublabel: 'منتج',
+                          ),
                           // Orders
-                          Flexible(
-                            child: _InfoChip(
-                              icon: Icons.shopping_bag_outlined,
-                              label: NumberFormat.compact()
-                                  .format(vendor.totalOrders),
-                              sublabel: 'طلب',
-                            ),
+                          _InfoChip(
+                            icon: Icons.shopping_bag_outlined,
+                            label: NumberFormat.compact()
+                                .format(vendor.totalOrders),
+                            sublabel: 'طلب',
                           ),
-                          const SizedBox(width: AppConstants.spacingMd),
                           // Revenue
-                          Flexible(
-                            child: _InfoChip(
-                              icon: Icons.attach_money,
-                              iconColor: AppColors.success,
-                              label: NumberFormat.compact()
-                                  .format(vendor.totalRevenue),
-                            ),
+                          _InfoChip(
+                            icon: Icons.attach_money,
+                            iconColor: AppColors.success,
+                            label: NumberFormat.compact()
+                                .format(vendor.totalRevenue),
                           ),
-
                         ],
                       ),
                     ],
@@ -360,26 +360,22 @@ class _InfoChip extends StatelessWidget {
           color: iconColor ?? AppColors.textTertiary,
         ),
         const SizedBox(width: 4),
-        Flexible(
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
-                ),
-            overflow: TextOverflow.ellipsis,
-          ),
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: AppColors.textPrimary,
+              ),
+          overflow: TextOverflow.ellipsis,
         ),
         if (sublabel != null) ...[
           const SizedBox(width: 2),
-          Flexible(
-            child: Text(
-              sublabel!,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.textTertiary,
-                  ),
-              overflow: TextOverflow.ellipsis,
-            ),
+          Text(
+            sublabel!,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textTertiary,
+                ),
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ],

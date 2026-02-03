@@ -8,6 +8,7 @@ import '../../core/constants/app_constants.dart';
 import '../../core/constants/app_strings.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/auth/presentation/bloc/auth_event.dart';
+import '../../features/notifications/presentation/widgets/notifications_bell.dart';
 import 'admin_shell.dart';
 
 /// Sidebar navigation widget.
@@ -118,6 +119,9 @@ class Sidebar extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(width: AppConstants.spacingSm),
+          // Notifications Bell
+          const NotificationsBell(),
         ],
       ),
     );

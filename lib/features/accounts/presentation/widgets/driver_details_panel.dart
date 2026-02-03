@@ -39,6 +39,10 @@ class DriverDetailsPanel extends StatelessWidget {
                 const SizedBox(height: 24),
                 _buildContactInfo(context),
                 const SizedBox(height: 24),
+                _buildRejectionStatsSection(context),
+                const SizedBox(height: 24),
+                _buildRejectionStatsSection(context),
+                const SizedBox(height: 24),
                 _buildStatisticsSection(context),
               ],
             ),
@@ -161,7 +165,8 @@ class DriverDetailsPanel extends StatelessWidget {
         const SizedBox(height: 16),
         LayoutBuilder(
           builder: (context, constraints) {
-            final isMobile = constraints.maxWidth < 400 || Response.isMobile(context);
+            final isMobile =
+                constraints.maxWidth < 400 || Response.isMobile(context);
             if (isMobile) {
               return Column(
                 children: [
@@ -315,6 +320,170 @@ class DriverDetailsPanel extends StatelessWidget {
     );
   }
 
+  Widget _buildRejectionStatsSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'إحصائيات الرفضات',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+        ),
+        const SizedBox(height: 16),
+        FutureBuilder<QuerySnapshot>(
+          future: FirebaseFirestore.instance
+              .collection('rejection_requests')
+              .where('driverId', isEqualTo: driver.id)
+              .get(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(16.0),
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            }
+
+            final totalRequests = snapshot.data?.docs.length ?? 0;
+            final approvedCount = snapshot.data?.docs
+                    .where((doc) => doc['adminDecision'] == 'approved')
+                    .length ??
+                0;
+            final rejectedCount = snapshot.data?.docs
+                    .where((doc) => doc['adminDecision'] == 'rejected')
+                    .length ??
+                0;
+            final pendingCount = snapshot.data?.docs
+                    .where((doc) => doc['adminDecision'] == 'pending')
+                    .length ??
+                0;
+
+            return LayoutBuilder(
+              builder: (context, constraints) {
+                final isMobile =
+                    constraints.maxWidth < 400 || Response.isMobile(context);
+
+                final children = [
+                  if (isMobile) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: _StatCard(
+                        icon: Iconsax.close_circle,
+                        label: 'إجمالي الرفضات',
+                        value: '${driver.rejectionsCounter}',
+                        color: AppColors.error,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: _StatCard(
+                        icon: Iconsax.document,
+                        label: 'طلبات الاعتذار',
+                        value: '$totalRequests',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: _StatCard(
+                        icon: Iconsax.tick_circle,
+                        label: 'قبول الأعذار',
+                        value: '$approvedCount',
+                        color: AppColors.success,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: _StatCard(
+                        icon: Iconsax.close_square,
+                        label: 'رفض الأعذار',
+                        value: '$rejectedCount',
+                        color: AppColors.warning,
+                      ),
+                    ),
+                    if (pendingCount > 0) ...[
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        width: double.infinity,
+                        child: _StatCard(
+                          icon: Iconsax.timer_1,
+                          label: 'قيد المراجعة',
+                          value: '$pendingCount',
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ] else ...[
+                    Expanded(
+                      child: _StatCard(
+                        icon: Iconsax.close_circle,
+                        label: 'إجمالي الرفضات',
+                        value: '${driver.rejectionsCounter}',
+                        color: AppColors.error,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _StatCard(
+                        icon: Iconsax.document,
+                        label: 'طلبات الاعتذار',
+                        value: '$totalRequests',
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _StatCard(
+                        icon: Iconsax.tick_circle,
+                        label: 'قبول الأعذار',
+                        value: '$approvedCount',
+                        color: AppColors.success,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _StatCard(
+                        icon: Iconsax.close_square,
+                        label: 'رفض الأعذار',
+                        value: '$rejectedCount',
+                        color: AppColors.warning,
+                      ),
+                    ),
+                    if (pendingCount > 0) ...[
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _StatCard(
+                          icon: Iconsax.timer_1,
+                          label: 'قيد المراجعة',
+                          value: '$pendingCount',
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ],
+                ];
+
+                if (isMobile) {
+                  return Column(children: children);
+                } else {
+                  return Wrap(
+                    spacing: 16,
+                    runSpacing: 16,
+                    children: children,
+                  );
+                }
+              },
+            );
+          },
+        ),
+      ],
+    );
+  }
+
   Widget _buildStatisticsSection(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -341,7 +510,7 @@ class DriverDetailsPanel extends StatelessWidget {
                   .get(),
               builder: (context, snapshot) {
                 final count = snapshot.data?.count ?? driver.totalDeliveries;
-                
+
                 final children = [
                   isMobile
                       ? SizedBox(
@@ -359,8 +528,7 @@ class DriverDetailsPanel extends StatelessWidget {
                             value: '$count',
                           ),
                         ),
-                  SizedBox(
-                      width: isMobile ? 0 : 16, height: isMobile ? 16 : 0),
+                  SizedBox(width: isMobile ? 0 : 16, height: isMobile ? 16 : 0),
                   isMobile
                       ? SizedBox(
                           width: double.infinity,

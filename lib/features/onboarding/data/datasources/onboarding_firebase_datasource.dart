@@ -20,9 +20,9 @@ class OnboardingFirebaseDataSource implements OnboardingDataSource {
   static const String _driverRequestsCollection =
       FirestoreCollections.driverRequests;
 
-  /// Collection path for store requests.
+  /// Collection path for store requests (now using stores collection).
   static const String _storeRequestsCollection =
-      FirestoreCollections.storeRequests;
+      FirestoreCollections.stores;
 
   @override
   Future<List<dynamic>> getRequests({
@@ -98,7 +98,12 @@ class OnboardingFirebaseDataSource implements OnboardingDataSource {
         _firestore.collection(_storeRequestsCollection);
 
     if (status != null) {
-      query = query.where('status', isEqualTo: status.name);
+      // Map OnboardingStatus to VendorStatus (stores collection uses VendorStatus)
+      String vendorStatus = status.name;
+      if (status == OnboardingStatus.approved) vendorStatus = 'active';
+      if (status == OnboardingStatus.rejected) vendorStatus = 'suspended';
+      
+      query = query.where('status', isEqualTo: vendorStatus);
     }
 
     // query = query.orderBy('createdAt', descending: true); // Commented out for debugging
@@ -132,12 +137,35 @@ class OnboardingFirebaseDataSource implements OnboardingDataSource {
     String docId,
     Map<String, dynamic> data,
   ) {
+    // Map VendorStatus to OnboardingStatus for the model
+    String status = data['status'] ?? 'pending';
+    if (status == 'active') status = 'approved';
+    if (status == 'suspended') status = 'rejected';
+    if (status == 'inactive') status = 'rejected';
+
+    // Handle address map
+    String addressStr = '';
+    if (data['address'] is Map) {
+      final addrMap = data['address'] as Map;
+      final street = addrMap['street'] ?? '';
+      final city = addrMap['city'] ?? '';
+      addressStr = '$street, $city';
+    } else if (data['address'] is String) {
+      addressStr = data['address'];
+    }
+
     return {
       ...data,
       'id': docId,
       'type': 'store',
+      'status': status,
+      // Map store fields to onboarding model fields
+      'storeName': data['name'] ?? '',
+      'storeType': data['category'] ?? 'other',
+      'ownerName': data['ownerName'] ?? data['name'] ?? '', // Fallback to store name if owner not found
+      'address': addressStr,
       // Convert timestamps using helper
-      'createdAt': _parseTimestamp(data['createdAt']),
+      'createdAt': _parseTimestamp(data['createdAt']) ?? DateTime.now(),
       'reviewedAt': _parseTimestamp(data['reviewedAt']),
     };
   }
@@ -166,8 +194,7 @@ class OnboardingFirebaseDataSource implements OnboardingDataSource {
 
   @override
   Future<void> approveRequest(String id, {String? notes}) async {
-    final updateData = {
-      'status': OnboardingStatus.approved.name,
+    final commonUpdateData = {
       'reviewedAt': FieldValue.serverTimestamp(),
       'reviewedBy': 'admin', // TODO: Get actual admin ID
       if (notes != null) 'notes': notes,
@@ -178,24 +205,28 @@ class OnboardingFirebaseDataSource implements OnboardingDataSource {
         await _firestore.collection(_driverRequestsCollection).doc(id).get();
 
     if (driverDoc.exists) {
-      await _firestore
-          .collection(_driverRequestsCollection)
-          .doc(id)
-          .update(updateData);
+      await _firestore.collection(_driverRequestsCollection).doc(id).update({
+        ...commonUpdateData,
+        'status': OnboardingStatus.approved.name,
+      });
       return;
     }
 
-    // Try store requests
+    // Try store requests - Update to 'active' for VendorStatus
     await _firestore
         .collection(_storeRequestsCollection)
         .doc(id)
-        .update(updateData);
+        .update({
+      ...commonUpdateData,
+      'status': 'active', // Maps to OnboardingStatus.approved
+      'isActive': true,
+      'isApproved': true,
+    });
   }
 
   @override
   Future<void> rejectRequest(String id, String reason) async {
-    final updateData = {
-      'status': OnboardingStatus.rejected.name,
+    final commonUpdateData = {
       'reviewedAt': FieldValue.serverTimestamp(),
       'reviewedBy': 'admin', // TODO: Get actual admin ID
       'rejectionReason': reason,
@@ -206,43 +237,44 @@ class OnboardingFirebaseDataSource implements OnboardingDataSource {
         await _firestore.collection(_driverRequestsCollection).doc(id).get();
 
     if (driverDoc.exists) {
-      await _firestore
-          .collection(_driverRequestsCollection)
-          .doc(id)
-          .update(updateData);
+      await _firestore.collection(_driverRequestsCollection).doc(id).update({
+        ...commonUpdateData,
+        'status': OnboardingStatus.rejected.name,
+      });
       return;
     }
 
-    // Try store requests
+    // Try store requests - Update to 'suspended' for VendorStatus
     await _firestore
         .collection(_storeRequestsCollection)
         .doc(id)
-        .update(updateData);
+        .update({
+      ...commonUpdateData,
+      'status': 'suspended', // Maps to OnboardingStatus.rejected
+      'isActive': false,
+    });
   }
 
   @override
   Future<void> markUnderReview(String id) async {
-    final updateData = {
-      'status': OnboardingStatus.underReview.name,
-    };
-
     // Try to update in driver requests
     final driverDoc =
         await _firestore.collection(_driverRequestsCollection).doc(id).get();
 
     if (driverDoc.exists) {
-      await _firestore
-          .collection(_driverRequestsCollection)
-          .doc(id)
-          .update(updateData);
+      await _firestore.collection(_driverRequestsCollection).doc(id).update({
+        'status': OnboardingStatus.underReview.name,
+      });
       return;
     }
 
-    // Try store requests
+    // Try store requests - Update to 'pending' as stores don't have underReview
     await _firestore
         .collection(_storeRequestsCollection)
         .doc(id)
-        .update(updateData);
+        .update({
+      'status': 'pending',
+    });
   }
 
   @override
@@ -323,12 +355,15 @@ class OnboardingFirebaseDataSource implements OnboardingDataSource {
           totalCurrent++;
           switch (status) {
             case 'pending':
-            case 'underReview':
+            case 'underReview': 
               pendingCurrent++;
               pendingStoresCurrent++;
             case 'approved':
+            case 'active': // Store approved status
               approvedCurrent++;
             case 'rejected':
+            case 'suspended': // Store rejected status
+            case 'inactive': // Treating inactive as rejected/not-approved for onboarding stats
               rejectedCurrent++;
           }
         }
@@ -341,8 +376,11 @@ class OnboardingFirebaseDataSource implements OnboardingDataSource {
               pendingPrevious++;
               pendingStoresPrevious++;
             case 'approved':
+            case 'active':
               approvedPrevious++;
             case 'rejected':
+            case 'suspended':
+            case 'inactive':
               rejectedPrevious++;
           }
         }

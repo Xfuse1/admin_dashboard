@@ -123,6 +123,9 @@ class DriverEntity extends AccountEntity {
   final String? idCardImage;
   final String? vehicleImage;
   final String? criminalRecordImage;
+  final DateTime? lastActiveAt;
+  final int rejectionsCounter;
+  final int currentOrdersCount;
 
   const DriverEntity({
     required super.id,
@@ -147,6 +150,9 @@ class DriverEntity extends AccountEntity {
     this.idCardImage,
     this.vehicleImage,
     this.criminalRecordImage,
+    this.lastActiveAt,
+    this.rejectionsCounter = 0,
+    this.currentOrdersCount = 0,
   });
 
   @override
@@ -156,6 +162,7 @@ class DriverEntity extends AccountEntity {
         isApproved,
         rating,
         totalDeliveries,
+        rejectionsCounter,
       ];
 }
 

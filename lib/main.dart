@@ -37,7 +37,6 @@ void main() async {
   
   // Temporary: Seed stores
   // await SeedingService().seedStores(); // Uncomment to seed once
-  await SeedingService().seedStoreRequests(); // Seeding store requests
 
   logger.info('App started successfully');
   runApp(const AdminDashboardApp());

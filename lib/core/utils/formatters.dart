@@ -164,5 +164,39 @@ abstract final class Formatters {
   static String dateTimeWithSeconds(DateTime dt) =>
       DateFormatter.dateTimeWithSeconds(dt);
   static String timeAgo(DateTime dt) => DateFormatter.relative(dt);
+  static String formatRelativeTime(DateTime dt) => DateFormatter.relative(dt);
+  static String formatDateTime(DateTime dt) => DateFormatter.dateTime(dt);
   static String dayMonth(DateTime dt) => DateFormatter.dayMonth(dt);
+
+  /// Format duration in minutes to human readable format
+  static String formatDuration(int minutes) {
+    if (minutes < 1) {
+      return 'أقل من دقيقة';
+    } else if (minutes == 1) {
+      return 'دقيقة واحدة';
+    } else if (minutes == 2) {
+      return 'دقيقتان';
+    } else if (minutes < 60) {
+      if (minutes > 2 && minutes < 11) {
+        return '$minutes دقائق';
+      }
+      return '$minutes دقيقة';
+    } else {
+      final hours = minutes ~/ 60;
+      final remainingMinutes = minutes % 60;
+
+      if (hours == 1) {
+        if (remainingMinutes == 0) return 'ساعة واحدة';
+        return 'ساعة و $remainingMinutes دقيقة';
+      } else if (hours == 2) {
+        if (remainingMinutes == 0) return 'ساعتان';
+        return 'ساعتان و $remainingMinutes دقيقة';
+      } else {
+        final hourText =
+            hours > 2 && hours < 11 ? '$hours ساعات' : '$hours ساعة';
+        if (remainingMinutes == 0) return hourText;
+        return '$hourText و $remainingMinutes دقيقة';
+      }
+    }
+  }
 }

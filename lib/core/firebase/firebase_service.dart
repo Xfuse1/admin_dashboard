@@ -97,14 +97,14 @@ abstract final class FirestoreCollections {
   /// Customers collection - customer accounts.
   static const String customers = 'customers';
 
-  /// Drivers collection - driver accounts.
+  /// Drivers collection - driver accounts and applications.
   static const String drivers = 'drivers';
 
   /// Store requests collection - pending store applications.
   static const String storeRequests = 'store_requests';
 
-  /// Driver requests collection - pending driver applications.
-  static const String driverRequests = 'driver_requests';
+  /// Driver requests collection - pending driver applications (deprecated, use 'drivers').
+  static const String driverRequests = 'drivers';
 
   /// Settings collection - app configuration.
   static const String settings = 'settings';

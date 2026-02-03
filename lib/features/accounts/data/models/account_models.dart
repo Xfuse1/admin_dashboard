@@ -248,6 +248,9 @@ class DriverModel extends DriverEntity {
     super.idCardImage,
     super.vehicleImage,
     super.criminalRecordImage,
+    super.lastActiveAt,
+    super.rejectionsCounter,
+    super.currentOrdersCount,
   });
 
   factory DriverModel.fromJson(Map<String, dynamic> json) {
@@ -274,6 +277,11 @@ class DriverModel extends DriverEntity {
       idCardImage: json['idCardImage'] as String?,
       vehicleImage: json['vehicleImage'] as String?,
       criminalRecordImage: json['criminalRecordImage'] as String?,
+      lastActiveAt: json['lastActiveAt'] != null
+          ? DateTime.parse(json['lastActiveAt'] as String)
+          : null,
+      rejectionsCounter: json['rejectionsCounter'] as int? ?? 0,
+      currentOrdersCount: json['currentOrdersCount'] as int? ?? 0,
     );
   }
 
@@ -301,6 +309,9 @@ class DriverModel extends DriverEntity {
       'idCardImage': idCardImage,
       'vehicleImage': vehicleImage,
       'criminalRecordImage': criminalRecordImage,
+      'lastActiveAt': lastActiveAt?.toIso8601String(),
+      'rejectionsCounter': rejectionsCounter,
+      'currentOrdersCount': currentOrdersCount,
     };
   }
 
@@ -327,6 +338,9 @@ class DriverModel extends DriverEntity {
     String? idCardImage,
     String? vehicleImage,
     String? criminalRecordImage,
+    DateTime? lastActiveAt,
+    int? rejectionsCounter,
+    int? currentOrdersCount,
   }) {
     return DriverModel(
       id: id ?? this.id,
@@ -351,6 +365,9 @@ class DriverModel extends DriverEntity {
       idCardImage: idCardImage ?? this.idCardImage,
       vehicleImage: vehicleImage ?? this.vehicleImage,
       criminalRecordImage: criminalRecordImage ?? this.criminalRecordImage,
+      lastActiveAt: lastActiveAt ?? this.lastActiveAt,
+      rejectionsCounter: rejectionsCounter ?? this.rejectionsCounter,
+      currentOrdersCount: currentOrdersCount ?? this.currentOrdersCount,
     );
   }
 }

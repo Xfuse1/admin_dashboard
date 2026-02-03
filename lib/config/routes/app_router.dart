@@ -14,6 +14,10 @@ import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/orders/presentation/bloc/orders_bloc.dart';
 import '../../features/orders/presentation/bloc/orders_event.dart';
 import '../../features/orders/presentation/pages/orders_page.dart';
+import '../../features/rejection_requests/presentation/bloc/rejection_requests_bloc.dart';
+import '../../features/rejection_requests/presentation/bloc/rejection_requests_event.dart';
+import '../../features/rejection_requests/presentation/pages/rejection_requests_page.dart';
+import '../../features/accounts/presentation/pages/drivers_stats_page.dart';
 import '../../features/accounts/presentation/bloc/accounts_bloc.dart';
 import '../../features/accounts/presentation/bloc/accounts_event.dart';
 import '../../features/accounts/presentation/pages/accounts_page.dart';
@@ -21,6 +25,7 @@ import '../../features/onboarding/presentation/bloc/onboarding_bloc.dart';
 import '../../features/onboarding/presentation/bloc/onboarding_event.dart';
 import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/vendors/presentation/pages/vendors_page.dart';
+import '../../features/products/presentation/pages/products_page.dart';
 import '../../shared/widgets/admin_shell.dart';
 
 /// Application route paths.
@@ -32,9 +37,12 @@ abstract final class AppRoutes {
   static const String dashboard = '/';
   static const String orders = '/orders';
   static const String orderDetails = '/orders/:id';
+  static const String rejectionRequests = '/rejection-requests';
+  static const String driversStats = '/drivers-stats';
   static const String onboarding = '/onboarding';
   static const String vendors = '/vendors';
   static const String vendorDetails = '/vendors/:id';
+  static const String products = '/products';
   static const String accounts = '/accounts';
 }
 
@@ -127,7 +135,29 @@ final class AppRouter {
                 ),
               ],
             ),
-
+            // Rejection Requests
+            GoRoute(
+              path: AppRoutes.rejectionRequests,
+              pageBuilder: (context, state) => CustomTransitionPage(
+                key: state.pageKey,
+                child: BlocProvider(
+                  create: (_) => sl<RejectionRequestsBloc>()
+                    ..add(const WatchRejectionRequestsEvent(
+                        adminDecision: 'pending')),
+                  child: const RejectionRequestsPage(),
+                ),
+                transitionsBuilder: _fadeTransition,
+              ),
+            ),
+            // Drivers Statistics
+            GoRoute(
+              path: AppRoutes.driversStats,
+              pageBuilder: (context, state) => CustomTransitionPage(
+                key: state.pageKey,
+                child: const DriversStatsPage(),
+                transitionsBuilder: _fadeTransition,
+              ),
+            ),
             // Onboarding
             GoRoute(
               path: AppRoutes.onboarding,
@@ -162,6 +192,16 @@ final class AppRouter {
                   },
                 ),
               ],
+            ),
+
+            // Products
+            GoRoute(
+              path: AppRoutes.products,
+              pageBuilder: (context, state) => CustomTransitionPage(
+                key: state.pageKey,
+                child: const ProductsPage(),
+                transitionsBuilder: _fadeTransition,
+              ),
             ),
 
             // Accounts

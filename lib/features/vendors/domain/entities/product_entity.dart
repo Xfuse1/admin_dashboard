@@ -59,9 +59,11 @@ class ProductEntity extends Equatable {
       name: map['name'] ?? '',
       description: map['description'] ?? '',
       price: (map['price'] as num?)?.toDouble() ?? 0.0,
-      imageUrl: map['imageUrl'] ?? '',
+      imageUrl: map['image_url'] ?? '',
       ordersCount: map['ordersCount'] ?? 0,
       isAvailable: map['isAvailable'] ?? true,
     );
   }
+
+
 }

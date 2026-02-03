@@ -146,7 +146,8 @@ class DriverCard extends StatelessWidget {
                                 .count()
                                 .get(),
                             builder: (context, snapshot) {
-                              final count = snapshot.data?.count ?? driver.totalDeliveries;
+                              final count = snapshot.data?.count ??
+                                  driver.totalDeliveries;
                               return _buildStatChip(
                                 context,
                                 icon: Iconsax.truck,
@@ -164,6 +165,17 @@ class DriverCard extends StatelessWidget {
                                 '${driver.walletBalance.toStringAsFixed(0)} ج.م',
                           ),
                         ),
+                        if (driver.rejectionsCounter > 0) ...[
+                          const SizedBox(width: 12),
+                          Flexible(
+                            child: _buildStatChip(
+                              context,
+                              icon: Iconsax.close_circle,
+                              label: '${driver.rejectionsCounter} رفض',
+                              color: AppColors.error,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ],
@@ -306,23 +318,27 @@ class DriverCard extends StatelessWidget {
     BuildContext context, {
     required IconData icon,
     required String label,
+    Color? color,
   }) {
+    final chipColor = color ?? AppColors.textSecondary;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: color != null ? color.withValues(alpha: 0.1) : AppColors.surface,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: AppColors.textSecondary),
+          Icon(icon, size: 14, color: chipColor),
           const SizedBox(width: 4),
           Flexible(
             child: Text(
               label,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AppColors.textSecondary,
+                    color: chipColor,
+                    fontWeight: color != null ? FontWeight.bold : null,
                   ),
               overflow: TextOverflow.ellipsis,
             ),

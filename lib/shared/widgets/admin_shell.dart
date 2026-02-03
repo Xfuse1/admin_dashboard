@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../config/di/injection_container.dart';
 import '../../config/routes/app_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/app_strings.dart';
+import '../../features/accounts/presentation/providers/driver_cleanup_provider.dart';
+import '../../features/notifications/presentation/bloc/notifications_bloc.dart';
+import '../../features/notifications/presentation/bloc/notifications_event.dart';
+import '../../features/notifications/presentation/widgets/notifications_bell.dart';
 import 'responsive_layout.dart';
 import 'sidebar.dart';
 
@@ -21,14 +27,11 @@ class AdminShell extends StatefulWidget {
 class _AdminShellState extends State<AdminShell> {
   bool _isDrawerOpen = false;
 
-  void _toggleDrawer() {
-    setState(() => _isDrawerOpen = !_isDrawerOpen);
-  }
-
-  void _closeDrawer() {
-    if (_isDrawerOpen) {
-      setState(() => _isDrawerOpen = false);
-    }
+  @override
+  void initState() {
+    super.initState();
+    // Start driver cleanup job when dashboard opens
+    sl<DriverCleanupProvider>().startCleanupJob(context);
   }
 
   @override
@@ -36,6 +39,13 @@ class _AdminShellState extends State<AdminShell> {
     final deviceType = ResponsiveLayout.getDeviceType(context);
     final isDesktop = deviceType == DeviceType.desktop;
 
+    return BlocProvider(
+      create: (_) => sl<NotificationsBloc>()..add(const WatchNotifications()),
+      child: _buildScaffold(context, isDesktop),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context, bool isDesktop) {
     return Scaffold(
       body: Row(
         children: [
@@ -90,10 +100,23 @@ class _AdminShellState extends State<AdminShell> {
     );
   }
 
+  void _toggleDrawer() {
+    setState(() => _isDrawerOpen = !_isDrawerOpen);
+  }
+
+  void _closeDrawer() {
+    if (_isDrawerOpen) {
+      setState(() => _isDrawerOpen = false);
+    }
+  }
+
   Widget _buildMobileAppBar(BuildContext context) {
     return Container(
-      height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: AppConstants.spacingMd),
+      height: 56,
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppConstants.spacingSm,
+        vertical: AppConstants.spacingXs,
+      ),
       decoration: BoxDecoration(
         color: AppColors.surface,
         border: Border(
@@ -104,28 +127,6 @@ class _AdminShellState extends State<AdminShell> {
       ),
       child: Row(
         children: [
-          // Logo Icon
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Icon(
-              Icons.admin_panel_settings_rounded,
-              color: AppColors.primary,
-              size: 20,
-            ),
-          ),
-          const SizedBox(width: AppConstants.spacingSm),
-          Text(
-            AppStrings.appName,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: AppColors.textPrimary,
-                  fontWeight: FontWeight.bold,
-                ),
-          ),
-          const Spacer(),
           // Menu button
           IconButton(
             onPressed: _toggleDrawer,
@@ -135,9 +136,39 @@ class _AdminShellState extends State<AdminShell> {
                 _isDrawerOpen ? Icons.close : Icons.menu,
                 key: ValueKey(_isDrawerOpen),
                 color: AppColors.textSecondary,
+                size: 24,
               ),
             ),
+            padding: const EdgeInsets.all(8),
+            constraints: const BoxConstraints(),
           ),
+          const SizedBox(width: AppConstants.spacingSm),
+          // Logo Icon
+          Container(
+            padding: const EdgeInsets.all(5),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Icon(
+              Icons.admin_panel_settings_rounded,
+              color: AppColors.primary,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: AppConstants.spacingSm),
+          Expanded(
+            child: Text(
+              AppStrings.appName,
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.bold,
+                  ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          // Notifications Bell
+          const NotificationsBell(),
         ],
       ),
     );
@@ -175,6 +206,18 @@ List<SidebarItem> getSidebarItems() {
       route: AppRoutes.orders,
     ),
     SidebarItem(
+      label: AppStrings.rejectionRequests,
+      icon: Icons.cancel_outlined,
+      activeIcon: Icons.cancel,
+      route: AppRoutes.rejectionRequests,
+    ),
+    SidebarItem(
+      label: AppStrings.driversStats,
+      icon: Icons.bar_chart_outlined,
+      activeIcon: Icons.bar_chart,
+      route: AppRoutes.driversStats,
+    ),
+    SidebarItem(
       label: AppStrings.onboarding,
       icon: Icons.person_add_outlined,
       activeIcon: Icons.person_add,
@@ -185,6 +228,12 @@ List<SidebarItem> getSidebarItems() {
       icon: Icons.storefront_outlined,
       activeIcon: Icons.storefront,
       route: AppRoutes.vendors,
+    ),
+    SidebarItem(
+      label: 'المنتجات',
+      icon: Icons.inventory_2_outlined,
+      activeIcon: Icons.inventory_2,
+      route: AppRoutes.products,
     ),
     SidebarItem(
       label: AppStrings.accounts,

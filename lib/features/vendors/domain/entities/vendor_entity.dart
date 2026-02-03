@@ -157,6 +157,7 @@ class VendorEntity extends Equatable {
   final int totalOrders;
   final double totalRevenue;
   final double commissionRate;
+  final int productsCount;
   final List<OperatingHours> operatingHours;
   final List<String> tags;
   final bool isVerified;
@@ -183,6 +184,7 @@ class VendorEntity extends Equatable {
     this.totalOrders = 0,
     this.totalRevenue = 0.0,
     this.commissionRate = 10.0,
+    this.productsCount = 0,
     this.operatingHours = const [],
     this.tags = const [],
     this.isVerified = false,
@@ -211,6 +213,7 @@ class VendorEntity extends Equatable {
         totalOrders,
         totalRevenue,
         commissionRate,
+        productsCount,
         operatingHours,
         tags,
         isVerified,
@@ -238,6 +241,7 @@ class VendorEntity extends Equatable {
     int? totalOrders,
     double? totalRevenue,
     double? commissionRate,
+    int? productsCount,
     List<OperatingHours>? operatingHours,
     List<String>? tags,
     bool? isVerified,
@@ -264,6 +268,7 @@ class VendorEntity extends Equatable {
       totalOrders: totalOrders ?? this.totalOrders,
       totalRevenue: totalRevenue ?? this.totalRevenue,
       commissionRate: commissionRate ?? this.commissionRate,
+      productsCount: productsCount ?? this.productsCount,
       operatingHours: operatingHours ?? this.operatingHours,
       tags: tags ?? this.tags,
       isVerified: isVerified ?? this.isVerified,
@@ -293,6 +298,7 @@ class VendorEntity extends Equatable {
       'totalOrders': totalOrders,
       'totalRevenue': totalRevenue,
       'commissionRate': commissionRate,
+      'productsCount': productsCount,
       'operatingHours': operatingHours.map((h) => h.toMap()).toList(),
       'tags': tags,
       'isVerified': isVerified,
@@ -328,6 +334,7 @@ class VendorEntity extends Equatable {
       totalOrders: map['totalOrders'] ?? 0,
       totalRevenue: (map['totalRevenue'] as num?)?.toDouble() ?? 0.0,
       commissionRate: (map['commissionRate'] as num?)?.toDouble() ?? 10.0,
+      productsCount: map['productsCount'] ?? 0,
       operatingHours: (map['operatingHours'] as List?)
               ?.map((h) => OperatingHours.fromMap(h))
               .toList() ??

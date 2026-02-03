@@ -23,50 +23,80 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
     int? limit,
     String? lastDocumentId,
   }) async {
-    Query<Map<String, dynamic>> query = _vendorsRef;
+    try {
+      Query<Map<String, dynamic>> query = _vendorsRef;
 
-    if (status != null) {
-      query = query.where('status', isEqualTo: status.name);
-    }
-
-    if (category != null) {
-      query = query.where('category', isEqualTo: category.name);
-    }
-
-    query = query.orderBy('createdAt', descending: true);
-
-    if (lastDocumentId != null) {
-      final lastDoc = await _vendorsRef.doc(lastDocumentId).get();
-      if (lastDoc.exists) {
-        query = query.startAfterDocument(lastDoc);
+      if (status != null) {
+        query = query.where('status', isEqualTo: status.name);
       }
-    }
 
-    if (limit != null) {
-      query = query.limit(limit);
-    }
+      if (category != null) {
+        query = query.where('category', isEqualTo: category.name);
+      }
 
-    final snapshot = await query.get();
+      query = query.orderBy('createdAt', descending: true);
 
-    // Use stored rating values for list performance
-    // Detailed ratings are fetched in getVendor() for individual vendor details
-    var vendors = snapshot.docs.map((doc) {
-      final data = doc.data();
-      data['id'] = doc.id;
-      return VendorEntity.fromMap(_processVendorData(data));
-    }).toList();
+      if (lastDocumentId != null) {
+        final lastDoc = await _vendorsRef.doc(lastDocumentId).get();
+        if (lastDoc.exists) {
+          query = query.startAfterDocument(lastDoc);
+        }
+      }
 
-    // Client-side search filtering
-    if (searchQuery != null && searchQuery.isNotEmpty) {
-      final queryLower = searchQuery.toLowerCase();
-      vendors = vendors.where((v) {
-        return v.name.toLowerCase().contains(queryLower) ||
-            (v.description?.toLowerCase().contains(queryLower) ?? false) ||
-            v.address.city.toLowerCase().contains(queryLower);
+      if (limit != null) {
+        query = query.limit(limit);
+      }
+
+      final snapshot = await query.get();
+
+      // Use stored rating values for list performance
+      // Detailed ratings are fetched in getVendor() for individual vendor details
+      var vendors = snapshot.docs.map((doc) {
+        final data = doc.data();
+        data['id'] = doc.id;
+        return VendorEntity.fromMap(_processVendorData(data));
       }).toList();
-    }
 
-    return vendors;
+      // Fetch products count for each vendor from products collection
+      if (vendors.isNotEmpty) {
+        final countFutures = vendors.map((vendor) async {
+          try {
+            final countSnapshot = await _firestore
+                .collection('products')
+                .where('store_id', isEqualTo: vendor.id)
+                .count()
+                .get();
+            return vendor.copyWith(productsCount: countSnapshot.count ?? 0);
+          } catch (e) {
+            return vendor;
+          }
+        });
+
+        vendors = await Future.wait(countFutures);
+      }
+
+      // Client-side search filtering
+      if (searchQuery != null && searchQuery.isNotEmpty) {
+        final queryLower = searchQuery.toLowerCase();
+        vendors = vendors.where((v) {
+          return v.name.toLowerCase().contains(queryLower) ||
+              (v.description?.toLowerCase().contains(queryLower) ?? false) ||
+              v.address.city.toLowerCase().contains(queryLower);
+        }).toList();
+      }
+
+      return vendors;
+    } catch (e) {
+      // Print Firebase index error with link to console
+      if (e.toString().contains('index')) {
+        print('\n🔴 Firebase Index Required!');
+        print('Error: $e');
+        print('\n📋 Copy this link to create the index:');
+        print(
+            '👉 Check your browser console for the Firebase index creation link\n');
+      }
+      rethrow;
+    }
   }
 
   @override
@@ -98,6 +128,18 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
       }
     } catch (e) {
       // Ignore error if reviews fail to load
+    }
+
+    // Fetch products count from products collection
+    try {
+      final countSnapshot = await _firestore
+          .collection('products')
+          .where('store_id', isEqualTo: id)
+          .count()
+          .get();
+      data['productsCount'] = countSnapshot.count ?? 0;
+    } catch (e) {
+      data['productsCount'] = 0;
     }
 
     return VendorEntity.fromMap(_processVendorData(data));
@@ -220,12 +262,32 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
 
     query = query.orderBy('createdAt', descending: true);
 
-    return query.snapshots().map((snapshot) {
-      return snapshot.docs.map((doc) {
+    return query.snapshots().asyncMap((snapshot) async {
+      var vendors = snapshot.docs.map((doc) {
         final data = doc.data();
         data['id'] = doc.id;
         return VendorEntity.fromMap(_processVendorData(data));
       }).toList();
+
+      // Fetch products count for each vendor from products collection
+      if (vendors.isNotEmpty) {
+        final countFutures = vendors.map((vendor) async {
+          try {
+            final countSnapshot = await _firestore
+                .collection('products')
+                .where('store_id', isEqualTo: vendor.id)
+                .count()
+                .get();
+            return vendor.copyWith(productsCount: countSnapshot.count ?? 0);
+          } catch (e) {
+            return vendor;
+          }
+        });
+
+        vendors = await Future.wait(countFutures);
+      }
+
+      return vendors;
     });
   }
 
@@ -280,8 +342,10 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
   @override
   Future<List<ProductEntity>> getVendorProducts(String vendorId) async {
     try {
-      final snapshot =
-          await _vendorsRef.doc(vendorId).collection('products').get();
+      final snapshot = await _firestore
+          .collection('products')
+          .where('store_id', isEqualTo: vendorId)
+          .get();
 
       return snapshot.docs.map((doc) {
         final data = doc.data();
@@ -307,28 +371,46 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
     if (data['status'] == null) {
       final isApproved = data['isApproved'] ?? false;
       final isActive = data['isActive'] ?? false;
-      
+
       if (!isApproved) {
         data['status'] = VendorStatus.pending.name;
       } else {
-        data['status'] = isActive ? VendorStatus.active.name : VendorStatus.inactive.name;
+        data['status'] =
+            isActive ? VendorStatus.active.name : VendorStatus.inactive.name;
       }
     }
     // Handle address being a String instead of Map
     if (data['address'] is String) {
+      final addressStr = data['address'] as String;
       data['address'] = {
-        'street': data['address'],
-        'city': '',
+        'street': addressStr,
+        'city': addressStr, // Use address string as city for display
         'country': '',
       };
     } else if (data['address'] == null) {
-      data['address'] = {};
+      data['address'] = {
+        'street': '',
+        'city': '',
+        'country': '',
+      };
+    } else if (data['address'] is Map) {
+      // If city is empty but street has data, use street as city for display
+      final address = data['address'] as Map;
+      if ((address['city'] == null || address['city'].toString().isEmpty) &&
+          address['street'] != null &&
+          address['street'].toString().isNotEmpty) {
+        address['city'] = address['street'];
+        data['address'] = address;
+      }
     }
 
     // Ensure name is String (handle localized map)
     if (data['name'] is Map) {
       final nameMap = data['name'] as Map;
-      data['name'] = nameMap['en'] ?? nameMap['ar'] ?? nameMap.values.firstOrNull ?? 'Unknown';
+      data['name'] = nameMap['en'] ??
+          nameMap['ar'] ??
+          nameMap.values.firstOrNull ??
+          'Unknown';
     } else if (data['name'] == null) {
       data['name'] = 'Unknown';
     }
