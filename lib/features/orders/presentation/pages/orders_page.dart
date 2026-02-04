@@ -876,7 +876,8 @@ class OrderDetailsPanel extends StatelessWidget {
         }
 
         final calculatedTotal = displaySubtotal + deliveryFee;
-        final displayTotal = order.total ?? calculatedTotal;
+        // Always use calculated total to ensure delivery fee is included
+        final displayTotal = calculatedTotal;
 
         return GlassCard(
           child: Column(

@@ -247,5 +247,11 @@ List<SidebarItem> getSidebarItems() {
       activeIcon: Icons.percent,
       route: AppRoutes.commissionSettings,
     ),
+    SidebarItem(
+      label: AppStrings.simulatorSettings,
+      icon: Icons.settings_input_component_outlined,
+      activeIcon: Icons.settings_input_component,
+      route: AppRoutes.simulatorSettings,
+    ),
   ];
 }

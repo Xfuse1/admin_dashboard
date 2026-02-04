@@ -467,34 +467,63 @@ class VendorDetailsPanel extends StatelessWidget {
           ),
         ),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: () => _showDeleteConfirmation(context),
-              icon: const Icon(Icons.delete_outline, size: 18),
-              label: const Text('حذف'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.error,
-                side: BorderSide(color: AppColors.error.withValues(alpha: 0.5)),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          // For narrow screens (< 360px), show icons only
+          final showIconOnly = constraints.maxWidth < 360;
+          
+          return Row(
+            children: [
+              Expanded(
+                child: showIconOnly
+                    ? OutlinedButton(
+                        onPressed: () => _showDeleteConfirmation(context),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.error,
+                          side: BorderSide(color: AppColors.error.withValues(alpha: 0.5)),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: const Icon(Icons.delete_outline, size: 20),
+                      )
+                    : OutlinedButton.icon(
+                        onPressed: () => _showDeleteConfirmation(context),
+                        icon: const Icon(Icons.delete_outline, size: 18),
+                        label: const Text('حذف'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.error,
+                          side: BorderSide(color: AppColors.error.withValues(alpha: 0.5)),
+                        ),
+                      ),
               ),
-            ),
-          ),
-          const SizedBox(width: AppConstants.spacingMd),
-          Expanded(
-            child: ElevatedButton.icon(
-              onPressed: () {
-                // TODO: Implement edit
-              },
-              icon: const Icon(Icons.edit, size: 18),
-              label: const Text('تعديل'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
+              const SizedBox(width: AppConstants.spacingMd),
+              Expanded(
+                child: showIconOnly
+                    ? ElevatedButton(
+                        onPressed: () {
+                          // TODO: Implement edit
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        child: const Icon(Icons.edit, size: 20),
+                      )
+                    : ElevatedButton.icon(
+                        onPressed: () {
+                          // TODO: Implement edit
+                        },
+                        icon: const Icon(Icons.edit, size: 18),
+                        label: const Text('تعديل'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
               ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }
