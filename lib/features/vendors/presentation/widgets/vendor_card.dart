@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
@@ -156,10 +157,9 @@ class VendorCard extends StatelessWidget {
                           ),
                           // Revenue
                           _InfoChip(
-                            icon: Icons.attach_money,
+                            icon: Iconsax.wallet_3,
                             iconColor: AppColors.success,
-                            label: NumberFormat.compact()
-                                .format(vendor.totalRevenue),
+                            label: '${NumberFormat.compact().format(vendor.totalRevenue)} ج.م',
                           ),
                         ],
                       ),

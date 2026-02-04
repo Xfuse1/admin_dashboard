@@ -20,6 +20,15 @@ class DeliverySettingsLoaded extends SettingsState {
   List<Object> get props => [deliveryPrice];
 }
 
+class DriverCommissionLoaded extends SettingsState {
+  final double commissionRate;
+
+  const DriverCommissionLoaded(this.commissionRate);
+
+  @override
+  List<Object> get props => [commissionRate];
+}
+
 class SettingsError extends SettingsState {
   final String message;
 

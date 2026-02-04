@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../domain/entities/product_entity.dart';
+import 'package:iconsax_flutter/iconsax_flutter.dart';
+
 import '../../domain/entities/vendor_entity.dart';
 import '../bloc/vendors_bloc.dart';
 import '../bloc/vendors_event.dart';
@@ -326,7 +328,7 @@ class VendorDetailsPanel extends StatelessWidget {
 
   Widget _buildStatisticsSection(BuildContext context) {
     final currencyFormatter = NumberFormat.currency(
-      symbol: '\$',
+      symbol: 'ج.م ',
       decimalDigits: 0,
     );
 
@@ -353,7 +355,7 @@ class VendorDetailsPanel extends StatelessWidget {
             const SizedBox(width: AppConstants.spacingSm),
             Expanded(
               child: _StatCard(
-                icon: Icons.attach_money,
+                icon: Iconsax.wallet_3,
                 label: 'الإيرادات',
                 value: currencyFormatter.format(vendor.totalRevenue),
                 color: AppColors.success,

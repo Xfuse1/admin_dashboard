@@ -142,7 +142,7 @@ class DriverCard extends StatelessWidget {
                             future: FirebaseFirestore.instance
                                 .collection('orders')
                                 .where('deliveryId', isEqualTo: driver.id)
-                                .where('deliveryStatus', isEqualTo: 'delivered')
+                                .where('status', isEqualTo: 'delivered')
                                 .count()
                                 .get(),
                             builder: (context, snapshot) {

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import 'package:iconsax_flutter/iconsax_flutter.dart';
+
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
 
@@ -19,7 +21,7 @@ class VendorsStatsCards extends StatelessWidget {
     final totalOrders = stats['totalOrders'] ?? 0;
 
     final currencyFormatter = NumberFormat.currency(
-      symbol: '\$',
+      symbol: 'ج.م ',
       decimalDigits: 0,
     );
 
@@ -57,7 +59,7 @@ class VendorsStatsCards extends StatelessWidget {
             context,
             'إجمالي الإيرادات',
             currencyFormatter.format(totalRevenue),
-            Icons.attach_money,
+            Iconsax.wallet_3,
             AppColors.success,
           ),
           const SizedBox(width: AppConstants.spacingMd),

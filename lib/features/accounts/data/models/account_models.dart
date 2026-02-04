@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../../domain/entities/account_entities.dart';
 
 /// Customer model for data layer.
@@ -25,13 +27,13 @@ class CustomerModel extends CustomerEntity {
       phone: json['phone'] as String,
       imageUrl: json['imageUrl'] as String?,
       isActive: json['isActive'] as bool? ?? true,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      createdAt: _parseDateTime(json['createdAt']),
+      updatedAt: _parseDateTime(json['updatedAt']),
       totalOrders: json['totalOrders'] as int? ?? 0,
       totalSpent: (json['totalSpent'] as num?)?.toDouble() ?? 0.0,
       lastOrderId: json['lastOrderId'] as String?,
       lastOrderDate: json['lastOrderDate'] != null
-          ? DateTime.parse(json['lastOrderDate'] as String)
+          ? _parseDateTime(json['lastOrderDate'])
           : null,
     );
   }
@@ -120,8 +122,8 @@ class StoreModel extends StoreEntity {
       phone: json['phone'] as String,
       imageUrl: json['imageUrl'] as String?,
       isActive: json['isActive'] as bool? ?? true,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      createdAt: _parseDateTime(json['createdAt']),
+      updatedAt: _parseDateTime(json['updatedAt']),
       type: json['type'] as String? ?? 'restaurant',
       description: json['description'] as String?,
       address: json['address'] as String?,
@@ -261,8 +263,8 @@ class DriverModel extends DriverEntity {
       phone: json['phone'] as String,
       imageUrl: json['imageUrl'] as String?,
       isActive: json['isActive'] as bool? ?? true,
-      createdAt: DateTime.parse(json['createdAt'] as String),
-      updatedAt: DateTime.parse(json['updatedAt'] as String),
+      createdAt: _parseDateTime(json['createdAt']),
+      updatedAt: _parseDateTime(json['updatedAt']),
       isOnline: json['isOnline'] as bool? ?? false,
       isApproved: json['isApproved'] as bool? ?? false,
       rating: (json['rating'] as num?)?.toDouble() ?? 0.0,
@@ -278,7 +280,7 @@ class DriverModel extends DriverEntity {
       vehicleImage: json['vehicleImage'] as String?,
       criminalRecordImage: json['criminalRecordImage'] as String?,
       lastActiveAt: json['lastActiveAt'] != null
-          ? DateTime.parse(json['lastActiveAt'] as String)
+          ? _parseDateTime(json['lastActiveAt'])
           : null,
       rejectionsCounter: json['rejectionsCounter'] as int? ?? 0,
       currentOrdersCount: json['currentOrdersCount'] as int? ?? 0,
@@ -370,4 +372,26 @@ class DriverModel extends DriverEntity {
       currentOrdersCount: currentOrdersCount ?? this.currentOrdersCount,
     );
   }
+}
+
+/// Helper function to parse DateTime from either Timestamp or String
+DateTime _parseDateTime(dynamic value) {
+  if (value == null) {
+    return DateTime.now();
+  }
+  
+  if (value is Timestamp) {
+    return value.toDate();
+  }
+  
+  if (value is String) {
+    return DateTime.parse(value);
+  }
+  
+  if (value is DateTime) {
+    return value;
+  }
+  
+  // Fallback to current time if type is unexpected
+  return DateTime.now();
 }

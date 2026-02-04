@@ -26,6 +26,7 @@ import '../../features/onboarding/presentation/bloc/onboarding_event.dart';
 import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/vendors/presentation/pages/vendors_page.dart';
 import '../../features/products/presentation/pages/products_page.dart';
+import '../../features/settings/presentation/pages/commission_settings_page.dart';
 import '../../shared/widgets/admin_shell.dart';
 
 /// Application route paths.
@@ -44,6 +45,7 @@ abstract final class AppRoutes {
   static const String vendorDetails = '/vendors/:id';
   static const String products = '/products';
   static const String accounts = '/accounts';
+  static const String commissionSettings = '/commission-settings';
 }
 
 /// Application router configuration.
@@ -154,7 +156,10 @@ final class AppRouter {
               path: AppRoutes.driversStats,
               pageBuilder: (context, state) => CustomTransitionPage(
                 key: state.pageKey,
-                child: const DriversStatsPage(),
+                child: BlocProvider(
+                  create: (_) => sl<AccountsBloc>()..add(const LoadDrivers()),
+                  child: const DriversStatsPage(),
+                ),
                 transitionsBuilder: _fadeTransition,
               ),
             ),
@@ -213,6 +218,16 @@ final class AppRouter {
                   create: (_) => sl<AccountsBloc>()..add(const LoadCustomers()),
                   child: const AccountsPage(),
                 ),
+                transitionsBuilder: _fadeTransition,
+              ),
+            ),
+
+            // Commission Settings
+            GoRoute(
+              path: AppRoutes.commissionSettings,
+              pageBuilder: (context, state) => CustomTransitionPage(
+                key: state.pageKey,
+                child: const CommissionSettingsPage(),
                 transitionsBuilder: _fadeTransition,
               ),
             ),

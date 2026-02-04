@@ -56,7 +56,7 @@ class OrdersRepository {
     await _firestore.collection('orders').doc(orderId).update({
       'deliveryId': deliveryId,
       'deliveryName': deliveryName,
-      'deliveryStatus': DeliveryStatus.upcoming.value,
+      'deliveryStatus': DeliveryStatus.confirmed.value,
     });
   }
 

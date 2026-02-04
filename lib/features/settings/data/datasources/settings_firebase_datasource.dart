@@ -11,7 +11,7 @@ class SettingsFirebaseDataSource implements SettingsDataSource {
   @override
   Future<DeliverySettingsModel> getDeliverySettings() async {
     final doc = await _firestore.collection('settings').doc('delivery').get();
-    
+
     if (doc.exists && doc.data() != null) {
       return DeliverySettingsModel.fromMap(doc.data()!);
     } else {
@@ -24,6 +24,27 @@ class SettingsFirebaseDataSource implements SettingsDataSource {
   Future<void> updateDeliveryPrice(double price) async {
     await _firestore.collection('settings').doc('delivery').set(
       {'price': price},
+      SetOptions(merge: true),
+    );
+  }
+
+  @override
+  Future<double> getDriverCommission() async {
+    final doc =
+        await _firestore.collection('settings').doc('driverCommission').get();
+
+    if (doc.exists && doc.data() != null) {
+      return (doc.data()!['rate'] as num?)?.toDouble() ?? 10.0;
+    } else {
+      // Return default commission rate
+      return 10.0;
+    }
+  }
+
+  @override
+  Future<void> updateDriverCommission(double rate) async {
+    await _firestore.collection('settings').doc('driverCommission').set(
+      {'rate': rate},
       SetOptions(merge: true),
     );
   }

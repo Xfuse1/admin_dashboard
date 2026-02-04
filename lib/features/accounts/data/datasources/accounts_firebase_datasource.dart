@@ -51,36 +51,47 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
     }
     
     // Normalize dates safely
-    normalized['createdAt'] = toIsoString(normalized['createdAt']) ?? DateTime.now().toIso8601String();
-    normalized['updatedAt'] = toIsoString(normalized['updatedAt']) ?? DateTime.now().toIso8601String();
+    normalized['createdAt'] = toIsoString(normalized['createdAt']) ?? toIsoString(normalized['created_at']) ?? DateTime.now().toIso8601String();
+    normalized['updatedAt'] = toIsoString(normalized['updatedAt']) ?? toIsoString(normalized['updated_at']) ?? DateTime.now().toIso8601String();
     
     if (normalized.containsKey('lastOrderDate')) {
       normalized['lastOrderDate'] = toIsoString(normalized['lastOrderDate']);
     }
 
-    // Handle address specifically as it might be a Map in Firestore
-    if (normalized.containsKey('address')) {
+    // Address construction from top-level fields
+    if (!normalized.containsKey('address')) {
+      final street = normalized['street'];
+      final city = normalized['city'];
+      final country = normalized['country'];
+      
+      final parts = <String>[];
+      if (street != null && street.toString().isNotEmpty) parts.add(street.toString());
+      if (city != null && city.toString().isNotEmpty) parts.add(city.toString());
+      if (country != null && country.toString().isNotEmpty) parts.add(country.toString());
+      
+      if (parts.isNotEmpty) {
+        normalized['address'] = parts.join(', ');
+      }
+    } else if (normalized.containsKey('address')) {
       normalized['address'] = toString(normalized['address']);
     }
 
-    // Ensure safe types for other potentially probelmatic fields
+    // Ensure safe types for other potentially problematic fields
     if (normalized['imageUrl'] is! String) normalized['imageUrl'] = null;
     if (normalized['phone'] is! String) normalized['phone'] = '';
     if (normalized['email'] is! String) normalized['email'] = '';
     
-    // Name might be localized (Map) in some collections
-    if (normalized['name'] is Map) {
+    // Name field normalization (Updated for user schema)
+    if (normalized['full_name'] is String && (normalized['full_name'] as String).isNotEmpty) {
+      // Primary match for user schema
+      normalized['name'] = normalized['full_name'];
+    } else if (normalized['name'] is Map) {
       final nameMap = normalized['name'] as Map;
       normalized['name'] = nameMap['en'] ?? nameMap['ar'] ?? nameMap.values.firstOrNull ?? 'Unknown';
+    } else if (normalized['name'] == null || (normalized['name'] is String && (normalized['name'] as String).isEmpty)) {
+        normalized['name'] = 'مستخدم غير معروف';
     } else if (normalized['name'] is! String) {
-      // Try fallback fields common in other apps
-      if (normalized['userName'] is String) {
-        normalized['name'] = normalized['userName'];
-      } else if (normalized['fullName'] is String) {
-        normalized['name'] = normalized['fullName'];
-      } else {
-        normalized['name'] = 'Unknown';
-      }
+      normalized['name'] = normalized['name'].toString();
     }
 
     return normalized;
@@ -128,7 +139,6 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
     // Client-side mapping
     var customers = snapshot.docs.map((doc) {
       final data = doc.data();
-      print('🔍 Raw Customer Data (${doc.id}): $data'); // Debug log
       data['id'] = doc.id;
       final normalizedData = _normalizeDateFields(data);
       
@@ -150,34 +160,53 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
         DateTime? lastOrderDate = customer.lastOrderDate;
 
         try {
-          final query = _firestore
+          // Try both possible field names for customer ID
+          var query1 = _firestore
               .collection('orders')
               .where('userId', isEqualTo: customer.id);
-
-          // Get aggregates
-          // FIXME: Composite index issue for sum('total'). Reverting to simple count for now to verify connectivity.
-          /*
-          final aggregateQuery = await query.aggregate(sum('total'), count()).get();
-          totalOrders = aggregateQuery.count ?? 0;
-          totalSpent = aggregateQuery.getSum('total') ?? 0.0;
-          */
           
-          // Fallback to simple Count until index propagates
-          final countQuery = await query.count().get();
-          totalOrders = countQuery.count ?? 0;
-          totalSpent = 0.0; // Temporarily 0
+          var ordersSnapshot = await query1.get();
+          
+          // If no results with userId, try user_id (snake_case variation)
+          if (ordersSnapshot.docs.isEmpty) {
+            final query2 = _firestore
+                .collection('orders')
+                .where('user_id', isEqualTo: customer.id);
+            ordersSnapshot = await query2.get();
+          }
+          
+          totalOrders = ordersSnapshot.size;
+          
+          if (ordersSnapshot.docs.isNotEmpty) {
+            totalSpent = ordersSnapshot.docs.fold(0.0, (sum, doc) {
+              final data = doc.data();
+              // extract total amount safely - try multiple field names
+              final amount = (data['total'] as num?)?.toDouble() ?? 
+                             (data['totalAmount'] as num?)?.toDouble() ?? 
+                             (data['total_price'] as num?)?.toDouble() ?? 0.0;
+              return sum + amount;
+            });
+            
+            print('   💰 Total Spent: ${totalSpent.toStringAsFixed(2)} EGP');
+          }
 
           // Get last order
-          // Used 'date' as it's the timestamp field in Deliverzler orders
-          final lastOrderSnapshot = await query
-              .orderBy('date', descending: true)
-              .limit(1)
-              .get();
-
-          if (lastOrderSnapshot.docs.isNotEmpty) {
-            final lastOrderDoc = lastOrderSnapshot.docs.first;
+          if (ordersSnapshot.docs.isNotEmpty) {
+            // Sort by 'date' field (Unix timestamp in milliseconds)
+            final sortedDocs = ordersSnapshot.docs.toList()
+              ..sort((a, b) {
+                final dateA = a.data()['date'];
+                final dateB = b.data()['date'];
+                if (dateA is int && dateB is int) {
+                  return dateB.compareTo(dateA); // Descending
+                }
+                return 0;
+              });
+            
+            final lastOrderDoc = sortedDocs.first;
             lastOrderId = lastOrderDoc.id;
             final lastOrderData = lastOrderDoc.data();
+            
             // Handle date field which might be int (millis) or Timestamp
             if (lastOrderData['date'] is int) {
               lastOrderDate = DateTime.fromMillisecondsSinceEpoch(lastOrderData['date']);
@@ -186,6 +215,7 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
             }
           }
         } catch (e) {
+          print('❌ Error fetching orders for ${customer.name}: $e');
           // Fallback to existing if error
         }
 
@@ -445,7 +475,7 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
         try {
           final countSnapshot = await _firestore
               .collection('orders')
-              .where('driver_id', isEqualTo: driver.id)
+              .where('deliveryId', isEqualTo: driver.id)
               .where('status', isEqualTo: 'delivered')
               .count()
               .get();
@@ -472,14 +502,15 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
 
     // Dynamically fetch totalDeliveries
     try {
-      final countSnapshot = await _firestore
-          .collection('orders')
-          .where('driver_id', isEqualTo: id)
-          .where('status', isEqualTo: 'delivered')
-          .count()
-          .get();
-      final totalDeliveries = countSnapshot.count ?? 0;
-      driver = driver.copyWith(totalDeliveries: totalDeliveries);
+          final countSnapshot = await _firestore
+              .collection('orders')
+              .where('deliveryId', isEqualTo: driver.id)
+              .where('status', isEqualTo: 'delivered')
+              .count()
+              .get();
+          final totalDeliveries = countSnapshot.count ?? 0;
+          print('✅ Driver ${driver.name} total deliveries: $totalDeliveries');
+          driver = driver.copyWith(totalDeliveries: totalDeliveries);
     } catch (e) {
       // Ignore
     }

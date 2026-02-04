@@ -454,6 +454,7 @@ Future<void> _initSettingsDependencies() async {
     () => SettingsCubit(
       getDeliverySettingsUseCase: sl(),
       updateDeliveryPriceUseCase: sl(),
+      repository: sl(),
     ),
   );
 }

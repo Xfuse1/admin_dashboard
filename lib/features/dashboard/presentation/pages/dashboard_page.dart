@@ -149,12 +149,12 @@ class _DashboardContent extends StatelessWidget {
       ),
       _StatCardData(
         title: AppStrings.totalRevenue,
-        value: Formatters.compactCurrency(state.stats.totalRevenue),
+        value: Formatters.currency(state.stats.totalRevenue),
         icon: Icons.monetization_on_outlined,
         iconColor: AppColors.success,
         percentChange: state.stats.revenueGrowth,
         subtitle:
-            'اليوم: ${Formatters.compactCurrency(state.stats.todayRevenue)}',
+            'آخر 24 ساعة: ${Formatters.currency(state.stats.todayRevenue)}',
       ),
       _StatCardData(
         title: AppStrings.activeDrivers,

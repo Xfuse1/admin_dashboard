@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../shared/widgets/common_widgets.dart';
 import '../../../../shared/widgets/responsive_layout.dart';
+import '../../domain/entities/account_entities.dart';
+import '../bloc/accounts_bloc.dart';
+import '../bloc/accounts_event.dart';
+import '../bloc/accounts_state.dart';
 
 /// Drivers statistics page showing comprehensive rejection stats.
 class DriversStatsPage extends StatelessWidget {
@@ -23,29 +27,29 @@ class DriversStatsPage extends StatelessWidget {
               _buildHeader(context),
               const SizedBox(height: 24),
               Expanded(
-                child: FutureBuilder<QuerySnapshot>(
-                  future: FirebaseFirestore.instance
-                      .collection('drivers')
-                      .where('status', isEqualTo: 'approved')
-                      .get(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
+                child: BlocBuilder<AccountsBloc, AccountsState>(
+                  builder: (context, state) {
+                    if (state is AccountsLoading) {
                       return const Center(child: CircularProgressIndicator());
                     }
 
-                    if (snapshot.hasError) {
+                    if (state is AccountsError) {
                       return Center(
-                        child: Text('حدث خطأ: ${snapshot.error}'),
+                        child: Text('حدث خطأ: ${state.message}'),
                       );
                     }
 
-                    final drivers = snapshot.data?.docs ?? [];
-                    if (drivers.isEmpty) {
-                      return const Center(
-                          child: Text('لا يوجد سائقين معتمدين'));
+                    if (state is AccountsLoaded) {
+                      final drivers = state.drivers;
+                      if (drivers.isEmpty) {
+                        return const Center(
+                            child: Text('لا يوجد سائقين معتمدين'));
+                      }
+
+                      return _buildStatsContent(context, drivers);
                     }
 
-                    return _buildStatsContent(context, drivers);
+                    return const SizedBox.shrink();
                   },
                 ),
               ),
@@ -98,7 +102,7 @@ class DriversStatsPage extends StatelessWidget {
 
   Widget _buildStatsContent(
     BuildContext context,
-    List<QueryDocumentSnapshot> drivers,
+    List<DriverEntity> drivers,
   ) {
     final deviceType = ResponsiveLayout.getDeviceType(context);
     final isDesktop = deviceType == DeviceType.desktop;
@@ -116,29 +120,34 @@ class DriversStatsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildOverviewCards(List<QueryDocumentSnapshot> drivers) {
+  Widget _buildOverviewCards(List<DriverEntity> drivers) {
     final totalDrivers = drivers.length;
-    final onlineDrivers =
-        drivers.where((d) => (d.data() as Map)['isOnline'] == true).length;
-    final totalRejections = drivers.fold<int>(
-      0,
-      (sum, d) => sum + ((d.data() as Map)['rejectionsCounter'] as int? ?? 0),
-    );
-    final driversWithRejections = drivers
-        .where((d) => ((d.data() as Map)['rejectionsCounter'] as int? ?? 0) > 0)
-        .length;
+    final onlineDrivers = drivers.where((d) => d.isOnline).length;
+    final totalRejections =
+        drivers.fold<int>(0, (sum, d) => sum + d.rejectionsCounter);
+    final driversWithRejections =
+        drivers.where((d) => d.rejectionsCounter > 0).length;
+    
+    // Calculate overall rejection rate
+    final totalDeliveries = drivers.fold<int>(0, (sum, d) => sum + d.totalDeliveries);
+    final totalOrders = totalDeliveries + totalRejections;
+    final overallRejectionRate = totalOrders > 0 
+        ? (totalRejections / totalOrders * 100).toStringAsFixed(1)
+        : '0.0';
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isCompact = constraints.maxWidth < 800;
+        final isCompact = constraints.maxWidth < 1000;
+        final cardWidth = isCompact 
+            ? double.infinity 
+            : (constraints.maxWidth - 64) / 5;
 
         return Wrap(
           spacing: 16,
           runSpacing: 16,
           children: [
             SizedBox(
-              width:
-                  isCompact ? double.infinity : (constraints.maxWidth - 48) / 4,
+              width: cardWidth,
               child: _OverviewCard(
                 icon: Iconsax.user,
                 label: 'إجمالي السائقين',
@@ -147,8 +156,7 @@ class DriversStatsPage extends StatelessWidget {
               ),
             ),
             SizedBox(
-              width:
-                  isCompact ? double.infinity : (constraints.maxWidth - 48) / 4,
+              width: cardWidth,
               child: _OverviewCard(
                 icon: Iconsax.status,
                 label: 'متصلين حالياً',
@@ -157,8 +165,7 @@ class DriversStatsPage extends StatelessWidget {
               ),
             ),
             SizedBox(
-              width:
-                  isCompact ? double.infinity : (constraints.maxWidth - 48) / 4,
+              width: cardWidth,
               child: _OverviewCard(
                 icon: Iconsax.close_circle,
                 label: 'إجمالي الرفضات',
@@ -167,8 +174,18 @@ class DriversStatsPage extends StatelessWidget {
               ),
             ),
             SizedBox(
-              width:
-                  isCompact ? double.infinity : (constraints.maxWidth - 48) / 4,
+              width: cardWidth,
+              child: _OverviewCard(
+                icon: Iconsax.percentage_circle,
+                label: 'معدل الرفض العام',
+                value: '$overallRejectionRate%',
+                color: double.parse(overallRejectionRate) > 10 
+                    ? AppColors.error 
+                    : AppColors.warning,
+              ),
+            ),
+            SizedBox(
+              width: cardWidth,
               child: _OverviewCard(
                 icon: Iconsax.info_circle,
                 label: 'سائقين بهم رفضات',
@@ -184,15 +201,11 @@ class DriversStatsPage extends StatelessWidget {
 
   Widget _buildDesktopTable(
     BuildContext context,
-    List<QueryDocumentSnapshot> drivers,
+    List<DriverEntity> drivers,
   ) {
     // Sort by rejections count descending
-    final sortedDrivers = List<QueryDocumentSnapshot>.from(drivers)
-      ..sort((a, b) {
-        final aRejections = (a.data() as Map)['rejectionsCounter'] as int? ?? 0;
-        final bRejections = (b.data() as Map)['rejectionsCounter'] as int? ?? 0;
-        return bRejections.compareTo(aRejections);
-      });
+    final sortedDrivers = List<DriverEntity>.from(drivers)
+      ..sort((a, b) => b.rejectionsCounter.compareTo(a.rejectionsCounter));
 
     return Container(
       decoration: BoxDecoration(
@@ -216,16 +229,17 @@ class DriversStatsPage extends StatelessWidget {
             DataColumn(label: Text('التقييم')),
           ],
           rows: sortedDrivers.map((driver) {
-            final data = driver.data() as Map<String, dynamic>;
-            final name = data['name'] as String? ?? 'غير معروف';
-            final isOnline = data['isOnline'] as bool? ?? false;
-            final totalDeliveries = data['totalDeliveries'] as int? ?? 0;
-            final currentOrders = data['currentOrdersCount'] as int? ?? 0;
-            final rejections = data['rejectionsCounter'] as int? ?? 0;
-            final rating = (data['rating'] as num?)?.toDouble() ?? 0.0;
+            final name = driver.name;
+            final isOnline = driver.isOnline;
+            final totalDeliveries = driver.totalDeliveries;
+            final currentOrders = driver.currentOrdersCount;
+            final rejections = driver.rejectionsCounter;
+            final rating = driver.rating;
 
-            final rejectionRate = totalDeliveries > 0
-                ? (rejections / totalDeliveries * 100).toStringAsFixed(1)
+            // Calculate rejection rate: rejections / (total deliveries + rejections)
+            final totalOrders = totalDeliveries + rejections;
+            final rejectionRate = totalOrders > 0
+                ? (rejections / totalOrders * 100).toStringAsFixed(1)
                 : '0.0';
 
             return DataRow(
@@ -319,14 +333,10 @@ class DriversStatsPage extends StatelessWidget {
 
   Widget _buildMobileList(
     BuildContext context,
-    List<QueryDocumentSnapshot> drivers,
+    List<DriverEntity> drivers,
   ) {
-    final sortedDrivers = List<QueryDocumentSnapshot>.from(drivers)
-      ..sort((a, b) {
-        final aRejections = (a.data() as Map)['rejectionsCounter'] as int? ?? 0;
-        final bRejections = (b.data() as Map)['rejectionsCounter'] as int? ?? 0;
-        return bRejections.compareTo(aRejections);
-      });
+    final sortedDrivers = List<DriverEntity>.from(drivers)
+      ..sort((a, b) => b.rejectionsCounter.compareTo(a.rejectionsCounter));
 
     return ListView.builder(
       shrinkWrap: true,
@@ -334,15 +344,16 @@ class DriversStatsPage extends StatelessWidget {
       itemCount: sortedDrivers.length,
       itemBuilder: (context, index) {
         final driver = sortedDrivers[index];
-        final data = driver.data() as Map<String, dynamic>;
-        final name = data['name'] as String? ?? 'غير معروف';
-        final isOnline = data['isOnline'] as bool? ?? false;
-        final totalDeliveries = data['totalDeliveries'] as int? ?? 0;
-        final rejections = data['rejectionsCounter'] as int? ?? 0;
-        final rating = (data['rating'] as num?)?.toDouble() ?? 0.0;
+        final name = driver.name;
+        final isOnline = driver.isOnline;
+        final totalDeliveries = driver.totalDeliveries;
+        final rejections = driver.rejectionsCounter;
+        final rating = driver.rating;
 
-        final rejectionRate = totalDeliveries > 0
-            ? (rejections / totalDeliveries * 100).toStringAsFixed(1)
+        // Calculate rejection rate: rejections / (total deliveries + rejections)
+        final totalOrders = totalDeliveries + rejections;
+        final rejectionRate = totalOrders > 0
+            ? (rejections / totalOrders * 100).toStringAsFixed(1)
             : '0.0';
 
         return Card(

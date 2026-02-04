@@ -16,4 +16,14 @@ class SettingsRepositoryImpl implements SettingsRepository {
   Future<void> updateDeliveryPrice(double price) async {
     await dataSource.updateDeliveryPrice(price);
   }
+
+  @override
+  Future<double> getDriverCommission() async {
+    return await dataSource.getDriverCommission();
+  }
+
+  @override
+  Future<void> updateDriverCommission(double rate) async {
+    await dataSource.updateDriverCommission(rate);
+  }
 }

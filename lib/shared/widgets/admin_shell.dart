@@ -241,5 +241,11 @@ List<SidebarItem> getSidebarItems() {
       activeIcon: Icons.people,
       route: AppRoutes.accounts,
     ),
+    SidebarItem(
+      label: 'إعدادات العمولات',
+      icon: Icons.percent_outlined,
+      activeIcon: Icons.percent,
+      route: AppRoutes.commissionSettings,
+    ),
   ];
 }

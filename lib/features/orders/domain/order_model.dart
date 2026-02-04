@@ -4,7 +4,7 @@ import 'package:equatable/equatable.dart';
 /// Order status enum
 enum DeliveryStatus {
   pending('pending', 'قيد الانتظار'),
-  upcoming('upcoming', 'قادم'),
+  confirmed('confirmed', 'مؤكد'),
   onTheWay('onTheWay', 'في الطريق'),
   delivered('delivered', 'تم التوصيل'),
   canceled('canceled', 'ملغي');
@@ -14,6 +14,8 @@ enum DeliveryStatus {
   final String arabicName;
 
   static DeliveryStatus fromString(String value) {
+    // Support legacy 'upcoming' value
+    if (value == 'upcoming') return DeliveryStatus.confirmed;
     return DeliveryStatus.values.firstWhere(
       (status) => status.value == value,
       orElse: () => DeliveryStatus.pending,

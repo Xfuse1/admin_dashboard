@@ -87,33 +87,51 @@ class DashboardFirebaseDataSource implements DashboardDataSource {
       final customers = customersSnapshot.docs;
       final stores = storesSnapshot.docs;
 
-      // Calculate today's boundaries
+      // Calculate 24h boundaries (Rolling window)
       final now = DateTime.now();
-      final todayStart = DateTime(now.year, now.month, now.day);
-      final todayTimestamp = todayStart.millisecondsSinceEpoch;
+      final last24HoursStart = now.subtract(const Duration(hours: 24));
+      final last24HoursTimestamp = last24HoursStart.millisecondsSinceEpoch;
       
-      // Calculate yesterday's boundaries for growth
-      final yesterdayStart = todayStart.subtract(const Duration(days: 1));
-      final yesterdayEnd = todayStart;
-      final yesterdayStartTimestamp = yesterdayStart.millisecondsSinceEpoch;
-      final yesterdayEndTimestamp = yesterdayEnd.millisecondsSinceEpoch;
+      // Calculate previous 24h boundaries for growth comparison
+      final previous24HorusStart = last24HoursStart.subtract(const Duration(hours: 24));
+      final previous24HoursEndTimestamp = last24HoursTimestamp; // Same as last24HoursStart
+      final previous24HoursStartTimestamp = previous24HorusStart.millisecondsSinceEpoch;
 
       // Count orders by status
       int pendingOrders = 0;
       int completedOrders = 0;
       int cancelledOrders = 0;
       double totalRevenue = 0.0;
-      double todayRevenue = 0.0;
+      double todayRevenue = 0.0; // Represents Last 24h revenue
       int todayOrdersCount = 0;
-      double yesterdayRevenue = 0.0;
+      double yesterdayRevenue = 0.0; // Represents Previous 24h revenue
       int yesterdayOrdersCount = 0;
 
       for (final doc in orders) {
         final data = doc.data();
-        final status = _normalizeStatus(
-            data[OrderFields.deliveryStatus] as String?);
-        final orderTotal = (data['total'] as num?)?.toDouble() ?? 0.0;
-        final orderDate = data[OrderFields.date] as int?;
+        final rawStatus = (data[OrderFields.deliveryStatus] ?? data['status']) as String?;
+        final status = _normalizeStatus(rawStatus);
+        
+        final orderTotal = (data['total'] as num?)?.toDouble() ?? 
+                           (data['totalAmount'] as num?)?.toDouble() ?? 
+                           (data['total_price'] as num?)?.toDouble() ?? 0.0;
+        
+        // Handle date field - can be 'created_at' (ISO string) or 'date' (int milliseconds)
+        int? orderDate;
+        final createdAtField = data['created_at'] ?? data[OrderFields.date];
+        
+        if (createdAtField != null) {
+          if (createdAtField is int) {
+            orderDate = createdAtField;
+          } else if (createdAtField is String) {
+            try {
+              final dateTime = DateTime.parse(createdAtField);
+              orderDate = dateTime.millisecondsSinceEpoch;
+            } catch (e) {
+              // Invalid date format, skip
+            }
+          }
+        }
 
         // Count by status
         switch (status) {
@@ -135,18 +153,18 @@ class DashboardFirebaseDataSource implements DashboardDataSource {
           totalRevenue += orderTotal;
         }
 
-        // Today's revenue and count
-        if (orderDate != null && orderDate >= todayTimestamp) {
+        // Last 24h revenue and count
+        if (orderDate != null && orderDate >= last24HoursTimestamp) {
           if (status == OrderStatus.delivered) {
             todayRevenue += orderTotal;
           }
           todayOrdersCount++;
         }
 
-        // Yesterday's revenue and count for growth calculation
+        // Previous 24h revenue and count for growth calculation
         if (orderDate != null &&
-            orderDate >= yesterdayStartTimestamp &&
-            orderDate < yesterdayEndTimestamp) {
+            orderDate >= previous24HoursStartTimestamp &&
+            orderDate < previous24HoursEndTimestamp) {
           if (status == OrderStatus.delivered) {
             yesterdayRevenue += orderTotal;
           }
@@ -231,15 +249,38 @@ class DashboardFirebaseDataSource implements DashboardDataSource {
   @override
   Future<List<RecentOrderModel>> getRecentOrders({int limit = 10}) async {
     try {
-      // Deliverzler uses 'date' field for ordering
-      final snapshot = await _ordersCollection
-          .orderBy(OrderFields.date, descending: true)
-          .limit(limit)
-          .get();
+      // Deliverzler uses mixed date formats, so we fetch and sort in memory
+      final snapshot = await _ordersCollection.get();
+      final allDocs = snapshot.docs;
+      
+      // Sort by date descending
+      allDocs.sort((a, b) {
+        final dataA = a.data();
+        final dataB = b.data();
+        
+        int? dateA;
+        final createdA = dataA['created_at'] ?? dataA[OrderFields.date];
+        if (createdA is int) dateA = createdA;
+        else if (createdA is String) dateA = DateTime.tryParse(createdA)?.millisecondsSinceEpoch;
+        
+        int? dateB;
+        final createdB = dataB['created_at'] ?? dataB[OrderFields.date];
+        if (createdB is int) dateB = createdB;
+        else if (createdB is String) dateB = DateTime.tryParse(createdB)?.millisecondsSinceEpoch;
+        
+        // Handle nulls (put nulls last)
+        if (dateA == null && dateB == null) return 0;
+        if (dateA == null) return 1;
+        if (dateB == null) return -1;
+        
+        return dateB.compareTo(dateA); // Descending
+      });
+      
+      final recentDocs = allDocs.take(limit).toList();
 
       final orders = <RecentOrderModel>[];
 
-      for (final doc in snapshot.docs) {
+      for (final doc in recentDocs) {
         final data = doc.data();
 
         try {
@@ -257,18 +298,23 @@ class DashboardFirebaseDataSource implements DashboardDataSource {
             }
           }
 
+          int dateTimestamp = DateTime.now().millisecondsSinceEpoch;
+          final createdField = data['created_at'] ?? data[OrderFields.date];
+          if (createdField is int) dateTimestamp = createdField;
+          else if (createdField is String) {
+             dateTimestamp = DateTime.tryParse(createdField)?.millisecondsSinceEpoch ?? dateTimestamp;
+          }
+
           final order = RecentOrderModel(
             id: doc.id,
             orderNumber: doc.id.substring(0, 8).toUpperCase(),
             customerName: data[OrderFields.userName] as String? ?? 'Unknown',
             vendorName: vendorName,
-            amount: (data['total'] as num?)?.toDouble() ?? 0.0,
-            status:
-                _normalizeStatus(data[OrderFields.deliveryStatus] as String?),
-            createdAt: DateTime.fromMillisecondsSinceEpoch(
-              (data[OrderFields.date] as int?) ??
-                  DateTime.now().millisecondsSinceEpoch,
-            ),
+            amount: (data['total'] as num?)?.toDouble() ?? 
+                    (data['totalAmount'] as num?)?.toDouble() ?? 
+                    (data['total_price'] as num?)?.toDouble() ?? 0.0,
+            status: _normalizeStatus((data[OrderFields.deliveryStatus] ?? data['status']) as String?),
+            createdAt: DateTime.fromMillisecondsSinceEpoch(dateTimestamp),
           );
           orders.add(order);
         } catch (e) {
@@ -296,31 +342,51 @@ class DashboardFirebaseDataSource implements DashboardDataSource {
       final normalizedEndDate =
           DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
 
-      // Deliverzler uses Unix timestamp for date
-      final snapshot = await _ordersCollection
-          .where(OrderFields.date,
-              isGreaterThanOrEqualTo: normalizedStartDate.millisecondsSinceEpoch)
-          .where(OrderFields.date,
-              isLessThanOrEqualTo: normalizedEndDate.millisecondsSinceEpoch)
-          .get();
+      // Deliverzler uses mixed date formats, so we fetch all and filter in memory
+      // Ideally we should fix the database schema, but for now this works
+      final snapshot = await _ordersCollection.get();
 
       // Group by date and only count delivered orders
       final revenueByDate = <DateTime, double>{};
 
       for (final doc in snapshot.docs) {
         final data = doc.data();
-        final status =
-            _normalizeStatus(data[OrderFields.deliveryStatus] as String?);
+        final rawStatus = (data[OrderFields.deliveryStatus] ?? data['status']) as String?;
+        final status = _normalizeStatus(rawStatus);
         
         // Only count delivered orders for revenue
         if (status != OrderStatus.delivered) continue;
 
-        final dateTimestamp = data[OrderFields.date] as int?;
+        // Handle date field
+        int? dateTimestamp;
+        final createdAtField = data['created_at'] ?? data[OrderFields.date];
+        
+        if (createdAtField != null) {
+          if (createdAtField is int) {
+            dateTimestamp = createdAtField;
+          } else if (createdAtField is String) {
+            try {
+              final dateTime = DateTime.parse(createdAtField);
+              dateTimestamp = dateTime.millisecondsSinceEpoch;
+            } catch (e) {
+              // Invalid date format
+            }
+          }
+        }
+
         if (dateTimestamp == null) continue;
+        
+        // Filter by date range
+        if (dateTimestamp < normalizedStartDate.millisecondsSinceEpoch || 
+            dateTimestamp > normalizedEndDate.millisecondsSinceEpoch) {
+          continue;
+        }
 
         final createdAt = DateTime.fromMillisecondsSinceEpoch(dateTimestamp);
         final dateKey = DateTime(createdAt.year, createdAt.month, createdAt.day);
-        final amount = (data['total'] as num?)?.toDouble() ?? 0.0;
+        final amount = (data['total'] as num?)?.toDouble() ?? 
+                       (data['totalAmount'] as num?)?.toDouble() ?? 
+                       (data['total_price'] as num?)?.toDouble() ?? 0.0;
 
         revenueByDate[dateKey] = (revenueByDate[dateKey] ?? 0) + amount;
       }
@@ -363,7 +429,8 @@ class DashboardFirebaseDataSource implements DashboardDataSource {
         final data = doc.data();
 
         // Deliverzler uses 'deliveryStatus' field
-        final rawStatus = data[OrderFields.deliveryStatus] as String?;
+        // Deliverzler uses 'deliveryStatus' field
+        final rawStatus = (data[OrderFields.deliveryStatus] ?? data['status']) as String?;
         final status = _normalizeStatus(rawStatus);
         
         switch (status) {

@@ -81,6 +81,27 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
                 .count()
                 .get();
             totalOrders = orderCountSnapshot.count ?? 0;
+            
+            // Calculate total revenue by summing order totals
+            if (totalOrders > 0) {
+              final ordersSnapshot = await _firestore
+                  .collection('orders')
+                  .where('store_id', isEqualTo: vendor.id)
+                  .get();
+              
+              final totalRevenue = ordersSnapshot.docs.fold<double>(0.0, (sum, doc) {
+                final data = doc.data();
+                final amount = (data['total'] as num?)?.toDouble() ?? 
+                               (data['totalAmount'] as num?)?.toDouble() ?? 0.0;
+                return sum + amount;
+              });
+              
+              return vendor.copyWith(
+                productsCount: productsCount,
+                totalOrders: totalOrders,
+                totalRevenue: totalRevenue,
+              );
+            }
           } catch (e) {
             // Keep default/existing value on error
           }
@@ -161,17 +182,30 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
       data['productsCount'] = 0;
     }
 
-    // Fetch orders count from orders collection
+    // Fetch orders count and total revenue from orders collection
     try {
-      final orderCountSnapshot = await _firestore
+      final ordersSnapshot = await _firestore
           .collection('orders')
           .where('store_id', isEqualTo: id)
-          .count()
           .get();
-      data['totalOrders'] = orderCountSnapshot.count ?? 0;
+      
+      data['totalOrders'] = ordersSnapshot.size;
+      
+      if (ordersSnapshot.docs.isNotEmpty) {
+        final totalRevenue = ordersSnapshot.docs.fold<double>(0.0, (sum, doc) {
+          final orderData = doc.data();
+          final amount = (orderData['total'] as num?)?.toDouble() ?? 
+                         (orderData['totalAmount'] as num?)?.toDouble() ?? 0.0;
+          return sum + amount;
+        });
+        data['totalRevenue'] = totalRevenue;
+      } else {
+        data['totalRevenue'] = 0.0;
+      }
     } catch (e) {
       // Keep existing value if available or default to 0
       if (data['totalOrders'] == null) data['totalOrders'] = 0;
+      if (data['totalRevenue'] == null) data['totalRevenue'] = 0.0;
     }
 
     return VendorEntity.fromMap(_processVendorData(data));
@@ -248,9 +282,28 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
     final suspendedCount =
         vendors.where((v) => v.status == VendorStatus.suspended).length;
 
-    final totalRevenue =
-        vendors.fold<double>(0, (sum, v) => sum + v.totalRevenue);
-    final totalOrders = vendors.fold<int>(0, (sum, v) => sum + v.totalOrders);
+    // Calculate accurate totals from orders collection
+    double totalRevenue = 0.0;
+    int totalOrders = 0;
+
+    try {
+      final ordersSnapshot = await _firestore.collection('orders').get();
+      totalOrders = ordersSnapshot.size;
+      
+      if (ordersSnapshot.docs.isNotEmpty) {
+        totalRevenue = ordersSnapshot.docs.fold<double>(0.0, (sum, doc) {
+          final data = doc.data();
+          final amount = (data['total'] as num?)?.toDouble() ?? 
+                         (data['totalAmount'] as num?)?.toDouble() ?? 0.0;
+          return sum + amount;
+        });
+      }
+    } catch (e) {
+      print('Error calculating global vendor stats: $e');
+      // Fallback to local sum if fetch fails
+      totalRevenue = vendors.fold<double>(0, (sum, v) => sum + v.totalRevenue);
+      totalOrders = vendors.fold<int>(0, (sum, v) => sum + v.totalOrders);
+    }
 
     final categoryDistribution = <String, int>{};
     for (final category in VendorCategory.values) {
@@ -325,6 +378,27 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
                 .count()
                 .get();
             totalOrders = orderCountSnapshot.count ?? 0;
+            
+            // Calculate total revenue
+            if (totalOrders > 0) {
+              final ordersSnapshot = await _firestore
+                  .collection('orders')
+                  .where('store_id', isEqualTo: vendor.id)
+                  .get();
+              
+              final totalRevenue = ordersSnapshot.docs.fold<double>(0.0, (sum, doc) {
+                final data = doc.data();
+                final amount = (data['total'] as num?)?.toDouble() ?? 
+                               (data['totalAmount'] as num?)?.toDouble() ?? 0.0;
+                return sum + amount;
+              });
+              
+              return vendor.copyWith(
+                productsCount: productsCount,
+                totalOrders: totalOrders,
+                totalRevenue: totalRevenue,
+              );
+            }
           } catch (e) {
             // Keep default
           }

@@ -4,6 +4,7 @@ import 'package:iconsax_flutter/iconsax_flutter.dart';
 import '../../../../core/constants/app_colors.dart';
 
 import 'delivery_settings_page.dart';
+import 'commission_settings_page.dart';
 
 /// Settings page placeholder.
 /// TODO: Implement full settings functionality with BLoC pattern.
@@ -140,6 +141,14 @@ class SettingsPage extends StatelessWidget {
         icon: Iconsax.percentage_circle,
         title: 'إعدادات العمولات',
         subtitle: 'نسب العمولة، الحد الأدنى، الحد الأقصى',
+        onTap: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const CommissionSettingsPage(),
+            ),
+          );
+        },
       ),
       _SettingItem(
         icon: Iconsax.notification,
@@ -185,17 +194,19 @@ class SettingsPage extends StatelessWidget {
                       children: [
                         Text(
                           setting.title,
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.textPrimary,
+                                  ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           setting.subtitle,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
                         ),
                       ],
                     ),

@@ -40,11 +40,11 @@ class RejectionRequestsRepositoryImpl implements RejectionRequestsRepository {
       return dataSource
           .watchRejectionRequests(adminDecision: adminDecision)
           .map((models) {
-            // Convert models to entities
-            final entities = models.map((model) => model as RejectionRequestEntity).toList();
-            return Right<Failure, List<RejectionRequestEntity>>(entities);
-          })
-          .handleError((error) => Left<Failure, List<RejectionRequestEntity>>(
+        // Convert models to entities
+        final entities =
+            models.map((model) => model as RejectionRequestEntity).toList();
+        return Right<Failure, List<RejectionRequestEntity>>(entities);
+      }).handleError((error) => Left<Failure, List<RejectionRequestEntity>>(
                 ServerFailure(message: error.toString()),
               ));
     } catch (e) {
@@ -84,6 +84,8 @@ class RejectionRequestsRepositoryImpl implements RejectionRequestsRepository {
         final orderId = requestDoc.data()!['orderId'] as String;
         final driverId = requestDoc.data()!['driverId'] as String;
 
+        print('✅ Approving excuse: orderId=$orderId, driverId=$driverId');
+
         // Update rejection request
         transaction.update(requestRef, {
           'adminDecision': 'approved',
@@ -91,13 +93,22 @@ class RejectionRequestsRepositoryImpl implements RejectionRequestsRepository {
           'decidedAt': FieldValue.serverTimestamp(),
         });
 
-        // Update order: clear driverId and set status back to pending
+        // Update order: clear driverId and set status back to confirmed
+        // Add driverId to rejected_by_drivers list so it won't show to this driver again
         final orderRef = firestore.collection('orders').doc(orderId);
+
+        print('📝 Updating order with rejected_by_drivers: [$driverId]');
+
         transaction.update(orderRef, {
-          'deliveryId': null,
-          'deliveryStatus': 'pending',
+          'driver_id': FieldValue.delete(),
+          'driver_name': FieldValue.delete(),
+          'status': 'confirmed',
           'rejectionStatus': 'adminApproved',
+          'adminComment': FieldValue.delete(),
+          'rejected_by_drivers': FieldValue.arrayUnion([driverId]),
         });
+
+        print('✅ Order updated successfully');
 
         // Increment driver's rejectionsCounter
         final userRef = firestore.collection('users').doc(driverId);
@@ -139,11 +150,13 @@ class RejectionRequestsRepositoryImpl implements RejectionRequestsRepository {
           'decidedAt': FieldValue.serverTimestamp(),
         });
 
-        // Update order rejectionStatus and reset delivery status to upcoming
+        // Update order: set rejectionStatus to adminRefused, keep status as onTheWay
+        // (driver must deliver), and store adminComment for driver to see
         final orderRef = firestore.collection('orders').doc(orderId);
         transaction.update(orderRef, {
           'rejectionStatus': 'adminRefused',
-          'deliveryStatus': 'upcoming',
+          'status': 'onTheWay',
+          'adminComment': adminComment,
         });
       });
 
@@ -205,7 +218,7 @@ class RejectionRequestsRepositoryImpl implements RejectionRequestsRepository {
           final data = doc.data();
           // Skip if requestedAt is null
           if (data['requestedAt'] == null) continue;
-          
+
           try {
             final requestedAt = (data['requestedAt'] as Timestamp).toDate();
             final decidedAt = data['decidedAt'] != null
