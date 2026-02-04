@@ -24,7 +24,7 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
   // Helper to convert Timestamp to ISO String for models
   Map<String, dynamic> _normalizeDateFields(Map<String, dynamic> data) {
     final normalized = Map<String, dynamic>.from(data);
-    
+
     // Helper to safely convert a field to ISO string
     String? toIsoString(dynamic value) {
       if (value is Timestamp) {
@@ -44,16 +44,23 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
         final street = value['street'] ?? '';
         final city = value['city'] ?? '';
         final country = value['country'] ?? '';
-        if (street != '') return '$street, $city, $country'.replaceAll(RegExp(r', , '), ', ').trim();
+        if (street != '')
+          return '$street, $city, $country'
+              .replaceAll(RegExp(r', , '), ', ')
+              .trim();
         return value.toString();
       }
       return value.toString();
     }
-    
+
     // Normalize dates safely
-    normalized['createdAt'] = toIsoString(normalized['createdAt']) ?? toIsoString(normalized['created_at']) ?? DateTime.now().toIso8601String();
-    normalized['updatedAt'] = toIsoString(normalized['updatedAt']) ?? toIsoString(normalized['updated_at']) ?? DateTime.now().toIso8601String();
-    
+    normalized['createdAt'] = toIsoString(normalized['createdAt']) ??
+        toIsoString(normalized['created_at']) ??
+        DateTime.now().toIso8601String();
+    normalized['updatedAt'] = toIsoString(normalized['updatedAt']) ??
+        toIsoString(normalized['updated_at']) ??
+        DateTime.now().toIso8601String();
+
     if (normalized.containsKey('lastOrderDate')) {
       normalized['lastOrderDate'] = toIsoString(normalized['lastOrderDate']);
     }
@@ -63,12 +70,15 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
       final street = normalized['street'];
       final city = normalized['city'];
       final country = normalized['country'];
-      
+
       final parts = <String>[];
-      if (street != null && street.toString().isNotEmpty) parts.add(street.toString());
-      if (city != null && city.toString().isNotEmpty) parts.add(city.toString());
-      if (country != null && country.toString().isNotEmpty) parts.add(country.toString());
-      
+      if (street != null && street.toString().isNotEmpty)
+        parts.add(street.toString());
+      if (city != null && city.toString().isNotEmpty)
+        parts.add(city.toString());
+      if (country != null && country.toString().isNotEmpty)
+        parts.add(country.toString());
+
       if (parts.isNotEmpty) {
         normalized['address'] = parts.join(', ');
       }
@@ -80,16 +90,22 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
     if (normalized['imageUrl'] is! String) normalized['imageUrl'] = null;
     if (normalized['phone'] is! String) normalized['phone'] = '';
     if (normalized['email'] is! String) normalized['email'] = '';
-    
+
     // Name field normalization (Updated for user schema)
-    if (normalized['full_name'] is String && (normalized['full_name'] as String).isNotEmpty) {
+    if (normalized['full_name'] is String &&
+        (normalized['full_name'] as String).isNotEmpty) {
       // Primary match for user schema
       normalized['name'] = normalized['full_name'];
     } else if (normalized['name'] is Map) {
       final nameMap = normalized['name'] as Map;
-      normalized['name'] = nameMap['en'] ?? nameMap['ar'] ?? nameMap.values.firstOrNull ?? 'Unknown';
-    } else if (normalized['name'] == null || (normalized['name'] is String && (normalized['name'] as String).isEmpty)) {
-        normalized['name'] = 'مستخدم غير معروف';
+      normalized['name'] = nameMap['en'] ??
+          nameMap['ar'] ??
+          nameMap.values.firstOrNull ??
+          'Unknown';
+    } else if (normalized['name'] == null ||
+        (normalized['name'] is String &&
+            (normalized['name'] as String).isEmpty)) {
+      normalized['name'] = 'مستخدم غير معروف';
     } else if (normalized['name'] is! String) {
       normalized['name'] = normalized['name'].toString();
     }
@@ -135,18 +151,20 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
     }
 
     final snapshot = await query.get();
-    
+
     // Client-side mapping
     var customers = snapshot.docs.map((doc) {
       final data = doc.data();
       data['id'] = doc.id;
       final normalizedData = _normalizeDateFields(data);
-      
+
       // Ensure required fields exist
-      if (!normalizedData.containsKey('name')) normalizedData['name'] = 'مستخدم ${doc.id.substring(0, 4)}';
+      if (!normalizedData.containsKey('name'))
+        normalizedData['name'] = 'مستخدم ${doc.id.substring(0, 4)}';
       if (!normalizedData.containsKey('email')) normalizedData['email'] = '';
       if (!normalizedData.containsKey('phone')) normalizedData['phone'] = '';
-      if (!normalizedData.containsKey('isActive')) normalizedData['isActive'] = true;
+      if (!normalizedData.containsKey('isActive'))
+        normalizedData['isActive'] = true;
 
       return CustomerModel.fromJson(normalizedData);
     }).toList();
@@ -164,9 +182,9 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
           var query1 = _firestore
               .collection('orders')
               .where('userId', isEqualTo: customer.id);
-          
+
           var ordersSnapshot = await query1.get();
-          
+
           // If no results with userId, try user_id (snake_case variation)
           if (ordersSnapshot.docs.isEmpty) {
             final query2 = _firestore
@@ -174,19 +192,20 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
                 .where('user_id', isEqualTo: customer.id);
             ordersSnapshot = await query2.get();
           }
-          
+
           totalOrders = ordersSnapshot.size;
-          
+
           if (ordersSnapshot.docs.isNotEmpty) {
             totalSpent = ordersSnapshot.docs.fold(0.0, (sum, doc) {
               final data = doc.data();
               // extract total amount safely - try multiple field names
-              final amount = (data['total'] as num?)?.toDouble() ?? 
-                             (data['totalAmount'] as num?)?.toDouble() ?? 
-                             (data['total_price'] as num?)?.toDouble() ?? 0.0;
+              final amount = (data['total'] as num?)?.toDouble() ??
+                  (data['totalAmount'] as num?)?.toDouble() ??
+                  (data['total_price'] as num?)?.toDouble() ??
+                  0.0;
               return sum + amount;
             });
-            
+
             print('   💰 Total Spent: ${totalSpent.toStringAsFixed(2)} EGP');
           }
 
@@ -202,14 +221,15 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
                 }
                 return 0;
               });
-            
+
             final lastOrderDoc = sortedDocs.first;
             lastOrderId = lastOrderDoc.id;
             final lastOrderData = lastOrderDoc.data();
-            
+
             // Handle date field which might be int (millis) or Timestamp
             if (lastOrderData['date'] is int) {
-              lastOrderDate = DateTime.fromMillisecondsSinceEpoch(lastOrderData['date']);
+              lastOrderDate =
+                  DateTime.fromMillisecondsSinceEpoch(lastOrderData['date']);
             } else if (lastOrderData['date'] is Timestamp) {
               lastOrderDate = (lastOrderData['date'] as Timestamp).toDate();
             }
@@ -238,23 +258,22 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
     if (!doc.exists) {
       throw Exception('Customer not found');
     }
-    
+
     final data = doc.data()!;
     data['id'] = doc.id;
     var customer = CustomerModel.fromJson(_normalizeDateFields(data));
 
     // Dynamically fetch stats
     try {
-      final query = _firestore
-          .collection('orders')
-          .where('userId', isEqualTo: id);
+      final query =
+          _firestore.collection('orders').where('userId', isEqualTo: id);
 
       /*
       final aggregateQuery = await query.aggregate(sum('total'), count()).get();
       final totalOrders = aggregateQuery.count ?? 0;
       final totalSpent = aggregateQuery.getSum('total') ?? 0.0;
       */
-      
+
       final countQuery = await query.count().get();
       final totalOrders = countQuery.count ?? 0;
       final totalSpent = 0.0;
@@ -264,17 +283,16 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
       DateTime? lastOrderDate = customer.lastOrderDate;
 
       try {
-        final lastOrderSnapshot = await query
-            .orderBy('date', descending: true)
-            .limit(1)
-            .get();
+        final lastOrderSnapshot =
+            await query.orderBy('date', descending: true).limit(1).get();
 
         if (lastOrderSnapshot.docs.isNotEmpty) {
           final lastOrderDoc = lastOrderSnapshot.docs.first;
           lastOrderId = lastOrderDoc.id;
           final lastOrderData = lastOrderDoc.data();
           if (lastOrderData['date'] is int) {
-            lastOrderDate = DateTime.fromMillisecondsSinceEpoch(lastOrderData['date']);
+            lastOrderDate =
+                DateTime.fromMillisecondsSinceEpoch(lastOrderData['date']);
           } else if (lastOrderData['date'] is Timestamp) {
             lastOrderDate = (lastOrderData['date'] as Timestamp).toDate();
           }
@@ -319,11 +337,11 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
     if (isActive != null) {
       query = query.where('isActive', isEqualTo: isActive);
     }
-    
+
     if (isApproved != null) {
       query = query.where('isApproved', isEqualTo: isApproved);
     }
-    
+
     if (type != null && type.isNotEmpty) {
       query = query.where('type', isEqualTo: type);
     }
@@ -336,7 +354,7 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
     } else {
       query = query.orderBy('createdAt', descending: true);
     }
-    
+
     query = query.limit(limit);
 
     if (lastId != null) {
@@ -380,10 +398,10 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
   Future<StoreModel> getStoreById(String id) async {
     final doc = await _storesCollection.doc(id).get();
     if (!doc.exists) throw Exception('Store not found');
-    
+
     final data = doc.data()!;
     data['id'] = doc.id;
-    
+
     var store = StoreModel.fromJson(_normalizeDateFields(data));
 
     // Dynamically fetch totalOrders
@@ -433,17 +451,17 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
     if (isActive != null) {
       query = query.where('isActive', isEqualTo: isActive);
     }
-    
+
     if (isApproved != null) {
       query = query.where('isApproved', isEqualTo: isApproved);
     }
-    
+
     if (isOnline != null) {
       query = query.where('isOnline', isEqualTo: isOnline);
     }
 
     if (searchQuery != null && searchQuery.isNotEmpty) {
-         query = query
+      query = query
           .where('name', isGreaterThanOrEqualTo: searchQuery)
           .where('name', isLessThan: '$searchQuery\uf8ff')
           .orderBy('name');
@@ -472,7 +490,10 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
     if (drivers.isNotEmpty) {
       final statsFutures = drivers.map((driver) async {
         int totalDeliveries = driver.totalDeliveries;
+        int actualRejections = driver.rejectionsCounter;
+
         try {
+          // Get total delivered orders
           final countSnapshot = await _firestore
               .collection('orders')
               .where('deliveryId', isEqualTo: driver.id)
@@ -480,10 +501,22 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
               .count()
               .get();
           totalDeliveries = countSnapshot.count ?? 0;
+
+          // Get actual rejections count from orders where driver is in rejected_by_drivers array
+          final rejectedSnapshot = await _firestore
+              .collection('orders')
+              .where('rejected_by_drivers', arrayContains: driver.id)
+              .count()
+              .get();
+          actualRejections = rejectedSnapshot.count ?? 0;
         } catch (e) {
-          // Keep existing
+          // Keep existing values
         }
-        return driver.copyWith(totalDeliveries: totalDeliveries);
+
+        return driver.copyWith(
+          totalDeliveries: totalDeliveries,
+          rejectionsCounter: actualRejections,
+        );
       });
       drivers = await Future.wait(statsFutures);
     }
@@ -495,22 +528,37 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
   Future<DriverModel> getDriverById(String id) async {
     final doc = await _driversCollection.doc(id).get();
     if (!doc.exists) throw Exception('Driver not found');
-    
+
     final data = doc.data()!;
     data['id'] = doc.id;
     var driver = DriverModel.fromJson(_normalizeDateFields(data));
 
-    // Dynamically fetch totalDeliveries
+    // Dynamically fetch totalDeliveries and rejections
     try {
-          final countSnapshot = await _firestore
-              .collection('orders')
-              .where('deliveryId', isEqualTo: driver.id)
-              .where('status', isEqualTo: 'delivered')
-              .count()
-              .get();
-          final totalDeliveries = countSnapshot.count ?? 0;
-          print('✅ Driver ${driver.name} total deliveries: $totalDeliveries');
-          driver = driver.copyWith(totalDeliveries: totalDeliveries);
+      // Get total delivered orders
+      final countSnapshot = await _firestore
+          .collection('orders')
+          .where('deliveryId', isEqualTo: driver.id)
+          .where('status', isEqualTo: 'delivered')
+          .count()
+          .get();
+      final totalDeliveries = countSnapshot.count ?? 0;
+
+      // Get actual rejections count from orders where driver is in rejected_by_drivers array
+      final rejectedSnapshot = await _firestore
+          .collection('orders')
+          .where('rejected_by_drivers', arrayContains: driver.id)
+          .count()
+          .get();
+      final actualRejections = rejectedSnapshot.count ?? 0;
+
+      print(
+          '✅ Driver ${driver.name}: $totalDeliveries deliveries, $actualRejections rejections');
+
+      driver = driver.copyWith(
+        totalDeliveries: totalDeliveries,
+        rejectionsCounter: actualRejections,
+      );
     } catch (e) {
       // Ignore
     }
@@ -547,11 +595,9 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
     final results = await Future.wait([
       _customersCollection.count().get(),
       _customersCollection.where('isActive', isEqualTo: true).count().get(),
-      
       _storesCollection.count().get(),
       _storesCollection.where('isActive', isEqualTo: true).count().get(),
       _storesCollection.where('isApproved', isEqualTo: true).count().get(),
-      
       _driversCollection.count().get(),
       _driversCollection.where('isActive', isEqualTo: true).count().get(),
       _driversCollection.where('isOnline', isEqualTo: true).count().get(),

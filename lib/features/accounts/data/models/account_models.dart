@@ -379,19 +379,19 @@ DateTime _parseDateTime(dynamic value) {
   if (value == null) {
     return DateTime.now();
   }
-  
+
   if (value is Timestamp) {
     return value.toDate();
   }
-  
+
   if (value is String) {
     return DateTime.parse(value);
   }
-  
+
   if (value is DateTime) {
     return value;
   }
-  
+
   // Fallback to current time if type is unexpected
   return DateTime.now();
 }

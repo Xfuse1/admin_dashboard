@@ -108,25 +108,10 @@ class StoreCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Flexible(
-                          child: _buildStatChip(
-                            context,
-                            icon: Iconsax.shopping_cart,
-                            label: '${store.totalOrders} طلب',
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Flexible(
-                          child: _buildStatChip(
-                            context,
-                            icon: Iconsax.money,
-                            label:
-                                '${(store.commissionRate * 100).toInt()}% عمولة',
-                          ),
-                        ),
-                      ],
+                    _buildStatChip(
+                      context,
+                      icon: Iconsax.shopping_cart,
+                      label: '${store.totalOrders} طلب',
                     ),
                   ],
                 ),
@@ -154,16 +139,6 @@ class StoreCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                         Text(store.isActive ? 'تعطيل' : 'تفعيل'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'commission',
-                    child: Row(
-                      children: [
-                        Icon(Iconsax.percentage_circle, size: 20),
-                        SizedBox(width: 8),
-                        Text('تعديل العمولة'),
                       ],
                     ),
                   ),

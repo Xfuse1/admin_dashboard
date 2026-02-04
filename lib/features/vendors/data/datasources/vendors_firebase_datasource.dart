@@ -472,9 +472,50 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
           .where('store_id', isEqualTo: vendorId)
           .get();
 
+      // Get all product IDs for this vendor
+      final productIds = snapshot.docs.map((doc) => doc.id).toList();
+      
+      if (productIds.isEmpty) {
+        return [];
+      }
+
+      // Fetch order_items to calculate sales count for each product
+      // We need to count how many times each product was sold (sum of quantities)
+      final Map<String, int> productSalesCount = {};
+      
+      // Firestore 'whereIn' has a limit of 30 items, so we batch if needed
+      for (int i = 0; i < productIds.length; i += 30) {
+        final batch = productIds.skip(i).take(30).toList();
+        try {
+          final orderItemsSnapshot = await _firestore
+              .collection('order_items')
+              .where('product_id', whereIn: batch)
+              .get();
+          
+          for (final doc in orderItemsSnapshot.docs) {
+            final data = doc.data();
+            final productId = data['product_id'] as String?;
+            final quantity = (data['quantity'] as num?)?.toInt() ?? 1;
+            
+            if (productId != null) {
+              productSalesCount[productId] = 
+                  (productSalesCount[productId] ?? 0) + quantity;
+            }
+          }
+        } catch (e) {
+          // Continue with default 0 if order_items query fails
+        }
+      }
+
+      // Map products with calculated sales count
       return snapshot.docs.map((doc) {
         final data = doc.data();
         data['id'] = doc.id;
+        
+        // Override ordersCount with calculated sales from order_items
+        final calculatedSalesCount = productSalesCount[doc.id] ?? 0;
+        data['ordersCount'] = calculatedSalesCount;
+        
         return ProductEntity.fromMap(data);
       }).toList();
     } catch (e) {

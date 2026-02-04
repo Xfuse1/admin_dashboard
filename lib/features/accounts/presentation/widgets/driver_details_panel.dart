@@ -332,11 +332,18 @@ class DriverDetailsPanel extends StatelessWidget {
               ),
         ),
         const SizedBox(height: 16),
-        FutureBuilder<QuerySnapshot>(
-          future: FirebaseFirestore.instance
-              .collection('rejection_requests')
-              .where('driverId', isEqualTo: driver.id)
-              .get(),
+        FutureBuilder<List<dynamic>>(
+          future: Future.wait([
+            FirebaseFirestore.instance
+                .collection('orders')
+                .where('rejected_by_drivers', arrayContains: driver.id)
+                .count()
+                .get(),
+            FirebaseFirestore.instance
+                .collection('rejection_requests')
+                .where('driverId', isEqualTo: driver.id)
+                .get(),
+          ]),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(
@@ -347,16 +354,20 @@ class DriverDetailsPanel extends StatelessWidget {
               );
             }
 
-            final totalRequests = snapshot.data?.docs.length ?? 0;
-            final approvedCount = snapshot.data?.docs
+            final actualRejections =
+                (snapshot.data?[0] as AggregateQuerySnapshot?)?.count ?? 0;
+            final requestsSnapshot = snapshot.data?[1] as QuerySnapshot?;
+
+            final totalRequests = requestsSnapshot?.docs.length ?? 0;
+            final approvedCount = requestsSnapshot?.docs
                     .where((doc) => doc['adminDecision'] == 'approved')
                     .length ??
                 0;
-            final rejectedCount = snapshot.data?.docs
+            final rejectedCount = requestsSnapshot?.docs
                     .where((doc) => doc['adminDecision'] == 'rejected')
                     .length ??
                 0;
-            final pendingCount = snapshot.data?.docs
+            final pendingCount = requestsSnapshot?.docs
                     .where((doc) => doc['adminDecision'] == 'pending')
                     .length ??
                 0;
@@ -373,7 +384,7 @@ class DriverDetailsPanel extends StatelessWidget {
                       child: _StatCard(
                         icon: Iconsax.close_circle,
                         label: 'إجمالي الرفضات',
-                        value: '${driver.rejectionsCounter}',
+                        value: '$actualRejections',
                         color: AppColors.error,
                       ),
                     ),
@@ -423,7 +434,7 @@ class DriverDetailsPanel extends StatelessWidget {
                       child: _StatCard(
                         icon: Iconsax.close_circle,
                         label: 'إجمالي الرفضات',
-                        value: '${driver.rejectionsCounter}',
+                        value: '$actualRejections',
                         color: AppColors.error,
                       ),
                     ),
@@ -501,15 +512,57 @@ class DriverDetailsPanel extends StatelessWidget {
             final isMobile =
                 constraints.maxWidth < 400 || Response.isMobile(context);
 
-            return FutureBuilder<AggregateQuerySnapshot>(
-              future: FirebaseFirestore.instance
-                  .collection('orders')
-                  .where('deliveryId', isEqualTo: driver.id)
-                  .where('deliveryStatus', isEqualTo: 'delivered')
-                  .count()
-                  .get(),
+            return FutureBuilder<List<dynamic>>(
+              future: Future.wait([
+                FirebaseFirestore.instance
+                    .collection('orders')
+                    .where('deliveryId', isEqualTo: driver.id)
+                    .where('deliveryStatus', isEqualTo: 'delivered')
+                    .count()
+                    .get(),
+                FirebaseFirestore.instance
+                    .collection('orders')
+                    .where('rejected_by_drivers', arrayContains: driver.id)
+                    .count()
+                    .get(),
+                FirebaseFirestore.instance
+                    .collection('settings')
+                    .doc('driverCommission')
+                    .get(),
+              ]),
               builder: (context, snapshot) {
-                final count = snapshot.data?.count ?? driver.totalDeliveries;
+                final deliveredCount =
+                    (snapshot.data?[0] as AggregateQuerySnapshot?)?.count ??
+                        driver.totalDeliveries;
+                final rejections =
+                    (snapshot.data?[1] as AggregateQuerySnapshot?)?.count ?? 0;
+
+                // Get delivery rate from settings
+                double deliveryRate = 0.0;
+                if (snapshot.data?[2] != null) {
+                  final commissionDoc = snapshot.data![2]
+                      as DocumentSnapshot<Map<String, dynamic>>;
+                  if (commissionDoc.exists) {
+                    final data = commissionDoc.data();
+                    deliveryRate = ((data?['rate'] as num?) ?? 0).toDouble();
+                    debugPrint('🔍 driverCommission data: $data');
+                    debugPrint('🔍 deliveryRate: $deliveryRate');
+                  } else {
+                    debugPrint('⚠️ driverCommission document does not exist');
+                  }
+                }
+
+                debugPrint('🔍 deliveredCount: $deliveredCount');
+
+                // Calculate wallet balance: deliveredCount * deliveryRate
+                final calculatedWallet = deliveredCount * deliveryRate;
+                debugPrint('💰 calculatedWallet: $calculatedWallet');
+
+                // Calculate rejection rate: rejections / (deliveries + rejections)
+                final totalOrders = deliveredCount + rejections;
+                final rejectionRate = totalOrders > 0
+                    ? (rejections / totalOrders * 100).toStringAsFixed(1)
+                    : '0.0';
 
                 final children = [
                   isMobile
@@ -518,14 +571,37 @@ class DriverDetailsPanel extends StatelessWidget {
                           child: _StatCard(
                             icon: Iconsax.box,
                             label: 'توصيلات ناجحة',
-                            value: '$count',
+                            value: '$deliveredCount',
                           ),
                         )
                       : Expanded(
                           child: _StatCard(
                             icon: Iconsax.box,
                             label: 'توصيلات ناجحة',
-                            value: '$count',
+                            value: '$deliveredCount',
+                          ),
+                        ),
+                  SizedBox(width: isMobile ? 0 : 16, height: isMobile ? 16 : 0),
+                  isMobile
+                      ? SizedBox(
+                          width: double.infinity,
+                          child: _StatCard(
+                            icon: Iconsax.percentage_circle,
+                            label: 'نسبة الرفض',
+                            value: '$rejectionRate%',
+                            color: double.parse(rejectionRate) > 10
+                                ? AppColors.error
+                                : AppColors.warning,
+                          ),
+                        )
+                      : Expanded(
+                          child: _StatCard(
+                            icon: Iconsax.percentage_circle,
+                            label: 'نسبة الرفض',
+                            value: '$rejectionRate%',
+                            color: double.parse(rejectionRate) > 10
+                                ? AppColors.error
+                                : AppColors.warning,
                           ),
                         ),
                   SizedBox(width: isMobile ? 0 : 16, height: isMobile ? 16 : 0),
@@ -535,8 +611,7 @@ class DriverDetailsPanel extends StatelessWidget {
                           child: _StatCard(
                             icon: Iconsax.wallet_3,
                             label: 'رصيد المحفظة',
-                            value:
-                                '${driver.walletBalance.toStringAsFixed(0)} ج.م',
+                            value: '${calculatedWallet.toStringAsFixed(0)} ج.م',
                             color: AppColors.success,
                           ),
                         )
@@ -544,8 +619,7 @@ class DriverDetailsPanel extends StatelessWidget {
                           child: _StatCard(
                             icon: Iconsax.wallet_3,
                             label: 'رصيد المحفظة',
-                            value:
-                                '${driver.walletBalance.toStringAsFixed(0)} ج.م',
+                            value: '${calculatedWallet.toStringAsFixed(0)} ج.م',
                             color: AppColors.success,
                           ),
                         ),

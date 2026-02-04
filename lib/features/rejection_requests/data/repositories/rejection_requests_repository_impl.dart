@@ -110,10 +110,10 @@ class RejectionRequestsRepositoryImpl implements RejectionRequestsRepository {
 
         print('✅ Order updated successfully');
 
-        // Increment driver's rejectionsCounter
+        // Decrement driver's currentOrdersCount
+        // Note: rejectionsCounter is now calculated dynamically from rejected_by_drivers
         final userRef = firestore.collection('users').doc(driverId);
         transaction.update(userRef, {
-          'rejectionsCounter': FieldValue.increment(1),
           'currentOrdersCount': FieldValue.increment(-1),
         });
       });

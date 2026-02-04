@@ -165,17 +165,29 @@ class DriverCard extends StatelessWidget {
                                 '${driver.walletBalance.toStringAsFixed(0)} ج.م',
                           ),
                         ),
-                        if (driver.rejectionsCounter > 0) ...[
-                          const SizedBox(width: 12),
-                          Flexible(
-                            child: _buildStatChip(
-                              context,
-                              icon: Iconsax.close_circle,
-                              label: '${driver.rejectionsCounter} رفض',
-                              color: AppColors.error,
-                            ),
+                        const SizedBox(width: 12),
+                        Flexible(
+                          child: FutureBuilder<AggregateQuerySnapshot>(
+                            future: FirebaseFirestore.instance
+                                .collection('orders')
+                                .where('rejected_by_drivers',
+                                    arrayContains: driver.id)
+                                .count()
+                                .get(),
+                            builder: (context, snapshot) {
+                              final rejections = snapshot.data?.count ?? 0;
+                              if (rejections == 0) {
+                                return const SizedBox.shrink();
+                              }
+                              return _buildStatChip(
+                                context,
+                                icon: Iconsax.close_circle,
+                                label: '$rejections رفض',
+                                color: AppColors.error,
+                              );
+                            },
                           ),
-                        ],
+                        ),
                       ],
                     ),
                   ],

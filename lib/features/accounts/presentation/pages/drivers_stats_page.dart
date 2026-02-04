@@ -127,20 +127,20 @@ class DriversStatsPage extends StatelessWidget {
         drivers.fold<int>(0, (sum, d) => sum + d.rejectionsCounter);
     final driversWithRejections =
         drivers.where((d) => d.rejectionsCounter > 0).length;
-    
+
     // Calculate overall rejection rate
-    final totalDeliveries = drivers.fold<int>(0, (sum, d) => sum + d.totalDeliveries);
+    final totalDeliveries =
+        drivers.fold<int>(0, (sum, d) => sum + d.totalDeliveries);
     final totalOrders = totalDeliveries + totalRejections;
-    final overallRejectionRate = totalOrders > 0 
+    final overallRejectionRate = totalOrders > 0
         ? (totalRejections / totalOrders * 100).toStringAsFixed(1)
         : '0.0';
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final isCompact = constraints.maxWidth < 1000;
-        final cardWidth = isCompact 
-            ? double.infinity 
-            : (constraints.maxWidth - 64) / 5;
+        final cardWidth =
+            isCompact ? double.infinity : (constraints.maxWidth - 64) / 5;
 
         return Wrap(
           spacing: 16,
@@ -179,8 +179,8 @@ class DriversStatsPage extends StatelessWidget {
                 icon: Iconsax.percentage_circle,
                 label: 'معدل الرفض العام',
                 value: '$overallRejectionRate%',
-                color: double.parse(overallRejectionRate) > 10 
-                    ? AppColors.error 
+                color: double.parse(overallRejectionRate) > 10
+                    ? AppColors.error
                     : AppColors.warning,
               ),
             ),

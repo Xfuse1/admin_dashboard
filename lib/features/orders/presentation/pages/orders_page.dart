@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
@@ -10,6 +11,7 @@ import '../../../../shared/widgets/common_widgets.dart';
 import '../../../../shared/widgets/glass_card.dart';
 import '../../../../shared/widgets/responsive_layout.dart';
 import '../../domain/entities/order_entities.dart';
+import '../../../accounts/domain/entities/account_entities.dart';
 import '../bloc/orders_bloc.dart';
 import '../bloc/orders_event.dart';
 import '../bloc/orders_state.dart';
@@ -17,6 +19,7 @@ import '../widgets/order_card.dart';
 import '../widgets/order_details_sheet.dart';
 import '../widgets/order_filters.dart';
 import '../widgets/order_stats_cards.dart';
+import '../../../accounts/data/models/account_models.dart';
 
 /// Orders management page.
 class OrdersPage extends StatefulWidget {
@@ -516,14 +519,8 @@ class OrderDetailsPanel extends StatelessWidget {
                   ),
                   const SizedBox(height: AppConstants.spacingMd),
 
-                  // Store info
-                  if (order.storeName != null)
-                    _buildInfoSection(
-                      context,
-                      'المتجر',
-                      Iconsax.shop,
-                      [order.storeName!],
-                    ),
+                  // Store info with detailed data
+                  if (order.storeId != null) _buildStoreSection(context),
                   const SizedBox(height: AppConstants.spacingMd),
 
                   // Driver info
@@ -606,6 +603,180 @@ class OrderDetailsPanel extends StatelessWidget {
     );
   }
 
+  Widget _buildStoreSection(BuildContext context) {
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance
+          .collection('stores')
+          .doc(order.storeId)
+          .get(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Iconsax.shop,
+                      size: 16, color: AppColors.textSecondary),
+                  const SizedBox(width: 8),
+                  Text(
+                    'المتجر',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(8.0),
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            ],
+          );
+        }
+
+        if (!snapshot.hasData || !snapshot.data!.exists) {
+          return _buildInfoSection(
+            context,
+            'المتجر',
+            Iconsax.shop,
+            [order.storeName ?? 'متجر غير معروف'],
+          );
+        }
+
+        final storeData = snapshot.data!.data() as Map<String, dynamic>?;
+        if (storeData == null) {
+          return _buildInfoSection(
+            context,
+            'المتجر',
+            Iconsax.shop,
+            [order.storeName ?? 'متجر غير معروف'],
+          );
+        }
+
+        // Extract store information
+        final storeName =
+            storeData['name'] as String? ?? order.storeName ?? 'متجر غير معروف';
+        final storePhone = storeData['phone'] as String? ?? 'غير متوفر';
+
+        // Extract address from address map
+        String storeAddress = 'غير متوفر';
+        if (storeData['address'] != null && storeData['address'] is Map) {
+          final addressMap = storeData['address'] as Map<String, dynamic>;
+          final street = addressMap['street'] as String? ?? '';
+          final city = addressMap['city'] as String? ?? '';
+          final country = addressMap['country'] as String? ?? '';
+
+          storeAddress = [street, city, country]
+              .where((part) => part.isNotEmpty)
+              .join(', ');
+
+          if (storeAddress.isEmpty) {
+            storeAddress = 'غير متوفر';
+          }
+        }
+
+        final storeCategory = storeData['category'] as String? ?? 'متجر';
+        final storeRating = (storeData['rating'] as num?)?.toDouble() ?? 0.0;
+
+        return GlassCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Iconsax.shop,
+                      size: 20,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          storeName,
+                          style:
+                              Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                        ),
+                        Row(
+                          children: [
+                            Text(
+                              storeCategory,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: AppColors.textSecondary,
+                                    fontSize: 11,
+                                  ),
+                            ),
+                            if (storeRating > 0) ...[
+                              const SizedBox(width: 8),
+                              const Icon(Icons.star,
+                                  size: 12, color: Colors.amber),
+                              const SizedBox(width: 2),
+                              Text(
+                                storeRating.toStringAsFixed(1),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 11,
+                                    ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const Divider(height: 1),
+              const SizedBox(height: 12),
+              _buildStoreInfoRow(context, Iconsax.call, storePhone),
+              const SizedBox(height: 8),
+              _buildStoreInfoRow(context, Iconsax.location, storeAddress),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildStoreInfoRow(BuildContext context, IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: AppColors.textSecondary),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _buildInfoSection(
     BuildContext context,
     String title,
@@ -672,16 +843,87 @@ class OrderDetailsPanel extends StatelessWidget {
   }
 
   Widget _buildTotalSection(BuildContext context) {
-    return GlassCard(
-      child: Column(
-        children: [
-          _buildTotalRow(context, 'المجموع الفرعي', order.subtotal ?? 0.0),
-          const Divider(),
-          _buildTotalRow(context, 'رسوم التوصيل', order.deliveryFee ?? 0.0),
-          const Divider(),
-          _buildTotalRow(context, 'الإجمالي', order.total ?? 0.0, isBold: true),
-        ],
-      ),
+    // Calculate actual subtotal from items
+    final calculatedSubtotal = order.items.fold<double>(
+      0.0,
+      (sum, item) => sum + item.total,
+    );
+
+    // Use calculated subtotal if order subtotal is missing or incorrect
+    final displaySubtotal = (order.subtotal == null ||
+            order.subtotal == 0.0 ||
+            (calculatedSubtotal > 0 &&
+                (calculatedSubtotal - (order.subtotal ?? 0.0)).abs() > 0.01))
+        ? calculatedSubtotal
+        : order.subtotal!;
+
+    return FutureBuilder<DocumentSnapshot>(
+      future: FirebaseFirestore.instance
+          .collection('settings')
+          .doc('driverCommission')
+          .get(),
+      builder: (context, snapshot) {
+        // Get delivery fee from settings/driverCommission/rate
+        double deliveryFee = 0.0;
+
+        if (snapshot.hasData &&
+            snapshot.data != null &&
+            snapshot.data!.exists) {
+          final settingsData = snapshot.data!.data() as Map<String, dynamic>?;
+          if (settingsData != null && settingsData.containsKey('rate')) {
+            deliveryFee = (settingsData['rate'] as num?)?.toDouble() ?? 0.0;
+          }
+        }
+
+        final calculatedTotal = displaySubtotal + deliveryFee;
+        final displayTotal = order.total ?? calculatedTotal;
+
+        return GlassCard(
+          child: Column(
+            children: [
+              _buildTotalRow(
+                context,
+                'المجموع الفرعي',
+                displaySubtotal,
+              ),
+              const Divider(),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'رسوم التوصيل',
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      if (snapshot.connectionState == ConnectionState.waiting)
+                        const Padding(
+                          padding: EdgeInsets.only(right: 8),
+                          child: SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                    ],
+                  ),
+                  Text(
+                    Formatters.currency(deliveryFee),
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ],
+              ),
+              const Divider(),
+              _buildTotalRow(
+                context,
+                'الإجمالي',
+                displayTotal,
+                isBold: true,
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
