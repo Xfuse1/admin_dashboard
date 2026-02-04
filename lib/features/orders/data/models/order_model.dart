@@ -38,67 +38,96 @@ class OrderModel extends OrderEntity {
   /// Creates an [OrderModel] from Deliverzler Firestore document.
   ///
   /// This factory handles the field mapping from Deliverzler's format:
-  /// - userId → customerId
-  /// - userName → customerName
-  /// - userPhone → customerPhone
-  /// - userImage → customerImage
-  /// - deliveryId → driverId
-  /// - deliveryStatus → status
-  /// - date (int) → createdAt (DateTime)
-  /// - addressModel (object) → address
+  /// - customer_id → customerId
+  /// - customer_name → customerName
+  /// - customer_phone → customerPhone
+  /// - customer_image → customerImage
+  /// - driver_id → driverId
+  /// - status → status
+  /// - created_at (ISO string) → createdAt (DateTime)
+  /// - delivery_address, delivery_city, delivery_state → address
   factory OrderModel.fromDeliverzler(
     Map<String, dynamic> json, {
     required String documentId,
   }) {
-    // Parse address from addressModel
-    final addressJson = json['addressModel'] as Map<String, dynamic>?;
-    final address = addressJson != null
-        ? DeliveryAddressModel.fromJson(addressJson)
-        : DeliveryAddress.empty;
+    // Parse address from separate fields (new schema)
+    final address = DeliveryAddressModel(
+      state: json['delivery_state'] as String? ?? '',
+      city: json['delivery_city'] as String? ?? '',
+      street: json['delivery_address'] as String? ?? '',
+      mobile: json['customer_phone'] as String? ?? '',
+      latitude: (json['delivery_latitude'] as num?)?.toDouble(),
+      longitude: (json['delivery_longitude'] as num?)?.toDouble(),
+    );
 
     // Parse driver's GeoPoint
     final geoPoint = json['deliveryGeoPoint'] as GeoPoint?;
 
-    // Parse date (Unix timestamp in milliseconds)
-    final dateTimestamp = json['date'] as int?;
-    final createdAt = dateTimestamp != null
-        ? DateTime.fromMillisecondsSinceEpoch(dateTimestamp)
-        : DateTime.now();
+    // Parse date - handle both old (date as int) and new (created_at as ISO string)
+    DateTime createdAt = DateTime.now();
+    if (json['created_at'] != null) {
+      try {
+        createdAt = DateTime.parse(json['created_at'] as String);
+      } catch (e) {
+        // Fallback to date field if created_at parse fails
+        final dateTimestamp = json['date'] as int?;
+        if (dateTimestamp != null) {
+          createdAt = DateTime.fromMillisecondsSinceEpoch(dateTimestamp);
+        }
+      }
+    } else {
+      final dateTimestamp = json['date'] as int?;
+      if (dateTimestamp != null) {
+        createdAt = DateTime.fromMillisecondsSinceEpoch(dateTimestamp);
+      }
+    }
+
+    // Parse updated_at - fallback to created_at if not available
+    DateTime updatedAt = createdAt;
+    if (json['updated_at'] != null) {
+      try {
+        updatedAt = DateTime.parse(json['updated_at'] as String);
+      } catch (e) {
+        // Use createdAt if parse fails
+      }
+    }
 
     return OrderModel(
       id: documentId,
-      customerId: json['userId'] as String? ?? '',
-      customerName: json['userName'] as String? ?? '',
-      customerPhone: json['userPhone'] as String? ?? '',
-      customerImage: json['userImage'] as String?,
-      storeId: null, // Deliverzler doesn't have store info
+      customerId: json['customer_id'] as String? ?? '',
+      customerName: json['customer_name'] as String? ?? '',
+      customerPhone: json['customer_phone'] as String? ?? '',
+      customerImage: json['customer_image'] as String?,
+      storeId: json['store_id'] as String?,
       storeName: null,
-      driverId: json['deliveryId'] as String?,
-      driverName: json['deliveryName'] as String?,
-      driverLatitude: geoPoint?.latitude,
-      driverLongitude: geoPoint?.longitude,
+      driverId: json['driver_id'] as String?,
+      driverName: json['driver_name'] as String?,
+      driverLatitude:
+          geoPoint?.latitude ?? (json['delivery_latitude'] as num?)?.toDouble(),
+      driverLongitude: geoPoint?.longitude ??
+          (json['delivery_longitude'] as num?)?.toDouble(),
       items: (json['items'] as List<dynamic>?)
               ?.map((item) =>
                   OrderItemModel.fromJson(item as Map<String, dynamic>))
               .toList() ??
           const [],
       status: OrderStatus.fromValue(
-        json['deliveryStatus'] as String? ?? 'pending',
+        json['status'] as String? ?? 'pending',
       ),
       pickupOption: PickupOption.fromValue(
         json['pickupOption'] as String? ?? 'delivery',
       ),
       paymentMethod: json['paymentMethod'] as String? ?? 'cash',
       subtotal: (json['subtotal'] as num?)?.toDouble(),
-      deliveryFee: (json['deliveryFee'] as num?)?.toDouble(),
+      deliveryFee: (json['delivery_price'] as num?)?.toDouble(),
       total: (json['total'] as num?)?.toDouble(),
       address: address,
-      deliveryAddressString: null,
-      timeline: const [], // Deliverzler doesn't have timeline
-      customerNote: json['userNote'] as String?,
+      deliveryAddressString: json['delivery_address'] as String?,
+      timeline: _parseTimeline(json['timeline'] as List<dynamic>?),
+      customerNote: json['customerNote'] as String?,
       employeeCancelNote: json['employeeCancelNote'] as String?,
       createdAt: createdAt,
-      updatedAt: createdAt, // Deliverzler doesn't have updatedAt
+      updatedAt: updatedAt,
     );
   }
 
@@ -268,6 +297,22 @@ class OrderModel extends OrderEntity {
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
+
+  /// Parses timeline array from Firestore.
+  static List<OrderTimeline> _parseTimeline(List<dynamic>? timelineList) {
+    if (timelineList == null || timelineList.isEmpty) {
+      return const [];
+    }
+    return timelineList
+        .map((item) {
+          if (item is Map<String, dynamic>) {
+            return OrderTimelineModel.fromJson(item);
+          }
+          return null;
+        })
+        .whereType<OrderTimeline>()
+        .toList();
+  }
 }
 
 /// Delivery address model.
@@ -319,17 +364,19 @@ class OrderItemModel extends OrderItem {
     required super.price,
     required super.total,
     super.notes,
+    super.category,
   });
 
   factory OrderItemModel.fromJson(Map<String, dynamic> json) {
     return OrderItemModel(
       id: json['id'] as String? ?? '',
-      name: json['name'] as String? ?? 'Unknown Product',
+      name: json['name'] as String? ?? json['title'] as String? ?? 'Unknown Product',
       imageUrl: json['imageUrl'] as String? ?? json['image'] as String?,
       quantity: (json['quantity'] as num?)?.toInt() ?? 1,
       price: (json['price'] as num?)?.toDouble() ?? 0.0,
       total: (json['total'] as num?)?.toDouble() ?? 0.0,
-      notes: json['notes'] as String?,
+      notes: json['notes'] as String? ?? json['description'] as String?,
+      category: json['category'] as String?,
     );
   }
 
@@ -342,6 +389,7 @@ class OrderItemModel extends OrderItem {
       'price': price,
       'total': total,
       'notes': notes,
+      'category': category,
     };
   }
 }

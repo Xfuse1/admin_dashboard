@@ -85,6 +85,9 @@ abstract final class FirestoreCollections {
   /// Orders collection - shared with Deliverzler app.
   static const String orders = 'orders';
 
+  /// Order items collection - items within orders.
+  static const String orderItems = 'order_items';
+
   /// Users collection - contains drivers from Deliverzler.
   static const String users = 'users';
 
@@ -93,6 +96,9 @@ abstract final class FirestoreCollections {
 
   /// Stores collection - registered stores.
   static const String stores = 'stores';
+
+  /// Products collection - available products.
+  static const String products = 'products';
 
   /// Customers collection - customer accounts.
   static const String customers = 'customers';
@@ -118,7 +124,8 @@ abstract final class FirestoreCollections {
 /// Matches Deliverzler's field naming for compatibility.
 abstract final class OrderFields {
   static const String id = 'id';
-  static const String date = 'date';
+  static const String date = 'date';  // Keep as 'date' for backward compatibility (old orders use this)
+  static const String createdAt = 'created_at';  // New field name for new orders
   static const String pickupOption = 'pickupOption';
   static const String paymentMethod = 'paymentMethod';
   static const String addressModel = 'addressModel';
@@ -128,9 +135,9 @@ abstract final class OrderFields {
   static const String userPhone = 'userPhone';
   static const String userNote = 'userNote';
   static const String employeeCancelNote = 'employeeCancelNote';
-  static const String deliveryStatus = 'deliveryStatus';
-  static const String deliveryId = 'deliveryId';
-  static const String deliveryName = 'deliveryName';
+  static const String deliveryStatus = 'status';  // Changed from 'deliveryStatus' to match new database schema
+  static const String deliveryId = 'driver_id';  // Changed from 'deliveryId' to match new database schema
+  static const String deliveryName = 'driver_name';  // Changed from 'deliveryName' to match new database schema
   static const String deliveryGeoPoint = 'deliveryGeoPoint';
 }
 

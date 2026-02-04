@@ -29,7 +29,10 @@ class RejectionRequestModel extends RejectionRequestEntity {
       reason: data['reason'] as String,
       adminDecision: data['adminDecision'] as String,
       adminComment: data['adminComment'] as String?,
-      requestedAt: (data['requestedAt'] as Timestamp).toDate(),
+      // Support both conventions (createdAt is used in deliverzler app)
+      requestedAt: data.containsKey('createdAt') 
+          ? (data['createdAt'] as Timestamp).toDate()
+          : (data['requestedAt'] as Timestamp).toDate(),
       decidedAt: data['decidedAt'] != null
           ? (data['decidedAt'] as Timestamp).toDate()
           : null,

@@ -39,8 +39,11 @@ class RejectionRequestsRepositoryImpl implements RejectionRequestsRepository {
     try {
       return dataSource
           .watchRejectionRequests(adminDecision: adminDecision)
-          .map((requests) =>
-              Right<Failure, List<RejectionRequestEntity>>(requests))
+          .map((models) {
+            // Convert models to entities
+            final entities = models.map((model) => model as RejectionRequestEntity).toList();
+            return Right<Failure, List<RejectionRequestEntity>>(entities);
+          })
           .handleError((error) => Left<Failure, List<RejectionRequestEntity>>(
                 ServerFailure(message: error.toString()),
               ));
@@ -136,10 +139,11 @@ class RejectionRequestsRepositoryImpl implements RejectionRequestsRepository {
           'decidedAt': FieldValue.serverTimestamp(),
         });
 
-        // Update order rejectionStatus
+        // Update order rejectionStatus and reset delivery status to upcoming
         final orderRef = firestore.collection('orders').doc(orderId);
         transaction.update(orderRef, {
           'rejectionStatus': 'adminRefused',
+          'deliveryStatus': 'upcoming',
         });
       });
 
@@ -196,15 +200,27 @@ class RejectionRequestsRepositoryImpl implements RejectionRequestsRepository {
 
       if (decidedRequests.isNotEmpty) {
         int totalMinutes = 0;
+        int validCount = 0;
         for (final doc in decidedRequests) {
           final data = doc.data();
-          final requestedAt = (data['requestedAt'] as Timestamp).toDate();
-          final decidedAt = data['decidedAt'] != null
-              ? (data['decidedAt'] as Timestamp).toDate()
-              : DateTime.now();
-          totalMinutes += decidedAt.difference(requestedAt).inMinutes;
+          // Skip if requestedAt is null
+          if (data['requestedAt'] == null) continue;
+          
+          try {
+            final requestedAt = (data['requestedAt'] as Timestamp).toDate();
+            final decidedAt = data['decidedAt'] != null
+                ? (data['decidedAt'] as Timestamp).toDate()
+                : DateTime.now();
+            totalMinutes += decidedAt.difference(requestedAt).inMinutes;
+            validCount++;
+          } catch (e) {
+            // Skip invalid documents
+            continue;
+          }
         }
-        avgResponseTime = totalMinutes / decidedRequests.length;
+        if (validCount > 0) {
+          avgResponseTime = totalMinutes / validCount;
+        }
       }
 
       final stats = RejectionStats(

@@ -197,6 +197,8 @@ class OrderItem extends Equatable {
   final double total;
   final String? notes;
 
+  final String? category;
+
   const OrderItem({
     required this.id,
     required this.name,
@@ -205,10 +207,11 @@ class OrderItem extends Equatable {
     required this.price,
     required this.total,
     this.notes,
+    this.category,
   });
 
   @override
-  List<Object?> get props => [id, name, quantity, price, total];
+  List<Object?> get props => [id, name, quantity, price, total, category];
 }
 
 /// Order timeline entry.

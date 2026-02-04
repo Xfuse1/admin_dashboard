@@ -200,19 +200,34 @@ class OnboardingFirebaseDataSource implements OnboardingDataSource {
       if (notes != null) 'notes': notes,
     };
 
-    // Try to update in driver requests
-    final driverDoc =
-        await _firestore.collection(_driverRequestsCollection).doc(id).get();
+    // Check if this is a driver request
+    // Since driver now registers directly in 'drivers' collection with Auth UID as document ID,
+    // we just need to update the status from 'pending' to 'approved'
+    final driverDoc = await _firestore
+        .collection('drivers')
+        .doc(id)
+        .get();
 
     if (driverDoc.exists) {
-      await _firestore.collection(_driverRequestsCollection).doc(id).update({
-        ...commonUpdateData,
-        'status': OnboardingStatus.approved.name,
-      });
-      return;
+      final data = driverDoc.data();
+      
+      // Check if this is a pending driver (has status field)
+      if (data != null && data.containsKey('status')) {
+        // Driver document found - simply update status to approved
+        await _firestore.collection('drivers').doc(id).update({
+          ...commonUpdateData,
+          'status': 'approved', // Change from pending to approved
+          'isActive': true,
+          'isApproved': true,
+          'approvedAt': FieldValue.serverTimestamp(),
+        });
+        
+        print('✅ Driver approved: $id');
+        return;
+      }
     }
 
-    // Try store requests - Update to 'active' for VendorStatus
+    // If not found in drivers, try store requests
     await _firestore
         .collection(_storeRequestsCollection)
         .doc(id)

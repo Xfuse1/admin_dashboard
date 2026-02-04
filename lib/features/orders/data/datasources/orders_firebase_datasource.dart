@@ -25,6 +25,12 @@ class OrdersFirebaseDataSource implements OrdersDataSource {
   CollectionReference<Map<String, dynamic>> get _ordersCollection =>
       _firestore.collection(FirestoreCollections.orders);
 
+  CollectionReference<Map<String, dynamic>> get _orderItemsCollection =>
+      _firestore.collection(FirestoreCollections.orderItems);
+
+  CollectionReference<Map<String, dynamic>> get _productsCollection =>
+      _firestore.collection(FirestoreCollections.products);
+
   @override
   Future<List<OrderModel>> getOrders({
     OrderStatus? status,
@@ -37,7 +43,7 @@ class OrdersFirebaseDataSource implements OrdersDataSource {
   }) async {
     // 1. Fetch orders ordered by date
     Query<Map<String, dynamic>> query = _ordersCollection
-        .orderBy(OrderFields.date, descending: true)
+        .orderBy(OrderFields.createdAt, descending: true)
         .limit(100);
 
     if (lastOrderId != null) {
@@ -81,7 +87,17 @@ class OrdersFirebaseDataSource implements OrdersDataSource {
     }
 
     // 4. Return limited results
-    return orders.take(limit).toList();
+    final limitedOrders = orders.take(limit).toList();
+
+    // 5. Fetch items for each order (Parallel fetch)
+    final ordersWithItems = await Future.wait(
+      limitedOrders.map((order) async {
+        final items = await _getOrderItems(order.id);
+        return order.copyWith(items: items);
+      }),
+    );
+
+    return ordersWithItems;
   }
 
   @override
@@ -92,7 +108,10 @@ class OrdersFirebaseDataSource implements OrdersDataSource {
       throw Exception('Order not found');
     }
 
-    return OrderModel.fromDeliverzler(doc.data()!, documentId: doc.id);
+    final order = OrderModel.fromDeliverzler(doc.data()!, documentId: doc.id);
+    final items = await _getOrderItems(order.id);
+
+    return order.copyWith(items: items);
   }
 
   @override
@@ -135,10 +154,10 @@ class OrdersFirebaseDataSource implements OrdersDataSource {
   Stream<List<OrderModel>> watchOrders({OrderStatus? status}) {
     // Query without where clause to avoid index requirement
     Query<Map<String, dynamic>> query = _ordersCollection
-        .orderBy(OrderFields.date, descending: true)
+        .orderBy(OrderFields.createdAt, descending: true)
         .limit(100);
 
-    return query.snapshots().map((snapshot) {
+    return query.snapshots().asyncMap((snapshot) async {
       var orders = snapshot.docs.map((doc) {
         return OrderModel.fromDeliverzler(doc.data(), documentId: doc.id);
       }).toList();
@@ -149,8 +168,97 @@ class OrdersFirebaseDataSource implements OrdersDataSource {
       }
 
       // Return first 50 after filtering
-      return orders.take(50).toList();
+      final limitedOrders = orders.take(50).toList();
+
+      // Fetch items for each order
+      final ordersWithItems = await Future.wait(
+        limitedOrders.map((order) async {
+          final items = await _getOrderItems(order.id);
+          return order.copyWith(items: items);
+        }),
+      );
+
+      return ordersWithItems;
     });
+  }
+
+  /// Fetches items for a specific order from 'order_items' collection.
+  Future<List<OrderItemModel>> _getOrderItems(String orderId) async {
+    try {
+      final snapshot = await _orderItemsCollection
+          .where('order_id', isEqualTo: orderId)
+          .get();
+
+      final items = await Future.wait(snapshot.docs.map((doc) async {
+        try {
+          var data = doc.data();
+          data['id'] = doc.id; // Ensure ID is present
+
+          // Create base item from order_item data
+          final item = OrderItemModel.fromJson(data);
+
+          // Check if we need to enrich with product details
+          // Condition: Name is missing/unknown AND we have a product_id
+          final productId = data['product_id'] as String?;
+          final needsEnrichment = (item.name == 'Unknown Product' ||
+                  item.name.isEmpty) &&
+              (productId != null && productId.isNotEmpty);
+
+          if (needsEnrichment) {
+            try {
+              final productDoc = await _productsCollection.doc(productId).get();
+              if (productDoc.exists) {
+                final productData = productDoc.data()!;
+                final productPrice =
+                    (productData['price'] as num?)?.toDouble() ?? 0.0;
+                
+                // Calculate total if missing
+                final calculatedTotal = item.total > 0
+                    ? item.total
+                    : productPrice * item.quantity;
+
+                return OrderItemModel(
+                  id: item.id,
+                  name: productData['name'] as String? ??
+                      productData['title'] as String? ??
+                      item.name,
+                  imageUrl: productData['image'] as String? ??
+                      productData['imageUrl'] as String? ??
+                      item.imageUrl,
+                  quantity: item.quantity,
+                  price: productPrice > 0 ? productPrice : item.price,
+                  total: calculatedTotal,
+                  notes: item.notes,
+                  category: productData['category'] as String? ?? item.category,
+                );
+              }
+            } catch (e) {
+              // On product fetch error, return original item
+              print('Error fetching product details: $e');
+            }
+          }
+
+          return item;
+        } catch (e) {
+          print('Error parsing item: $e');
+          // Return a simplified error item or null (filtered out later) if strictly needed
+          // For now, return a placeholder to avoid empty list if possible, or rethrow
+          return OrderItemModel(
+            id: doc.id, 
+            name: 'Error loading item', 
+            quantity: 1, 
+            price: 0, 
+            total: 0
+          );
+        }
+      }));
+
+      return items;
+    } catch (e) {
+      print('Error fetching order items: $e');
+      // Return empty list on failure to avoid breaking the whole order fetch
+      return [];
+    }
   }
 
   @override
@@ -160,14 +268,14 @@ class OrdersFirebaseDataSource implements OrdersDataSource {
   }) async {
     Query<Map<String, dynamic>> query = _ordersCollection;
 
-    // Deliverzler uses 'date' as Unix timestamp
+    // Deliverzler uses 'created_at' as ISO string
     if (fromDate != null) {
-      query = query.where(OrderFields.date,
-          isGreaterThanOrEqualTo: fromDate.millisecondsSinceEpoch);
+      query = query.where(OrderFields.createdAt,
+          isGreaterThanOrEqualTo: fromDate.toIso8601String());
     }
     if (toDate != null) {
-      query = query.where(OrderFields.date,
-          isLessThanOrEqualTo: toDate.millisecondsSinceEpoch);
+      query = query.where(OrderFields.createdAt,
+          isLessThanOrEqualTo: toDate.toIso8601String());
     }
 
     final snapshot = await query.get();

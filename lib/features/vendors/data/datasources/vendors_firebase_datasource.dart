@@ -57,19 +57,38 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
         return VendorEntity.fromMap(_processVendorData(data));
       }).toList();
 
-      // Fetch products count for each vendor from products collection
+      // Fetch products and orders count for each vendor
       if (vendors.isNotEmpty) {
         final countFutures = vendors.map((vendor) async {
+          int productsCount = vendor.productsCount;
+          int totalOrders = vendor.totalOrders;
+
           try {
-            final countSnapshot = await _firestore
+            final productCountSnapshot = await _firestore
                 .collection('products')
                 .where('store_id', isEqualTo: vendor.id)
                 .count()
                 .get();
-            return vendor.copyWith(productsCount: countSnapshot.count ?? 0);
+            productsCount = productCountSnapshot.count ?? 0;
           } catch (e) {
-            return vendor;
+            // Keep default/existing value on error
           }
+
+          try {
+            final orderCountSnapshot = await _firestore
+                .collection('orders')
+                .where('store_id', isEqualTo: vendor.id)
+                .count()
+                .get();
+            totalOrders = orderCountSnapshot.count ?? 0;
+          } catch (e) {
+            // Keep default/existing value on error
+          }
+
+          return vendor.copyWith(
+            productsCount: productsCount,
+            totalOrders: totalOrders,
+          );
         });
 
         vendors = await Future.wait(countFutures);
@@ -140,6 +159,19 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
       data['productsCount'] = countSnapshot.count ?? 0;
     } catch (e) {
       data['productsCount'] = 0;
+    }
+
+    // Fetch orders count from orders collection
+    try {
+      final orderCountSnapshot = await _firestore
+          .collection('orders')
+          .where('store_id', isEqualTo: id)
+          .count()
+          .get();
+      data['totalOrders'] = orderCountSnapshot.count ?? 0;
+    } catch (e) {
+      // Keep existing value if available or default to 0
+      if (data['totalOrders'] == null) data['totalOrders'] = 0;
     }
 
     return VendorEntity.fromMap(_processVendorData(data));
@@ -269,19 +301,38 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
         return VendorEntity.fromMap(_processVendorData(data));
       }).toList();
 
-      // Fetch products count for each vendor from products collection
+      // Fetch products and orders count for each vendor
       if (vendors.isNotEmpty) {
         final countFutures = vendors.map((vendor) async {
+          int productsCount = vendor.productsCount;
+          int totalOrders = vendor.totalOrders;
+
           try {
-            final countSnapshot = await _firestore
+            final productCountSnapshot = await _firestore
                 .collection('products')
                 .where('store_id', isEqualTo: vendor.id)
                 .count()
                 .get();
-            return vendor.copyWith(productsCount: countSnapshot.count ?? 0);
+            productsCount = productCountSnapshot.count ?? 0;
           } catch (e) {
-            return vendor;
+            // Keep default
           }
+
+          try {
+            final orderCountSnapshot = await _firestore
+                .collection('orders')
+                .where('store_id', isEqualTo: vendor.id)
+                .count()
+                .get();
+            totalOrders = orderCountSnapshot.count ?? 0;
+          } catch (e) {
+            // Keep default
+          }
+
+          return vendor.copyWith(
+            productsCount: productsCount,
+            totalOrders: totalOrders,
+          );
         });
 
         vendors = await Future.wait(countFutures);

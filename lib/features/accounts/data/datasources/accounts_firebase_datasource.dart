@@ -73,7 +73,14 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
       final nameMap = normalized['name'] as Map;
       normalized['name'] = nameMap['en'] ?? nameMap['ar'] ?? nameMap.values.firstOrNull ?? 'Unknown';
     } else if (normalized['name'] is! String) {
-      normalized['name'] = 'Unknown';
+      // Try fallback fields common in other apps
+      if (normalized['userName'] is String) {
+        normalized['name'] = normalized['userName'];
+      } else if (normalized['fullName'] is String) {
+        normalized['name'] = normalized['fullName'];
+      } else {
+        normalized['name'] = 'Unknown';
+      }
     }
 
     return normalized;
@@ -119,8 +126,9 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
     final snapshot = await query.get();
     
     // Client-side mapping
-    return snapshot.docs.map((doc) {
+    var customers = snapshot.docs.map((doc) {
       final data = doc.data();
+      print('🔍 Raw Customer Data (${doc.id}): $data'); // Debug log
       data['id'] = doc.id;
       final normalizedData = _normalizeDateFields(data);
       
@@ -132,6 +140,66 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
 
       return CustomerModel.fromJson(normalizedData);
     }).toList();
+
+    // Dynamically fetch stats for each customer
+    if (customers.isNotEmpty) {
+      final statsFutures = customers.map((customer) async {
+        int totalOrders = customer.totalOrders;
+        double totalSpent = customer.totalSpent;
+        String? lastOrderId = customer.lastOrderId;
+        DateTime? lastOrderDate = customer.lastOrderDate;
+
+        try {
+          final query = _firestore
+              .collection('orders')
+              .where('userId', isEqualTo: customer.id);
+
+          // Get aggregates
+          // FIXME: Composite index issue for sum('total'). Reverting to simple count for now to verify connectivity.
+          /*
+          final aggregateQuery = await query.aggregate(sum('total'), count()).get();
+          totalOrders = aggregateQuery.count ?? 0;
+          totalSpent = aggregateQuery.getSum('total') ?? 0.0;
+          */
+          
+          // Fallback to simple Count until index propagates
+          final countQuery = await query.count().get();
+          totalOrders = countQuery.count ?? 0;
+          totalSpent = 0.0; // Temporarily 0
+
+          // Get last order
+          // Used 'date' as it's the timestamp field in Deliverzler orders
+          final lastOrderSnapshot = await query
+              .orderBy('date', descending: true)
+              .limit(1)
+              .get();
+
+          if (lastOrderSnapshot.docs.isNotEmpty) {
+            final lastOrderDoc = lastOrderSnapshot.docs.first;
+            lastOrderId = lastOrderDoc.id;
+            final lastOrderData = lastOrderDoc.data();
+            // Handle date field which might be int (millis) or Timestamp
+            if (lastOrderData['date'] is int) {
+              lastOrderDate = DateTime.fromMillisecondsSinceEpoch(lastOrderData['date']);
+            } else if (lastOrderData['date'] is Timestamp) {
+              lastOrderDate = (lastOrderData['date'] as Timestamp).toDate();
+            }
+          }
+        } catch (e) {
+          // Fallback to existing if error
+        }
+
+        return customer.copyWith(
+          totalOrders: totalOrders,
+          totalSpent: totalSpent,
+          lastOrderId: lastOrderId,
+          lastOrderDate: lastOrderDate,
+        );
+      });
+      customers = await Future.wait(statsFutures);
+    }
+
+    return customers;
   }
 
   @override
@@ -143,7 +211,59 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
     
     final data = doc.data()!;
     data['id'] = doc.id;
-    return CustomerModel.fromJson(_normalizeDateFields(data));
+    var customer = CustomerModel.fromJson(_normalizeDateFields(data));
+
+    // Dynamically fetch stats
+    try {
+      final query = _firestore
+          .collection('orders')
+          .where('userId', isEqualTo: id);
+
+      /*
+      final aggregateQuery = await query.aggregate(sum('total'), count()).get();
+      final totalOrders = aggregateQuery.count ?? 0;
+      final totalSpent = aggregateQuery.getSum('total') ?? 0.0;
+      */
+      
+      final countQuery = await query.count().get();
+      final totalOrders = countQuery.count ?? 0;
+      final totalSpent = 0.0;
+
+      // Get last order
+      String? lastOrderId = customer.lastOrderId;
+      DateTime? lastOrderDate = customer.lastOrderDate;
+
+      try {
+        final lastOrderSnapshot = await query
+            .orderBy('date', descending: true)
+            .limit(1)
+            .get();
+
+        if (lastOrderSnapshot.docs.isNotEmpty) {
+          final lastOrderDoc = lastOrderSnapshot.docs.first;
+          lastOrderId = lastOrderDoc.id;
+          final lastOrderData = lastOrderDoc.data();
+          if (lastOrderData['date'] is int) {
+            lastOrderDate = DateTime.fromMillisecondsSinceEpoch(lastOrderData['date']);
+          } else if (lastOrderData['date'] is Timestamp) {
+            lastOrderDate = (lastOrderData['date'] as Timestamp).toDate();
+          }
+        }
+      } catch (e) {
+        // Ignore
+      }
+
+      customer = customer.copyWith(
+        totalOrders: totalOrders,
+        totalSpent: totalSpent,
+        lastOrderId: lastOrderId,
+        lastOrderDate: lastOrderDate,
+      );
+    } catch (e) {
+      // Ignore
+    }
+
+    return customer;
   }
 
   @override
@@ -198,11 +318,32 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
 
     final snapshot = await query.get();
 
-    return snapshot.docs.map((doc) {
+    var stores = snapshot.docs.map((doc) {
       final data = doc.data();
       data['id'] = doc.id;
       return StoreModel.fromJson(_normalizeDateFields(data));
     }).toList();
+
+    // Dynamically fetch totalOrders for each store
+    if (stores.isNotEmpty) {
+      final countFutures = stores.map((store) async {
+        int totalOrders = store.totalOrders;
+        try {
+          final orderCountSnapshot = await _firestore
+              .collection('orders')
+              .where('store_id', isEqualTo: store.id) // Ensure using store_id
+              .count()
+              .get();
+          totalOrders = orderCountSnapshot.count ?? 0;
+        } catch (e) {
+          // Keep existing value
+        }
+        return store.copyWith(totalOrders: totalOrders);
+      });
+      stores = await Future.wait(countFutures);
+    }
+
+    return stores;
   }
 
   @override
@@ -212,7 +353,23 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
     
     final data = doc.data()!;
     data['id'] = doc.id;
-    return StoreModel.fromJson(_normalizeDateFields(data));
+    
+    var store = StoreModel.fromJson(_normalizeDateFields(data));
+
+    // Dynamically fetch totalOrders
+    try {
+      final orderCountSnapshot = await _firestore
+          .collection('orders')
+          .where('store_id', isEqualTo: id)
+          .count()
+          .get();
+      final totalOrders = orderCountSnapshot.count ?? 0;
+      store = store.copyWith(totalOrders: totalOrders);
+    } catch (e) {
+      // Ignore
+    }
+
+    return store;
   }
 
   @override
@@ -275,11 +432,33 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
 
     final snapshot = await query.get();
 
-    return snapshot.docs.map((doc) {
+    var drivers = snapshot.docs.map((doc) {
       final data = doc.data();
       data['id'] = doc.id;
       return DriverModel.fromJson(_normalizeDateFields(data));
     }).toList();
+
+    // Dynamically fetch totalDeliveries for each driver
+    if (drivers.isNotEmpty) {
+      final statsFutures = drivers.map((driver) async {
+        int totalDeliveries = driver.totalDeliveries;
+        try {
+          final countSnapshot = await _firestore
+              .collection('orders')
+              .where('driver_id', isEqualTo: driver.id)
+              .where('status', isEqualTo: 'delivered')
+              .count()
+              .get();
+          totalDeliveries = countSnapshot.count ?? 0;
+        } catch (e) {
+          // Keep existing
+        }
+        return driver.copyWith(totalDeliveries: totalDeliveries);
+      });
+      drivers = await Future.wait(statsFutures);
+    }
+
+    return drivers;
   }
 
   @override
@@ -289,7 +468,23 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
     
     final data = doc.data()!;
     data['id'] = doc.id;
-    return DriverModel.fromJson(_normalizeDateFields(data));
+    var driver = DriverModel.fromJson(_normalizeDateFields(data));
+
+    // Dynamically fetch totalDeliveries
+    try {
+      final countSnapshot = await _firestore
+          .collection('orders')
+          .where('driver_id', isEqualTo: id)
+          .where('status', isEqualTo: 'delivered')
+          .count()
+          .get();
+      final totalDeliveries = countSnapshot.count ?? 0;
+      driver = driver.copyWith(totalDeliveries: totalDeliveries);
+    } catch (e) {
+      // Ignore
+    }
+
+    return driver;
   }
 
   @override

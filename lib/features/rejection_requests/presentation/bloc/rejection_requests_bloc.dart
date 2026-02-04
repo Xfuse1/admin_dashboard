@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/errors/failures.dart';
+import '../../domain/entities/rejection_request_entities.dart';
 import '../../domain/usecases/rejection_requests_usecases.dart';
 import 'rejection_requests_event.dart';
 import 'rejection_requests_state.dart';
@@ -66,10 +67,23 @@ class RejectionRequestsBloc
           (count) => count,
         );
 
+        // Load stats
+        final statsResult = await _getRejectionStats(
+          driverId: event.driverId,
+          startDate: null,
+          endDate: null,
+        );
+
+        final stats = statsResult.fold(
+          (failure) => null,
+          (stats) => stats,
+        );
+
         emit(RejectionRequestsLoaded(
           requests: requests,
           currentFilter: event.adminDecision,
           pendingCount: pendingCount,
+          stats: stats,
         ));
       },
     );
@@ -79,44 +93,170 @@ class RejectionRequestsBloc
     WatchRejectionRequestsEvent event,
     Emitter<RejectionRequestsState> emit,
   ) async {
-    emit(const RejectionRequestsLoading());
+    print(
+        '[BLoC] _onWatchRejectionRequests called with: ${event.adminDecision}');
 
+    // Guard: If we're already watching the same status, skip
+    if (state is RejectionRequestsLoading) {
+      print('[BLoC] Already loading, skipping duplicate event');
+      return;
+    }
+
+    emit(const RejectionRequestsLoading());
+    print('[BLoC] Emitted RejectionRequestsLoading');
+
+    // Cancel previous subscription
     await _rejectionRequestsSubscription?.cancel();
 
-    _rejectionRequestsSubscription = _watchRejectionRequests(
-      adminDecision: event.adminDecision,
-    ).listen((result) async {
-      result.fold<void>(
-        (Failure failure) =>
-            add(const LoadRejectionRequests(adminDecision: 'pending')),
-        (requests) async {
-          if (emit.isDone) return;
+    // Use emit.onEach to keep the handler alive
+    await emit.onEach<dynamic>(
+      _watchRejectionRequests(adminDecision: event.adminDecision)
+          .asyncMap((result) async {
+        print('[BLoC] Stream received result');
 
-          // Also get pending count
-          final countResult = await _getPendingRequestsCount();
-          final pendingCount = countResult.fold(
-            (failure) => 0,
-            (count) => count,
-          );
+        return await result.fold<Future<RejectionRequestsState>>(
+          (Failure failure) async {
+            print('[BLoC] Error: ${failure.message}');
+            return RejectionRequestsError(message: failure.message);
+          },
+          (List<RejectionRequestEntity> requests) async {
+            print('[BLoC] Received ${requests.length} requests from stream');
 
-          if (emit.isDone) return;
+            print('[BLoC] Calling _getPendingRequestsCount...');
+            final countResult = await _getPendingRequestsCount();
+            print('[BLoC] _getPendingRequestsCount returned');
 
-          if (state is RejectionRequestsLoaded) {
-            final currentState = state as RejectionRequestsLoaded;
-            emit(currentState.copyWith(
-              requests: requests,
-              pendingCount: pendingCount,
-            ));
-          } else {
-            emit(RejectionRequestsLoaded(
+            final pendingCount = countResult.fold(
+              (failure) {
+                print('[BLoC] Failed to get pending count: ${failure.message}');
+                return 0;
+              },
+              (count) {
+                print('[BLoC] Pending count: $count');
+                return count;
+              },
+            );
+
+            final statsResult = await _getRejectionStats(
+              driverId: null,
+              startDate: null,
+              endDate: null,
+            );
+
+            final stats = statsResult.fold(
+              (failure) {
+                print('[BLoC] Failed to get stats: ${failure.message}');
+                return null;
+              },
+              (stats) {
+                print('[BLoC] Stats loaded');
+                return stats;
+              },
+            );
+
+            print('[BLoC] About to emit RejectionRequestsLoaded...');
+
+            final currentSelectedRequest = state is RejectionRequestsLoaded
+                ? (state as RejectionRequestsLoaded).selectedRequest
+                : null;
+
+            print(
+                '[BLoC] Emitted RejectionRequestsLoaded with ${requests.length} requests');
+
+            return RejectionRequestsLoaded(
               requests: requests,
               currentFilter: event.adminDecision,
               pendingCount: pendingCount,
-            ));
-          }
-        },
-      );
-    });
+              stats: stats,
+              selectedRequest: currentSelectedRequest,
+            );
+          },
+        );
+      }),
+      onData: (newState) {
+        if (newState is RejectionRequestsState) {
+          emit(newState);
+        }
+      },
+      onError: (error, stackTrace) {
+        print('[BLoC] Stream error: $error');
+        emit(RejectionRequestsError(
+            message: 'حدث خطأ في تحميل البيانات: $error'));
+      },
+    );
+  }
+
+  /// معالجة بيانات طلبات الرفض مع الـ async operations
+  Future<void> _handleRejectionRequestsData({
+    required List<RejectionRequestEntity> requests,
+    required String? adminDecision,
+    required Emitter<RejectionRequestsState> emit,
+  }) async {
+    print('📞 [BLoC] Calling _getPendingRequestsCount...');
+
+    // Get pending count
+    final countResult = await _getPendingRequestsCount();
+    print('📞 [BLoC] _getPendingRequestsCount returned');
+
+    final pendingCount = countResult.fold(
+      (failure) {
+        print('⚠️ [BLoC] Failed to get pending count: ${failure.message}');
+        return 0;
+      },
+      (count) {
+        print('✅ [BLoC] Pending count: $count');
+        return count;
+      },
+    );
+
+    // Get stats
+    final statsResult = await _getRejectionStats(
+      driverId: null,
+      startDate: null,
+      endDate: null,
+    );
+
+    final stats = statsResult.fold(
+      (failure) {
+        print('⚠️ [BLoC] Failed to get stats: ${failure.message}');
+        return null;
+      },
+      (stats) {
+        print('✅ [BLoC] Stats loaded');
+        return stats;
+      },
+    );
+
+    print('🔄 [BLoC] About to emit RejectionRequestsLoaded...');
+
+    // Preserve selected request if filtering same status
+    final currentSelectedRequest = state is RejectionRequestsLoaded
+        ? (state as RejectionRequestsLoaded).selectedRequest
+        : null;
+
+    if (state is RejectionRequestsLoaded) {
+      final currentState = state as RejectionRequestsLoaded;
+      if (!emit.isDone) {
+        emit(currentState.copyWith(
+          requests: requests,
+          pendingCount: pendingCount,
+          stats: stats,
+        ));
+      }
+    } else {
+      if (!emit.isDone) {
+        emit(RejectionRequestsLoaded(
+          requests: requests,
+          currentFilter: adminDecision,
+          pendingCount: pendingCount,
+          stats: stats,
+          selectedRequest: currentSelectedRequest,
+        ));
+      }
+    }
+
+    print(
+        '✅ [BLoC] Emitted RejectionRequestsLoaded with ${requests.length} requests');
   }
 
   Future<void> _onFilterByStatus(
@@ -131,21 +271,44 @@ class RejectionRequestsBloc
       adminDecision: event.adminDecision,
     );
 
-    result.fold<void>(
-      (Failure failure) =>
+    await result.fold<Future<void>>(
+      (Failure failure) async =>
           emit(RejectionRequestsError(message: failure.message)),
-      (requests) {
+      (requests) async {
+        // Load pending count
+        final countResult = await _getPendingRequestsCount();
+        final pendingCount = countResult.fold(
+          (failure) => 0,
+          (count) => count,
+        );
+
+        // Load stats
+        final statsResult = await _getRejectionStats(
+          driverId: null,
+          startDate: null,
+          endDate: null,
+        );
+
+        final stats = statsResult.fold(
+          (failure) => null,
+          (stats) => stats,
+        );
+
         if (state is RejectionRequestsLoaded) {
           final currentState = state as RejectionRequestsLoaded;
           emit(currentState.copyWith(
             requests: requests,
             currentFilter: event.adminDecision,
+            pendingCount: pendingCount,
+            stats: stats,
             clearSelectedRequest: true,
           ));
         } else {
           emit(RejectionRequestsLoaded(
             requests: requests,
             currentFilter: event.adminDecision,
+            pendingCount: pendingCount,
+            stats: stats,
           ));
         }
       },
@@ -179,7 +342,10 @@ class RejectionRequestsBloc
     if (state is! RejectionRequestsLoaded) return;
 
     final currentState = state as RejectionRequestsLoaded;
-    emit(const RejectionRequestsOperationInProgress('Approving excuse...'));
+
+    // Show loading indicator briefly
+    emit(const RejectionRequestsOperationInProgress(
+        'جاري الموافقة على الاعتذار...'));
 
     final result = await _approveExcuse(
       requestId: event.requestId,
@@ -187,15 +353,23 @@ class RejectionRequestsBloc
     );
 
     result.fold<void>(
-      (Failure failure) =>
-          emit(RejectionRequestsError(message: failure.message)),
+      (Failure failure) {
+        emit(RejectionRequestsError(message: failure.message));
+        // Restore previous state after error
+        Future.delayed(const Duration(seconds: 2), () {
+          emit(currentState);
+        });
+      },
       (_) {
         emit(RejectionRequestsOperationSuccess(
-          message: 'Excuse approved successfully',
+          message: 'تم قبول الاعتذار بنجاح',
           previousState: currentState,
         ));
-        // Reload requests
-        add(const LoadRejectionRequests(adminDecision: 'pending'));
+
+        // Trigger reload via watch event to get live updates
+        add(WatchRejectionRequestsEvent(
+          adminDecision: currentState.currentFilter,
+        ));
       },
     );
   }
@@ -207,7 +381,9 @@ class RejectionRequestsBloc
     if (state is! RejectionRequestsLoaded) return;
 
     final currentState = state as RejectionRequestsLoaded;
-    emit(const RejectionRequestsOperationInProgress('Rejecting excuse...'));
+
+    // Show loading indicator briefly
+    emit(const RejectionRequestsOperationInProgress('جاري رفض الاعتذار...'));
 
     final result = await _rejectExcuse(
       requestId: event.requestId,
@@ -215,15 +391,23 @@ class RejectionRequestsBloc
     );
 
     result.fold<void>(
-      (Failure failure) =>
-          emit(RejectionRequestsError(message: failure.message)),
+      (Failure failure) {
+        emit(RejectionRequestsError(message: failure.message));
+        // Restore previous state after error
+        Future.delayed(const Duration(seconds: 2), () {
+          emit(currentState);
+        });
+      },
       (_) {
         emit(RejectionRequestsOperationSuccess(
-          message: 'Excuse rejected successfully',
+          message: 'تم رفض الاعتذار بنجاح',
           previousState: currentState,
         ));
-        // Reload requests
-        add(const LoadRejectionRequests(adminDecision: 'pending'));
+
+        // Trigger reload via watch event to get live updates
+        add(WatchRejectionRequestsEvent(
+          adminDecision: currentState.currentFilter,
+        ));
       },
     );
   }
@@ -239,8 +423,10 @@ class RejectionRequestsBloc
     );
 
     result.fold<void>(
-      (Failure failure) =>
-          emit(RejectionRequestsError(message: failure.message)),
+      (Failure failure) {
+        // Don't emit error for stats loading failure
+        print('⚠️ Failed to load stats: ${failure.message}');
+      },
       (stats) {
         if (state is RejectionRequestsLoaded) {
           final currentState = state as RejectionRequestsLoaded;
@@ -249,6 +435,7 @@ class RejectionRequestsBloc
           emit(RejectionRequestsLoaded(
             requests: const [],
             stats: stats,
+            pendingCount: 0,
           ));
         }
       },
@@ -262,7 +449,9 @@ class RejectionRequestsBloc
     final result = await _getPendingRequestsCount();
 
     result.fold(
-      (failure) {}, // Silently fail
+      (failure) {
+        print('⚠️ Failed to load pending count: ${failure.message}');
+      },
       (count) {
         if (state is RejectionRequestsLoaded) {
           final currentState = state as RejectionRequestsLoaded;

@@ -64,6 +64,13 @@ import '../../features/products/domain/repositories/products_repository.dart';
 import '../../features/products/presentation/bloc/products_bloc.dart';
 
 // Settings Feature
+import '../../features/settings/data/datasources/settings_datasource.dart';
+import '../../features/settings/data/datasources/settings_firebase_datasource.dart';
+import '../../features/settings/data/repositories/settings_repository_impl.dart';
+import '../../features/settings/domain/repositories/settings_repository.dart';
+import '../../features/settings/domain/usecases/get_delivery_settings_usecase.dart';
+import '../../features/settings/domain/usecases/update_delivery_price_usecase.dart';
+import '../../features/settings/presentation/bloc/settings_cubit.dart';
 // Vendors Feature
 import '../../features/vendors/data/datasources/vendors_datasource.dart';
 import '../../features/vendors/data/datasources/vendors_firebase_datasource.dart';
@@ -132,6 +139,11 @@ Future<void> initDependencies() async {
   // 📦 PRODUCTS FEATURE
   // ============================================
   await _initProductsDependencies();
+
+  // ============================================
+  // ⚙️ SETTINGS FEATURE
+  // ============================================
+  await _initSettingsDependencies();
 }
 
 /// Initializes Auth feature dependencies.
@@ -418,5 +430,30 @@ Future<void> _initProductsDependencies() async {
   // BLoC
   sl.registerFactory(
     () => ProductsBloc(sl()),
+  );
+}
+
+/// Initializes Settings feature dependencies.
+Future<void> _initSettingsDependencies() async {
+  // Data Sources
+  sl.registerLazySingleton<SettingsDataSource>(
+    () => SettingsFirebaseDataSource(firestore: FirebaseFirestore.instance),
+  );
+
+  // Repository
+  sl.registerLazySingleton<SettingsRepository>(
+    () => SettingsRepositoryImpl(sl()),
+  );
+
+  // Use Cases
+  sl.registerLazySingleton(() => GetDeliverySettingsUseCase(sl()));
+  sl.registerLazySingleton(() => UpdateDeliveryPriceUseCase(sl()));
+
+  // Cubit
+  sl.registerFactory(
+    () => SettingsCubit(
+      getDeliverySettingsUseCase: sl(),
+      updateDeliveryPriceUseCase: sl(),
+    ),
   );
 }

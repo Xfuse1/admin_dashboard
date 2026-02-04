@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
@@ -28,6 +29,8 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
   final _scrollController = ScrollController();
+  bool _isInitialized = false; // Guard flag to prevent duplicate calls
+  String? _lastLoadedStatus; // Track last loaded status
 
   final _tabs = [
     const _RejectionTab(
@@ -42,20 +45,43 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: _tabs.length, vsync: this);
-    _tabController.addListener(_onTabChanged);
+    print('🔵 [Page] initState called');
 
-    // Start watching rejection requests (real-time)
-    context.read<RejectionRequestsBloc>().add(
-          const WatchRejectionRequestsEvent(adminDecision: 'pending'),
-        );
+    _tabController = TabController(length: _tabs.length, vsync: this);
+    _tabController.addListener(_onTabControllerChanged);
+
+    // ✅ Load initial tab only once using postFrameCallback
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_isInitialized) {
+        _isInitialized = true;
+        _loadCurrentTab();
+      }
+    });
   }
 
-  void _onTabChanged() {
-    if (_tabController.indexIsChanging) return;
+  void _onTabControllerChanged() {
+    // Only react when the tab animation completes, not during animation
+    if (!_tabController.indexIsChanging && _isInitialized) {
+      print('🔄 [Page] Tab changed to index: ${_tabController.index}');
+      _loadCurrentTab();
+    }
+  }
+
+  void _loadCurrentTab() {
     final selectedTab = _tabs[_tabController.index];
+
+    // Prevent loading the same status twice in a row
+    if (_lastLoadedStatus == selectedTab.status) {
+      print(
+          '🔄 [Page] Skipping duplicate load for status: ${selectedTab.status}');
+      return;
+    }
+
+    _lastLoadedStatus = selectedTab.status;
+    print(
+        '🔵 [Page] Loading tab: ${selectedTab.label} (status: ${selectedTab.status})');
     context.read<RejectionRequestsBloc>().add(
-          FilterRejectionsByStatus(selectedTab.status),
+          WatchRejectionRequestsEvent(adminDecision: selectedTab.status),
         );
   }
 
@@ -75,6 +101,8 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
             SnackBar(
               content: Text(state.message),
               backgroundColor: Colors.green,
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.all(AppConstants.spacingMd),
             ),
           );
         } else if (state is RejectionRequestsError) {
@@ -82,6 +110,8 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
             SnackBar(
               content: Text(state.message),
               backgroundColor: Colors.red,
+              behavior: SnackBarBehavior.floating,
+              margin: const EdgeInsets.all(AppConstants.spacingMd),
             ),
           );
         }
@@ -96,15 +126,18 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
 
   Widget _buildMobileLayout() {
     return Scaffold(
-      body: SingleChildScrollView(
-        controller: _scrollController,
-        child: Column(
-          children: [
-            _buildHeader(),
-            _buildStatsCards(),
-            _buildTabBar(),
-            _buildRequestsList(),
-          ],
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: _handleRefresh,
+          child: CustomScrollView(
+            controller: _scrollController,
+            slivers: [
+              SliverToBoxAdapter(child: _buildHeader()),
+              SliverToBoxAdapter(child: _buildStatsCards()),
+              SliverToBoxAdapter(child: _buildTabBar()),
+              SliverToBoxAdapter(child: _buildRequestsList()),
+            ],
+          ),
         ),
       ),
     );
@@ -112,15 +145,18 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
 
   Widget _buildTabletLayout() {
     return Scaffold(
-      body: SingleChildScrollView(
-        controller: _scrollController,
-        child: Column(
-          children: [
-            _buildHeader(),
-            _buildStatsCards(),
-            _buildTabBar(),
-            _buildRequestsDataTable(),
-          ],
+      body: SafeArea(
+        child: RefreshIndicator(
+          onRefresh: _handleRefresh,
+          child: CustomScrollView(
+            controller: _scrollController,
+            slivers: [
+              SliverToBoxAdapter(child: _buildHeader()),
+              SliverToBoxAdapter(child: _buildStatsCards()),
+              SliverToBoxAdapter(child: _buildTabBar()),
+              SliverToBoxAdapter(child: _buildRequestsDataTable()),
+            ],
+          ),
         ),
       ),
     );
@@ -131,23 +167,21 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
       body: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Main content
           Expanded(
             flex: 2,
-            child: SingleChildScrollView(
-              controller: _scrollController,
-              child: Column(
-                children: [
-                  _buildHeader(),
-                  _buildStatsCards(),
-                  _buildTabBar(),
-                  _buildRequestsDataTable(),
+            child: RefreshIndicator(
+              onRefresh: _handleRefresh,
+              child: CustomScrollView(
+                controller: _scrollController,
+                slivers: [
+                  SliverToBoxAdapter(child: _buildHeader()),
+                  SliverToBoxAdapter(child: _buildStatsCards()),
+                  SliverToBoxAdapter(child: _buildTabBar()),
+                  SliverToBoxAdapter(child: _buildRequestsDataTable()),
                 ],
               ),
             ),
           ),
-
-          // Details panel
           BlocBuilder<RejectionRequestsBloc, RejectionRequestsState>(
             buildWhen: (prev, curr) {
               if (prev is RejectionRequestsLoaded &&
@@ -182,6 +216,18 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
     );
   }
 
+  Future<void> _handleRefresh() async {
+    final currentState = context.read<RejectionRequestsBloc>().state;
+    if (currentState is RejectionRequestsLoaded) {
+      context.read<RejectionRequestsBloc>().add(
+            LoadRejectionRequests(
+              adminDecision: currentState.currentFilter,
+            ),
+          );
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+  }
+
   Widget _buildHeader() {
     return Padding(
       padding: const EdgeInsets.all(AppConstants.spacingLg),
@@ -211,21 +257,21 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
                   ],
                 ),
               ),
-              // Refresh button
-              IconButton(
-                icon: const Icon(Iconsax.refresh),
-                onPressed: () {
-                  final currentState =
-                      context.read<RejectionRequestsBloc>().state;
-                  if (currentState is RejectionRequestsLoaded) {
-                    context.read<RejectionRequestsBloc>().add(
-                          LoadRejectionRequests(
-                            adminDecision: currentState.currentFilter,
-                          ),
-                        );
-                  }
+              BlocBuilder<RejectionRequestsBloc, RejectionRequestsState>(
+                builder: (context, state) {
+                  final isLoading = state is RejectionRequestsLoading;
+                  return IconButton(
+                    icon: isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Iconsax.refresh),
+                    onPressed: isLoading ? null : _handleRefresh,
+                    tooltip: 'تحديث',
+                  );
                 },
-                tooltip: 'تحديث',
               ),
             ],
           ),
@@ -264,11 +310,17 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
             tabs: _tabs
                 .map((tab) => Tab(
                       child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(tab.icon, size: 18),
                           const SizedBox(width: 8),
-                          Text(tab.label),
+                          Flexible(
+                            child: Text(
+                              tab.label,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
                           if (tab.status == 'pending' &&
                               state is RejectionRequestsLoaded &&
                               state.pendingCount > 0)
@@ -299,6 +351,7 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
             indicatorColor: AppColors.primary,
             labelColor: AppColors.primary,
             unselectedLabelColor: AppColors.textSecondary,
+            tabAlignment: TabAlignment.start,
           ),
         );
       },
@@ -322,6 +375,7 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
             child: Padding(
               padding: const EdgeInsets.all(AppConstants.spacingXl),
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(Iconsax.danger, size: 48, color: Colors.red),
                   const SizedBox(height: 16),
@@ -329,6 +383,12 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
                     state.message,
                     style: Theme.of(context).textTheme.bodyLarge,
                     textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: _handleRefresh,
+                    icon: const Icon(Iconsax.refresh),
+                    label: const Text('إعادة المحاولة'),
                   ),
                 ],
               ),
@@ -342,13 +402,27 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
               child: Padding(
                 padding: const EdgeInsets.all(AppConstants.spacingXl),
                 child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Iconsax.document_text,
-                        size: 48, color: AppColors.textSecondary),
+                    const Icon(
+                      Iconsax.document_text,
+                      size: 64,
+                      color: AppColors.textSecondary,
+                    ),
                     const SizedBox(height: 16),
                     Text(
                       'لا توجد طلبات رفض',
-                      style: Theme.of(context).textTheme.bodyLarge,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'سيتم عرض الطلبات هنا عندما تكون متوفرة',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
+                      textAlign: TextAlign.center,
                     ),
                   ],
                 ),
@@ -368,11 +442,7 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
                 final request = state.requests[index];
                 return RejectionRequestCard(
                   request: request,
-                  onTap: () {
-                    context.read<RejectionRequestsBloc>().add(
-                          SelectRejectionRequest(request),
-                        );
-                  },
+                  onTap: () => _showRequestDetails(context, request),
                 );
               },
             ),
@@ -381,6 +451,33 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
 
         return const SizedBox.shrink();
       },
+    );
+  }
+
+  void _showRequestDetails(
+      BuildContext context, RejectionRequestEntity request) {
+    context.read<RejectionRequestsBloc>().add(
+          SelectRejectionRequest(request),
+        );
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.9,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (context, scrollController) => Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(AppConstants.radiusLg),
+            ),
+          ),
+          child: RejectionRequestDetailsSheet(request: request),
+        ),
+      ),
     );
   }
 
@@ -401,6 +498,7 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
             child: Padding(
               padding: const EdgeInsets.all(AppConstants.spacingXl),
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(Iconsax.danger, size: 48, color: Colors.red),
                   const SizedBox(height: 16),
@@ -408,6 +506,12 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
                     state.message,
                     style: Theme.of(context).textTheme.bodyLarge,
                     textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: _handleRefresh,
+                    icon: const Icon(Iconsax.refresh),
+                    label: const Text('إعادة المحاولة'),
                   ),
                 ],
               ),
@@ -421,13 +525,19 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
               child: Padding(
                 padding: const EdgeInsets.all(AppConstants.spacingXl),
                 child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Icon(Iconsax.document_text,
-                        size: 48, color: AppColors.textSecondary),
+                    const Icon(
+                      Iconsax.document_text,
+                      size: 64,
+                      color: AppColors.textSecondary,
+                    ),
                     const SizedBox(height: 16),
                     Text(
                       'لا توجد طلبات رفض',
-                      style: Theme.of(context).textTheme.bodyLarge,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: AppColors.textSecondary,
+                          ),
                     ),
                   ],
                 ),
@@ -440,43 +550,56 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
             child: GlassCard(
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  columns: const [
-                    DataColumn(label: Text('السائق')),
-                    DataColumn(label: Text('رقم الطلب')),
-                    DataColumn(label: Text('السبب')),
-                    DataColumn(label: Text('وقت الانتظار')),
-                    DataColumn(label: Text('الحالة')),
-                    DataColumn(label: Text('الإجراءات')),
-                  ],
-                  rows: state.requests.map((request) {
-                    return DataRow(
-                      selected:
-                          state.selectedRequest?.requestId == request.requestId,
-                      onSelectChanged: (_) {
-                        context.read<RejectionRequestsBloc>().add(
-                              SelectRejectionRequest(request),
-                            );
-                      },
-                      cells: [
-                        DataCell(Text(request.driverName)),
-                        DataCell(Text('#${request.orderId.substring(0, 8)}')),
-                        DataCell(
-                          SizedBox(
-                            width: 200,
-                            child: Text(
-                              request.reason,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minWidth: MediaQuery.of(context).size.width -
+                        (AppConstants.spacingLg * 2),
+                  ),
+                  child: DataTable(
+                    columnSpacing: 20,
+                    horizontalMargin: 16,
+                    columns: const [
+                      DataColumn(label: Text('السائق')),
+                      DataColumn(label: Text('رقم الطلب')),
+                      DataColumn(label: Text('السبب')),
+                      DataColumn(label: Text('وقت الانتظار')),
+                      DataColumn(label: Text('الحالة')),
+                      DataColumn(label: Text('الإجراءات')),
+                    ],
+                    rows: state.requests.map((request) {
+                      return DataRow(
+                        selected: state.selectedRequest?.requestId ==
+                            request.requestId,
+                        onSelectChanged: (_) {
+                          context.read<RejectionRequestsBloc>().add(
+                                SelectRejectionRequest(request),
+                              );
+                        },
+                        cells: [
+                          DataCell(
+                            Text(
+                              request.driverName,
                               overflow: TextOverflow.ellipsis,
-                              maxLines: 2,
                             ),
                           ),
-                        ),
-                        DataCell(_buildWaitTimeCell(context, request)),
-                        DataCell(_buildStatusBadge(context, request)),
-                        DataCell(_buildActionButtons(context, request)),
-                      ],
-                    );
-                  }).toList(),
+                          DataCell(Text('#${request.orderId.substring(0, 8)}')),
+                          DataCell(
+                            SizedBox(
+                              width: 200,
+                              child: Text(
+                                request.reason,
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 2,
+                              ),
+                            ),
+                          ),
+                          DataCell(_buildWaitTimeCell(context, request)),
+                          DataCell(_buildStatusBadge(context, request)),
+                          DataCell(_buildActionButtons(context, request)),
+                        ],
+                      );
+                    }).toList(),
+                  ),
                 ),
               ),
             ),
@@ -498,7 +621,7 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(AppConstants.radiusSm),
       ),
       child: Text(
@@ -506,6 +629,7 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
         style: TextStyle(
           color: color,
           fontWeight: FontWeight.bold,
+          fontSize: 12,
         ),
       ),
     );
@@ -539,7 +663,7 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(AppConstants.radiusSm),
       ),
       child: Text(
@@ -547,6 +671,7 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
         style: TextStyle(
           color: color,
           fontWeight: FontWeight.bold,
+          fontSize: 12,
         ),
       ),
     );
@@ -561,14 +686,20 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
-            icon: const Icon(Iconsax.tick_circle, color: Colors.green),
+            icon:
+                const Icon(Iconsax.tick_circle, color: Colors.green, size: 20),
             onPressed: () => _showApproveDialog(context, request),
             tooltip: 'قبول',
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
           ),
+          const SizedBox(width: 8),
           IconButton(
-            icon: const Icon(Iconsax.close_circle, color: Colors.red),
+            icon: const Icon(Iconsax.close_circle, color: Colors.red, size: 20),
             onPressed: () => _showRejectDialog(context, request),
             tooltip: 'رفض',
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
           ),
         ],
       );
@@ -598,31 +729,35 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('قبول الاعتذار'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('هل تريد قبول اعتذار السائق ${request.driverName}؟'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: commentController,
-              decoration: const InputDecoration(
-                labelText: 'تعليق (اختياري)',
-                border: OutlineInputBorder(),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('هل تريد قبول اعتذار السائق ${request.driverName}؟'),
+              const SizedBox(height: 16),
+              TextField(
+                controller: commentController,
+                decoration: const InputDecoration(
+                  labelText: 'تعليق (اختياري)',
+                  border: OutlineInputBorder(),
+                  hintText: 'أضف تعليقاً إن أردت',
+                ),
+                maxLines: 3,
+                maxLength: 500,
               ),
-              maxLines: 3,
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('قبول'),
           ),
         ],
@@ -633,12 +768,14 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
       context.read<RejectionRequestsBloc>().add(
             ApproveExcuseEvent(
               requestId: request.requestId,
-              adminComment: commentController.text.isEmpty
+              adminComment: commentController.text.trim().isEmpty
                   ? null
-                  : commentController.text,
+                  : commentController.text.trim(),
             ),
           );
     }
+
+    commentController.dispose();
   }
 
   Future<void> _showRejectDialog(
@@ -646,36 +783,53 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
     RejectionRequestEntity request,
   ) async {
     final commentController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
 
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('رفض الاعتذار'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('هل تريد رفض اعتذار السائق ${request.driverName}؟'),
-            const SizedBox(height: 16),
-            TextField(
-              controller: commentController,
-              decoration: const InputDecoration(
-                labelText: 'سبب الرفض (مطلوب)',
-                border: OutlineInputBorder(),
-              ),
-              maxLines: 3,
+        content: SingleChildScrollView(
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('هل تريد رفض اعتذار السائق ${request.driverName}؟'),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: commentController,
+                  decoration: const InputDecoration(
+                    labelText: 'سبب الرفض (مطلوب)',
+                    border: OutlineInputBorder(),
+                    hintText: 'اكتب سبب رفض الاعتذار',
+                  ),
+                  maxLines: 3,
+                  maxLength: 500,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'يجب كتابة سبب الرفض';
+                    }
+                    if (value.trim().length < 10) {
+                      return 'السبب يجب أن يكون 10 أحرف على الأقل';
+                    }
+                    return null;
+                  },
+                ),
+              ],
             ),
-          ],
+          ),
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.pop(dialogContext, false),
             child: const Text('إلغاء'),
           ),
           ElevatedButton(
             onPressed: () {
-              if (commentController.text.trim().isNotEmpty) {
-                Navigator.pop(context, true);
+              if (formKey.currentState?.validate() ?? false) {
+                Navigator.pop(dialogContext, true);
               }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -689,10 +843,12 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
       context.read<RejectionRequestsBloc>().add(
             RejectExcuseEvent(
               requestId: request.requestId,
-              adminComment: commentController.text,
+              adminComment: commentController.text.trim(),
             ),
           );
     }
+
+    commentController.dispose();
   }
 }
 
@@ -713,6 +869,51 @@ class OrderDetailsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Placeholder();
+    return Container(
+      padding: const EdgeInsets.all(AppConstants.spacingLg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'تفاصيل الطلب',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+          ),
+          const SizedBox(height: AppConstants.spacingMd),
+          _buildDetailRow(context, 'السائق', request.driverName),
+          _buildDetailRow(context, 'رقم الطلب', '#${request.orderId}'),
+          _buildDetailRow(context, 'السبب', request.reason),
+          // Add more details as needed
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(BuildContext context, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppConstants.spacingSm),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
