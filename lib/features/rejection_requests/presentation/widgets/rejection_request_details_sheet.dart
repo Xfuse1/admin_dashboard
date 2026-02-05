@@ -12,6 +12,7 @@ class RejectionRequestDetailsSheet extends StatelessWidget {
   final VoidCallback? onApprove;
   final VoidCallback? onReject;
   final VoidCallback? onClose;
+  final ScrollController? scrollController;
 
   const RejectionRequestDetailsSheet({
     super.key,
@@ -19,11 +20,13 @@ class RejectionRequestDetailsSheet extends StatelessWidget {
     this.onApprove,
     this.onReject,
     this.onClose,
+    this.scrollController,
   });
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
+      controller: scrollController,
       padding: const EdgeInsets.all(AppConstants.spacingLg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

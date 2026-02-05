@@ -13,6 +13,7 @@ import '../../domain/entities/rejection_request_entities.dart';
 import '../bloc/rejection_requests_bloc.dart';
 import '../bloc/rejection_requests_event.dart';
 import '../bloc/rejection_requests_state.dart';
+import '../widgets/rejection_action_dialogs.dart';
 import '../widgets/rejection_request_card.dart';
 import '../widgets/rejection_request_details_sheet.dart';
 import '../widgets/rejection_stats_cards.dart';
@@ -484,14 +485,19 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
           ),
           child: RejectionRequestDetailsSheet(
             request: request,
+            scrollController: scrollController,
             onClose: () => Navigator.pop(context),
             onApprove: () {
               Navigator.pop(context);
-              _showApproveDialog(context, request);
+              if (mounted) {
+                _showApproveDialog(this.context, request);
+              }
             },
             onReject: () {
               Navigator.pop(context);
-              _showRejectDialog(context, request);
+              if (mounted) {
+                _showRejectDialog(this.context, request);
+              }
             },
           ),
         ),
@@ -742,134 +748,43 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
     }
   }
 
+
   Future<void> _showApproveDialog(
     BuildContext context,
     RejectionRequestEntity request,
   ) async {
-    final commentController = TextEditingController();
-
-    final confirmed = await showDialog<bool>(
+    final comment = await showDialog<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('قبول الاعتذار'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('هل تريد قبول اعتذار السائق ${request.driverName}؟'),
-              const SizedBox(height: 16),
-              TextField(
-                controller: commentController,
-                decoration: const InputDecoration(
-                  labelText: 'تعليق (اختياري)',
-                  border: OutlineInputBorder(),
-                  hintText: 'أضف تعليقاً إن أردت',
-                ),
-                maxLines: 3,
-                maxLength: 500,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('قبول'),
-          ),
-        ],
-      ),
+      builder: (context) => ApproveExcuseDialog(driverName: request.driverName),
     );
 
-    if (confirmed == true && context.mounted) {
+    if (comment != null && context.mounted) {
       context.read<RejectionRequestsBloc>().add(
             ApproveExcuseEvent(
               requestId: request.requestId,
-              adminComment: commentController.text.trim().isEmpty
-                  ? null
-                  : commentController.text.trim(),
+              adminComment: comment.isEmpty ? null : comment,
             ),
           );
     }
-
-    commentController.dispose();
   }
 
   Future<void> _showRejectDialog(
     BuildContext context,
     RejectionRequestEntity request,
   ) async {
-    final commentController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-
-    final confirmed = await showDialog<bool>(
+    final comment = await showDialog<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('رفض الاعتذار'),
-        content: SingleChildScrollView(
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('هل تريد رفض اعتذار السائق ${request.driverName}؟'),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: commentController,
-                  decoration: const InputDecoration(
-                    labelText: 'سبب الرفض (مطلوب)',
-                    border: OutlineInputBorder(),
-                    hintText: 'اكتب سبب رفض الاعتذار',
-                  ),
-                  maxLines: 3,
-                  maxLength: 500,
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'يجب كتابة سبب الرفض';
-                    }
-                    if (value.trim().length < 10) {
-                      return 'السبب يجب أن يكون 10 أحرف على الأقل';
-                    }
-                    return null;
-                  },
-                ),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              if (formKey.currentState?.validate() ?? false) {
-                Navigator.pop(dialogContext, true);
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-            child: const Text('رفض'),
-          ),
-        ],
-      ),
+      builder: (context) => RejectExcuseDialog(driverName: request.driverName),
     );
 
-    if (confirmed == true && context.mounted) {
+    if (comment != null && context.mounted) {
       context.read<RejectionRequestsBloc>().add(
             RejectExcuseEvent(
               requestId: request.requestId,
-              adminComment: commentController.text.trim(),
+              adminComment: comment,
             ),
           );
     }
-
-    commentController.dispose();
   }
 }
 

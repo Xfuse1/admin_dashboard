@@ -83,9 +83,7 @@ class RejectionRequestsRepositoryImpl implements RejectionRequestsRepository {
 
         final orderId = requestDoc.data()!['orderId'] as String;
         final driverId = requestDoc.data()!['driverId'] as String;
-
-        print('✅ Approving excuse: orderId=$orderId, driverId=$driverId');
-
+ 
         // Update rejection request
         transaction.update(requestRef, {
           'adminDecision': 'approved',
@@ -97,8 +95,6 @@ class RejectionRequestsRepositoryImpl implements RejectionRequestsRepository {
         // Add driverId to rejected_by_drivers list so it won't show to this driver again
         final orderRef = firestore.collection('orders').doc(orderId);
 
-        print('📝 Updating order with rejected_by_drivers: [$driverId]');
-
         transaction.update(orderRef, {
           'driver_id': FieldValue.delete(),
           'driver_name': FieldValue.delete(),
@@ -108,8 +104,7 @@ class RejectionRequestsRepositoryImpl implements RejectionRequestsRepository {
           'rejected_by_drivers': FieldValue.arrayUnion([driverId]),
         });
 
-        print('✅ Order updated successfully');
-
+        
         // Decrement driver's currentOrdersCount
         // Note: rejectionsCounter is now calculated dynamically from rejected_by_drivers
         final userRef = firestore.collection('users').doc(driverId);
