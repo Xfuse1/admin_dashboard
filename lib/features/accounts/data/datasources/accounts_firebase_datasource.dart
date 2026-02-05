@@ -206,7 +206,6 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
               return sum + amount;
             });
 
-            print('   💰 Total Spent: ${totalSpent.toStringAsFixed(2)} EGP');
           }
 
           // Get last order
@@ -235,7 +234,6 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
             }
           }
         } catch (e) {
-          print('❌ Error fetching orders for ${customer.name}: $e');
           // Fallback to existing if error
         }
 
@@ -551,9 +549,6 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
           .count()
           .get();
       final actualRejections = rejectedSnapshot.count ?? 0;
-
-      print(
-          '✅ Driver ${driver.name}: $totalDeliveries deliveries, $actualRejections rejections');
 
       driver = driver.copyWith(
         totalDeliveries: totalDeliveries,

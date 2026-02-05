@@ -525,10 +525,6 @@ class DriverDetailsPanel extends StatelessWidget {
                     .where('rejected_by_drivers', arrayContains: driver.id)
                     .count()
                     .get(),
-                FirebaseFirestore.instance
-                    .collection('settings')
-                    .doc('driverCommission')
-                    .get(),
               ]),
               builder: (context, snapshot) {
                 final deliveredCount =
@@ -537,26 +533,7 @@ class DriverDetailsPanel extends StatelessWidget {
                 final rejections =
                     (snapshot.data?[1] as AggregateQuerySnapshot?)?.count ?? 0;
 
-                // Get delivery rate from settings
-                double deliveryRate = 0.0;
-                if (snapshot.data?[2] != null) {
-                  final commissionDoc = snapshot.data![2]
-                      as DocumentSnapshot<Map<String, dynamic>>;
-                  if (commissionDoc.exists) {
-                    final data = commissionDoc.data();
-                    deliveryRate = ((data?['rate'] as num?) ?? 0).toDouble();
-                    debugPrint('🔍 driverCommission data: $data');
-                    debugPrint('🔍 deliveryRate: $deliveryRate');
-                  } else {
-                    debugPrint('⚠️ driverCommission document does not exist');
-                  }
-                }
-
                 debugPrint('🔍 deliveredCount: $deliveredCount');
-
-                // Calculate wallet balance: deliveredCount * deliveryRate
-                final calculatedWallet = deliveredCount * deliveryRate;
-                debugPrint('💰 calculatedWallet: $calculatedWallet');
 
                 // Calculate rejection rate: rejections / (deliveries + rejections)
                 final totalOrders = deliveredCount + rejections;
@@ -602,25 +579,6 @@ class DriverDetailsPanel extends StatelessWidget {
                             color: double.parse(rejectionRate) > 10
                                 ? AppColors.error
                                 : AppColors.warning,
-                          ),
-                        ),
-                  SizedBox(width: isMobile ? 0 : 16, height: isMobile ? 16 : 0),
-                  isMobile
-                      ? SizedBox(
-                          width: double.infinity,
-                          child: _StatCard(
-                            icon: Iconsax.wallet_3,
-                            label: 'رصيد المحفظة',
-                            value: '${calculatedWallet.toStringAsFixed(0)} ج.م',
-                            color: AppColors.success,
-                          ),
-                        )
-                      : Expanded(
-                          child: _StatCard(
-                            icon: Iconsax.wallet_3,
-                            label: 'رصيد المحفظة',
-                            value: '${calculatedWallet.toStringAsFixed(0)} ج.م',
-                            color: AppColors.success,
                           ),
                         ),
                 ];

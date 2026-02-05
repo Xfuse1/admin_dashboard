@@ -156,15 +156,7 @@ class DriverCard extends StatelessWidget {
                             },
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Flexible(
-                          child: _buildStatChip(
-                            context,
-                            icon: Iconsax.wallet_3,
-                            label:
-                                '${driver.walletBalance.toStringAsFixed(0)} ج.م',
-                          ),
-                        ),
+
                         const SizedBox(width: 12),
                         Flexible(
                           child: FutureBuilder<AggregateQuerySnapshot>(

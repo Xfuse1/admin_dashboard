@@ -205,6 +205,13 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
                   ),
                   child: RejectionRequestDetailsSheet(
                     request: state.selectedRequest!,
+                    onClose: () => context
+                        .read<RejectionRequestsBloc>()
+                        .add(const ClearSelectedRejectionRequest()),
+                    onApprove: () =>
+                        _showApproveDialog(context, state.selectedRequest!),
+                    onReject: () =>
+                        _showRejectDialog(context, state.selectedRequest!),
                   ),
                 );
               }
@@ -475,7 +482,18 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
               top: Radius.circular(AppConstants.radiusLg),
             ),
           ),
-          child: RejectionRequestDetailsSheet(request: request),
+          child: RejectionRequestDetailsSheet(
+            request: request,
+            onClose: () => Navigator.pop(context),
+            onApprove: () {
+              Navigator.pop(context);
+              _showApproveDialog(context, request);
+            },
+            onReject: () {
+              Navigator.pop(context);
+              _showRejectDialog(context, request);
+            },
+          ),
         ),
       ),
     );
@@ -548,59 +566,62 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
           return Padding(
             padding: const EdgeInsets.all(AppConstants.spacingLg),
             child: GlassCard(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(
-                    minWidth: MediaQuery.of(context).size.width -
-                        (AppConstants.spacingLg * 2),
-                  ),
-                  child: DataTable(
-                    columnSpacing: 20,
-                    horizontalMargin: 16,
-                    columns: const [
-                      DataColumn(label: Text('السائق')),
-                      DataColumn(label: Text('رقم الطلب')),
-                      DataColumn(label: Text('السبب')),
-                      DataColumn(label: Text('وقت الانتظار')),
-                      DataColumn(label: Text('الحالة')),
-                      DataColumn(label: Text('الإجراءات')),
-                    ],
-                    rows: state.requests.map((request) {
-                      return DataRow(
-                        selected: state.selectedRequest?.requestId ==
-                            request.requestId,
-                        onSelectChanged: (_) {
-                          context.read<RejectionRequestsBloc>().add(
-                                SelectRejectionRequest(request),
-                              );
-                        },
-                        cells: [
-                          DataCell(
-                            Text(
-                              request.driverName,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          DataCell(Text('#${request.orderId.substring(0, 8)}')),
-                          DataCell(
-                            SizedBox(
-                              width: 200,
-                              child: Text(
-                                request.reason,
-                                overflow: TextOverflow.ellipsis,
-                                maxLines: 2,
-                              ),
-                            ),
-                          ),
-                          DataCell(_buildWaitTimeCell(context, request)),
-                          DataCell(_buildStatusBadge(context, request)),
-                          DataCell(_buildActionButtons(context, request)),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  return SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minWidth: constraints.maxWidth,
+                      ),
+                      child: DataTable(
+                        columnSpacing: 20,
+                        horizontalMargin: 16,
+                        columns: const [
+                          DataColumn(label: Text('السائق')),
+                          DataColumn(label: Text('رقم الطلب')),
+                          DataColumn(label: Text('السبب')),
+                          DataColumn(label: Text('وقت الانتظار')),
+                          DataColumn(label: Text('الحالة')),
+                          DataColumn(label: Text('الإجراءات')),
                         ],
-                      );
-                    }).toList(),
-                  ),
-                ),
+                        rows: state.requests.map((request) {
+                          return DataRow(
+                            selected: state.selectedRequest?.requestId ==
+                                request.requestId,
+                            onSelectChanged: (_) {
+                              context.read<RejectionRequestsBloc>().add(
+                                    SelectRejectionRequest(request),
+                                  );
+                            },
+                            cells: [
+                              DataCell(
+                                Text(
+                                  request.driverName,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              DataCell(Text('#${request.orderId.substring(0, 8)}')),
+                              DataCell(
+                                SizedBox(
+                                  width: 200,
+                                  child: Text(
+                                    request.reason,
+                                    overflow: TextOverflow.ellipsis,
+                                    maxLines: 2,
+                                  ),
+                                ),
+                              ),
+                              DataCell(_buildWaitTimeCell(context, request)),
+                              DataCell(_buildStatusBadge(context, request)),
+                              DataCell(_buildActionButtons(context, request)),
+                            ],
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
           );

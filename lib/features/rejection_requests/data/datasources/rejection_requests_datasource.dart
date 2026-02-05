@@ -34,11 +34,10 @@ class RejectionRequestsDataSource {
           .map((doc) => RejectionRequestModel.fromFirestore(doc))
           .toList();
     } on FirebaseException catch (e) {
-      print('❌ [DataSource] Firebase error in getRejectionRequests: ${e.code} - ${e.message}');
-      
+
       // If index is missing, fall back to client-side sorting
       if (e.code == 'failed-precondition' || e.code == 'unimplemented') {
-        print('⚠️ [DataSource] Index missing, using client-side sorting');
+       
         return _getRejectionRequestsWithClientSort(
           adminDecision: adminDecision,
           driverId: driverId,
@@ -47,7 +46,6 @@ class RejectionRequestsDataSource {
       
       throw Exception('فشل في تحميل طلبات الرفض: ${e.message}');
     } catch (e) {
-      print('❌ [DataSource] Error in getRejectionRequests: $e');
       throw Exception('حدث خطأ غير متوقع: $e');
     }
   }
@@ -80,7 +78,6 @@ class RejectionRequestsDataSource {
 
       return requests;
     } catch (e) {
-      print('❌ [DataSource] Error in _getRejectionRequestsWithClientSort: $e');
       throw Exception('فشل في تحميل البيانات: $e');
     }
   }
@@ -89,7 +86,6 @@ class RejectionRequestsDataSource {
   Stream<List<RejectionRequestModel>> watchRejectionRequests({
     String? adminDecision,
   }) {
-    print('📊 [DataSource] watchRejectionRequests called with filter: $adminDecision');
     
     try {
       Query<Map<String, dynamic>> query =
@@ -100,14 +96,11 @@ class RejectionRequestsDataSource {
       }
 
       return query.snapshots().map((snapshot) {
-        print('📊 [DataSource] Snapshot received: ${snapshot.docs.length} documents');
         
         final requests = snapshot.docs.map((doc) {
           try {
-            print('📊 [DataSource] Processing doc ID: ${doc.id}');
             return RejectionRequestModel.fromFirestore(doc);
           } catch (e) {
-            print('❌ [DataSource] Error parsing document ${doc.id}: $e');
             // Skip invalid documents
             return null;
           }
@@ -116,14 +109,11 @@ class RejectionRequestsDataSource {
         // Sort by createdAt in memory to avoid index issues
         requests.sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
         
-        print('📊 [DataSource] Returning ${requests.length} valid requests after sorting');
         return requests;
       }).handleError((error) {
-        print('❌ [DataSource] Stream error: $error');
         throw Exception('خطأ في تحميل البيانات المباشرة: $error');
       });
     } catch (e) {
-      print('❌ [DataSource] Error setting up stream: $e');
       // Return error stream
       return Stream.error(Exception('فشل في إعداد تدفق البيانات: $e'));
     }
@@ -131,18 +121,15 @@ class RejectionRequestsDataSource {
 
   /// Watch pending requests count stream
   Stream<int> watchPendingRequestsCount() {
-    print('📊 [DataSource] watchPendingRequestsCount called');
     
     return _firestore
         .collection('rejection_requests')
         .where('adminDecision', isEqualTo: 'pending')
         .snapshots()
         .map((snapshot) {
-          print('📊 [DataSource] Pending count: ${snapshot.size}');
           return snapshot.size;
         })
         .handleError((error) {
-          print('❌ [DataSource] Error in pending count stream: $error');
           return 0; // Return 0 on error
         });
   }
@@ -163,10 +150,8 @@ class RejectionRequestsDataSource {
 
       return RejectionRequestModel.fromFirestore(doc);
     } on FirebaseException catch (e) {
-      print('❌ [DataSource] Firebase error in getRejectionRequestById: ${e.code} - ${e.message}');
       throw Exception('فشل في تحميل طلب الرفض: ${e.message}');
     } catch (e) {
-      print('❌ [DataSource] Error in getRejectionRequestById: $e');
       throw Exception('حدث خطأ في تحميل الطلب: $e');
     }
   }
@@ -188,9 +173,7 @@ class RejectionRequestsDataSource {
           .doc(requestId)
           .update(updateData);
           
-      print('✅ [DataSource] Updated request $requestId');
     } on FirebaseException catch (e) {
-      print('❌ [DataSource] Firebase error in updateRejectionRequest: ${e.code} - ${e.message}');
       
       if (e.code == 'not-found') {
         throw Exception('لم يتم العثور على طلب الرفض');
@@ -200,7 +183,6 @@ class RejectionRequestsDataSource {
       
       throw Exception('فشل في تحديث الطلب: ${e.message}');
     } catch (e) {
-      print('❌ [DataSource] Error in updateRejectionRequest: $e');
       throw Exception('حدث خطأ في التحديث: $e');
     }
   }
@@ -223,12 +205,9 @@ class RejectionRequestsDataSource {
           .doc(requestId)
           .update(updateData);
           
-      print('✅ [DataSource] Approved excuse for request $requestId');
     } on FirebaseException catch (e) {
-      print('❌ [DataSource] Firebase error in approveExcuse: ${e.code} - ${e.message}');
       throw Exception('فشل في الموافقة على الاعتذار: ${e.message}');
     } catch (e) {
-      print('❌ [DataSource] Error in approveExcuse: $e');
       throw Exception('حدث خطأ في الموافقة: $e');
     }
   }
@@ -251,12 +230,9 @@ class RejectionRequestsDataSource {
           .doc(requestId)
           .update(updateData);
           
-      print('✅ [DataSource] Rejected excuse for request $requestId');
     } on FirebaseException catch (e) {
-      print('❌ [DataSource] Firebase error in rejectExcuse: ${e.code} - ${e.message}');
       throw Exception('فشل في رفض الاعتذار: ${e.message}');
     } catch (e) {
-      print('❌ [DataSource] Error in rejectExcuse: $e');
       throw Exception('حدث خطأ في الرفض: $e');
     }
   }
@@ -272,11 +248,9 @@ class RejectionRequestsDataSource {
 
       return snapshot.count ?? 0;
     } on FirebaseException catch (e) {
-      print('❌ [DataSource] Firebase error in getPendingRequestsCount: ${e.code} - ${e.message}');
       
       // Fallback to get() if count() is not available
       if (e.code == 'unimplemented') {
-        print('⚠️ [DataSource] count() not available, using get()');
         final snapshot = await _firestore
             .collection('rejection_requests')
             .where('adminDecision', isEqualTo: 'pending')
@@ -286,7 +260,6 @@ class RejectionRequestsDataSource {
       
       return 0; // Return 0 on error
     } catch (e) {
-      print('❌ [DataSource] Error in getPendingRequestsCount: $e');
       return 0; // Return 0 on error
     }
   }
@@ -343,10 +316,8 @@ class RejectionRequestsDataSource {
             : '0.0',
       };
     } on FirebaseException catch (e) {
-      print('❌ [DataSource] Firebase error in getRejectionStats: ${e.code} - ${e.message}');
       throw Exception('فشل في تحميل الإحصائيات: ${e.message}');
     } catch (e) {
-      print('❌ [DataSource] Error in getRejectionStats: $e');
       throw Exception('حدث خطأ في تحميل الإحصائيات: $e');
     }
   }
@@ -359,9 +330,7 @@ class RejectionRequestsDataSource {
           .doc(requestId)
           .delete();
           
-      print('✅ [DataSource] Deleted request $requestId');
     } on FirebaseException catch (e) {
-      print('❌ [DataSource] Firebase error in deleteRejectionRequest: ${e.code} - ${e.message}');
       
       if (e.code == 'permission-denied') {
         throw Exception('ليس لديك صلاحية لحذف هذا الطلب');
@@ -369,7 +338,6 @@ class RejectionRequestsDataSource {
       
       throw Exception('فشل في حذف الطلب: ${e.message}');
     } catch (e) {
-      print('❌ [DataSource] Error in deleteRejectionRequest: $e');
       throw Exception('حدث خطأ في الحذف: $e');
     }
   }
@@ -395,12 +363,9 @@ class RejectionRequestsDataSource {
       }
 
       await batch.commit();
-      print('✅ [DataSource] Batch updated ${requestIds.length} requests');
     } on FirebaseException catch (e) {
-      print('❌ [DataSource] Firebase error in batchUpdateRequests: ${e.code} - ${e.message}');
       throw Exception('فشل في التحديث الجماعي: ${e.message}');
     } catch (e) {
-      print('❌ [DataSource] Error in batchUpdateRequests: $e');
       throw Exception('حدث خطأ في التحديث الجماعي: $e');
     }
   }

@@ -9,10 +9,16 @@ import '../../domain/entities/rejection_request_entities.dart';
 /// Details sheet for rejection request (Desktop side panel).
 class RejectionRequestDetailsSheet extends StatelessWidget {
   final RejectionRequestEntity request;
+  final VoidCallback? onApprove;
+  final VoidCallback? onReject;
+  final VoidCallback? onClose;
 
   const RejectionRequestDetailsSheet({
     super.key,
     required this.request,
+    this.onApprove,
+    this.onReject,
+    this.onClose,
   });
 
   @override
@@ -36,7 +42,11 @@ class RejectionRequestDetailsSheet extends StatelessWidget {
               IconButton(
                 icon: const Icon(Iconsax.close_square),
                 onPressed: () {
-                  // Close details panel
+                  if (onClose != null) {
+                    onClose!();
+                  } else {
+                    Navigator.of(context).pop();
+                  }
                 },
               ),
             ],
@@ -146,8 +156,49 @@ class RejectionRequestDetailsSheet extends StatelessWidget {
               ],
             ),
           ],
+
+          // Action Buttons (Only if pending)
+          if (request.adminDecision == 'pending' &&
+              (onApprove != null || onReject != null)) ...[
+            const Divider(height: 32),
+            _buildActions(context),
+            // Add extra padding at bottom to avoid overlapping with bottom sheets/safe area
+            const SizedBox(height: 20),
+          ],
         ],
       ),
+    );
+  }
+
+  Widget _buildActions(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (onApprove != null)
+          ElevatedButton.icon(
+            onPressed: onApprove,
+            icon: const Icon(Iconsax.tick_circle),
+            label: const Text('قبول الاعتذار'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              elevation: 0,
+            ),
+          ),
+        if (onApprove != null && onReject != null) const SizedBox(height: 12),
+        if (onReject != null)
+          OutlinedButton.icon(
+            onPressed: onReject,
+            icon: const Icon(Iconsax.close_circle),
+            label: const Text('رفض الاعتذار'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.red,
+              side: const BorderSide(color: Colors.red),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+            ),
+          ),
+      ],
     );
   }
 

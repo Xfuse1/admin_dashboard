@@ -93,17 +93,13 @@ class RejectionRequestsBloc
     WatchRejectionRequestsEvent event,
     Emitter<RejectionRequestsState> emit,
   ) async {
-    print(
-        '[BLoC] _onWatchRejectionRequests called with: ${event.adminDecision}');
-
+    
     // Guard: If we're already watching the same status, skip
     if (state is RejectionRequestsLoading) {
-      print('[BLoC] Already loading, skipping duplicate event');
       return;
     }
 
     emit(const RejectionRequestsLoading());
-    print('[BLoC] Emitted RejectionRequestsLoading');
 
     // Cancel previous subscription
     await _rejectionRequestsSubscription?.cancel();
@@ -112,19 +108,13 @@ class RejectionRequestsBloc
     await emit.onEach<dynamic>(
       _watchRejectionRequests(adminDecision: event.adminDecision)
           .asyncMap((result) async {
-        print('[BLoC] Stream received result');
-
         return await result.fold<Future<RejectionRequestsState>>(
           (Failure failure) async {
-            print('[BLoC] Error: ${failure.message}');
             return RejectionRequestsError(message: failure.message);
           },
           (List<RejectionRequestEntity> requests) async {
-            print('[BLoC] Received ${requests.length} requests from stream');
-
-            print('[BLoC] Calling _getPendingRequestsCount...');
+         
             final countResult = await _getPendingRequestsCount();
-            print('[BLoC] _getPendingRequestsCount returned');
 
             final pendingCount = countResult.fold(
               (failure) {
@@ -132,7 +122,7 @@ class RejectionRequestsBloc
                 return 0;
               },
               (count) {
-                print('[BLoC] Pending count: $count');
+                
                 return count;
               },
             );
@@ -149,20 +139,17 @@ class RejectionRequestsBloc
                 return null;
               },
               (stats) {
-                print('[BLoC] Stats loaded');
+                
                 return stats;
               },
             );
 
-            print('[BLoC] About to emit RejectionRequestsLoaded...');
-
+            
             final currentSelectedRequest = state is RejectionRequestsLoaded
                 ? (state as RejectionRequestsLoaded).selectedRequest
                 : null;
 
-            print(
-                '[BLoC] Emitted RejectionRequestsLoaded with ${requests.length} requests');
-
+           
             return RejectionRequestsLoaded(
               requests: requests,
               currentFilter: event.adminDecision,
@@ -192,19 +179,17 @@ class RejectionRequestsBloc
     required String? adminDecision,
     required Emitter<RejectionRequestsState> emit,
   }) async {
-    print('📞 [BLoC] Calling _getPendingRequestsCount...');
+    
 
     // Get pending count
     final countResult = await _getPendingRequestsCount();
-    print('📞 [BLoC] _getPendingRequestsCount returned');
+    
 
     final pendingCount = countResult.fold(
       (failure) {
-        print('⚠️ [BLoC] Failed to get pending count: ${failure.message}');
         return 0;
       },
       (count) {
-        print('✅ [BLoC] Pending count: $count');
         return count;
       },
     );
@@ -222,13 +207,11 @@ class RejectionRequestsBloc
         return null;
       },
       (stats) {
-        print('✅ [BLoC] Stats loaded');
         return stats;
       },
     );
 
-    print('🔄 [BLoC] About to emit RejectionRequestsLoaded...');
-
+    
     // Preserve selected request if filtering same status
     final currentSelectedRequest = state is RejectionRequestsLoaded
         ? (state as RejectionRequestsLoaded).selectedRequest
@@ -255,8 +238,7 @@ class RejectionRequestsBloc
       }
     }
 
-    print(
-        '✅ [BLoC] Emitted RejectionRequestsLoaded with ${requests.length} requests');
+    
   }
 
   Future<void> _onFilterByStatus(
