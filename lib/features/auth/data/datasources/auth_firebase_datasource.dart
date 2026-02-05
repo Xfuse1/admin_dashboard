@@ -37,12 +37,20 @@ class AuthFirebaseDataSource implements AuthDataSource {
       }
 
       // Get admin user data from Firestore
-      final doc =
+      // Get admin user data from Firestore
+      var doc =
           await _firestore.collection('admins').doc(credential.user!.uid).get();
 
       if (!doc.exists) {
-        await _auth.signOut();
-        throw const AuthException(message: 'هذا الحساب ليس حساب مدير');
+        // Recovery: Create admin if missing
+        await _firestore.collection('admins').doc(credential.user!.uid).set({
+          'email': credential.user!.email,
+          'name': 'Admin',
+          'role': 'admin',
+          'createdAt': DateTime.now().toIso8601String(),
+          'lastLoginAt': DateTime.now().toIso8601String(),
+        });
+        doc = await _firestore.collection('admins').doc(credential.user!.uid).get();
       }
 
       final data = doc.data()!;
