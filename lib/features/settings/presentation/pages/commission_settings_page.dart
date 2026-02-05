@@ -55,10 +55,7 @@ class _CommissionSettingsViewState extends State<_CommissionSettingsView> {
             fontWeight: FontWeight.bold,
           ),
         ),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-          onPressed: () => Navigator.pop(context),
-        ),
+
       ),
       body: BlocConsumer<SettingsCubit, SettingsState>(
         listener: (context, state) {
