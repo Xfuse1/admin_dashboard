@@ -58,6 +58,46 @@ class OrderCard extends StatelessWidget {
 
           const SizedBox(height: AppConstants.spacingSm),
 
+          // Multi-store badge
+          if (order.isMultiStore)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.secondary.withValues(alpha: 0.1),
+                      borderRadius:
+                          BorderRadius.circular(AppConstants.radiusSm),
+                      border: Border.all(
+                        color: AppColors.secondary.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Iconsax.shop,
+                            size: 12, color: AppColors.secondary),
+                        const SizedBox(width: 4),
+                        Text(
+                          'متعدد المتاجر (${order.storeCount})',
+                          style: const TextStyle(
+                            color: AppColors.secondary,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
           // Customer info
           Row(
             children: [
@@ -79,7 +119,7 @@ class OrderCard extends StatelessWidget {
           const SizedBox(height: 4),
 
           // Store info
-          if (order.storeName != null)
+          if (!order.isMultiStore && order.storeName != null)
             Row(
               children: [
                 const Icon(Iconsax.shop,
@@ -92,6 +132,25 @@ class OrderCard extends StatelessWidget {
                           color: AppColors.textSecondary,
                         ),
                     overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          // Multi-store: show store names summary
+          if (order.isMultiStore)
+            Row(
+              children: [
+                const Icon(Iconsax.shop,
+                    size: 16, color: AppColors.textSecondary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    order.pickupStops.map((s) => s.storeName).join(' • '),
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
                   ),
                 ),
               ],
@@ -118,7 +177,7 @@ class OrderCard extends StatelessWidget {
                     const Icon(Iconsax.shopping_bag, size: 14),
                     const SizedBox(width: 4),
                     Text(
-                      '${order.items.length} منتجات',
+                      '${order.allItems.length} منتجات',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],

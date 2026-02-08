@@ -20,9 +20,8 @@ class OnboardingFirebaseDataSource implements OnboardingDataSource {
   static const String _driverRequestsCollection =
       FirestoreCollections.driverRequests;
 
-  /// Collection path for store requests (now using stores collection).
-  static const String _storeRequestsCollection =
-      FirestoreCollections.stores;
+  /// Collection path for store requests (now using users collection, filtering by role=seller).
+  static const String _storeRequestsCollection = 'users';
 
   @override
   Future<List<dynamic>> getRequests({
@@ -94,19 +93,20 @@ class OnboardingFirebaseDataSource implements OnboardingDataSource {
     int limit = 20,
     String? lastId,
   }) async {
-    Query<Map<String, dynamic>> query =
-        _firestore.collection(_storeRequestsCollection);
+    // Filter only seller users (stores are embedded in users)
+    Query<Map<String, dynamic>> query = _firestore
+        .collection(_storeRequestsCollection)
+        .where('role', isEqualTo: 'seller');
 
     if (status != null) {
-      // Map OnboardingStatus to VendorStatus (stores collection uses VendorStatus)
-      String vendorStatus = status.name;
-      if (status == OnboardingStatus.approved) vendorStatus = 'active';
-      if (status == OnboardingStatus.rejected) vendorStatus = 'suspended';
-      
-      query = query.where('status', isEqualTo: vendorStatus);
+      // Map OnboardingStatus to store.is_approved field
+      if (status == OnboardingStatus.approved) {
+        query = query.where('store.is_approved', isEqualTo: true);
+      } else if (status == OnboardingStatus.pending) {
+        query = query.where('store.is_approved', isEqualTo: false);
+      }
+      // rejected status is handled client-side
     }
-
-    // query = query.orderBy('createdAt', descending: true); // Commented out for debugging
 
     if (lastId != null) {
       final lastDoc = await _firestore
@@ -120,53 +120,56 @@ class OnboardingFirebaseDataSource implements OnboardingDataSource {
 
     query = query.limit(limit);
 
-    print("Fetching store requests... Collection: $_storeRequestsCollection, Status: $status, Limit: $limit"); // Debug log
+    print(
+        "Fetching store requests... Collection: $_storeRequestsCollection, Status: $status, Limit: $limit"); // Debug log
 
     final snapshot = await query.get();
     print("Found ${snapshot.docs.length} store requests"); // Debug log
 
-    return snapshot.docs.map((doc) {
+    return snapshot.docs.where((doc) => doc.data()['store'] != null).map((doc) {
       final data = _normalizeStoreData(doc.id, doc.data());
-      print("Store Data Normalized: ${data['id']} - ${data['createdAt']}"); // Debug log
+      print(
+          "Store Data Normalized: ${data['id']} - ${data['createdAt']}"); // Debug log
       return StoreOnboardingModel.fromJson(data);
     }).toList();
   }
 
-  /// Normalizes store data to ensure consistent timestamp parsing.
+  /// Normalizes store data from user document to ensure consistent fields.
   Map<String, dynamic> _normalizeStoreData(
     String docId,
-    Map<String, dynamic> data,
+    Map<String, dynamic> userData,
   ) {
-    // Map VendorStatus to OnboardingStatus for the model
-    String status = data['status'] ?? 'pending';
-    if (status == 'active') status = 'approved';
-    if (status == 'suspended') status = 'rejected';
-    if (status == 'inactive') status = 'rejected';
+    final storeData =
+        (userData['store'] as Map<String, dynamic>?) ?? <String, dynamic>{};
 
-    // Handle address map
-    String addressStr = '';
-    if (data['address'] is Map) {
-      final addrMap = data['address'] as Map;
-      final street = addrMap['street'] ?? '';
-      final city = addrMap['city'] ?? '';
-      addressStr = '$street, $city';
-    } else if (data['address'] is String) {
-      addressStr = data['address'];
+    // Map is_approved to OnboardingStatus
+    final isApproved = storeData['is_approved'] as bool? ?? false;
+    String status = isApproved ? 'approved' : 'pending';
+
+    // Address is now a simple string field in the store map
+    String addressStr = storeData['address'] as String? ?? '';
+    if (addressStr.isEmpty) {
+      addressStr = userData['street'] as String? ?? '';
     }
 
     return {
-      ...data,
+      ...userData,
       'id': docId,
       'type': 'store',
       'status': status,
       // Map store fields to onboarding model fields
-      'storeName': data['name'] ?? '',
-      'storeType': data['category'] ?? 'other',
-      'ownerName': data['ownerName'] ?? data['name'] ?? '', // Fallback to store name if owner not found
+      'storeName': storeData['name'] ?? userData['full_name'] ?? '',
+      'storeType': storeData['category'] ?? 'other',
+      'ownerName': userData['full_name'] ?? storeData['name'] ?? '',
       'address': addressStr,
+      // Pass latitude/longitude from the store map
+      'latitude': (storeData['latitude'] as num?)?.toDouble(),
+      'longitude': (storeData['longitude'] as num?)?.toDouble(),
       // Convert timestamps using helper
-      'createdAt': _parseTimestamp(data['createdAt']) ?? DateTime.now(),
-      'reviewedAt': _parseTimestamp(data['reviewedAt']),
+      'createdAt': _parseTimestamp(storeData['created_at']) ??
+          _parseTimestamp(userData['created_at']) ??
+          DateTime.now(),
+      'reviewedAt': _parseTimestamp(storeData['reviewedAt']),
     };
   }
 
@@ -203,14 +206,11 @@ class OnboardingFirebaseDataSource implements OnboardingDataSource {
     // Check if this is a driver request
     // Since driver now registers directly in 'drivers' collection with Auth UID as document ID,
     // we just need to update the status from 'pending' to 'approved'
-    final driverDoc = await _firestore
-        .collection('drivers')
-        .doc(id)
-        .get();
+    final driverDoc = await _firestore.collection('drivers').doc(id).get();
 
     if (driverDoc.exists) {
       final data = driverDoc.data();
-      
+
       // Check if this is a pending driver (has status field)
       if (data != null && data.containsKey('status')) {
         // Driver document found - simply update status to approved
@@ -221,21 +221,18 @@ class OnboardingFirebaseDataSource implements OnboardingDataSource {
           'isApproved': true,
           'approvedAt': FieldValue.serverTimestamp(),
         });
-        
+
         print('✅ Driver approved: $id');
         return;
       }
     }
 
-    // If not found in drivers, try store requests
-    await _firestore
-        .collection(_storeRequestsCollection)
-        .doc(id)
-        .update({
+    // If not found in drivers, try store requests (now in users collection)
+    await _firestore.collection(_storeRequestsCollection).doc(id).update({
       ...commonUpdateData,
-      'status': 'active', // Maps to OnboardingStatus.approved
-      'isActive': true,
-      'isApproved': true,
+      'store.is_approved': true,
+      'store.updated_at': FieldValue.serverTimestamp(),
+      'updated_at': FieldValue.serverTimestamp(),
     });
   }
 
@@ -259,14 +256,12 @@ class OnboardingFirebaseDataSource implements OnboardingDataSource {
       return;
     }
 
-    // Try store requests - Update to 'suspended' for VendorStatus
-    await _firestore
-        .collection(_storeRequestsCollection)
-        .doc(id)
-        .update({
+    // Try store requests - Update store.is_approved to false
+    await _firestore.collection(_storeRequestsCollection).doc(id).update({
       ...commonUpdateData,
-      'status': 'suspended', // Maps to OnboardingStatus.rejected
-      'isActive': false,
+      'store.is_approved': false,
+      'store.updated_at': FieldValue.serverTimestamp(),
+      'updated_at': FieldValue.serverTimestamp(),
     });
   }
 
@@ -283,12 +278,10 @@ class OnboardingFirebaseDataSource implements OnboardingDataSource {
       return;
     }
 
-    // Try store requests - Update to 'pending' as stores don't have underReview
-    await _firestore
-        .collection(_storeRequestsCollection)
-        .doc(id)
-        .update({
-      'status': 'pending',
+    // Try store requests - Users collection doesn't have underReview
+    await _firestore.collection(_storeRequestsCollection).doc(id).update({
+      'store.is_approved': false,
+      'store.updated_at': FieldValue.serverTimestamp(),
     });
   }
 
@@ -301,8 +294,10 @@ class OnboardingFirebaseDataSource implements OnboardingDataSource {
     // Get all driver and store requests
     final driverSnapshot =
         await _firestore.collection(_driverRequestsCollection).get();
-    final storeSnapshot =
-        await _firestore.collection(_storeRequestsCollection).get();
+    final storeSnapshot = await _firestore
+        .collection(_storeRequestsCollection)
+        .where('role', isEqualTo: 'seller')
+        .get();
 
     // Current period stats (last 30 days)
     int totalCurrent = 0;
@@ -325,7 +320,7 @@ class OnboardingFirebaseDataSource implements OnboardingDataSource {
       final data = doc.data();
       final status = data['status'] as String?;
       final createdAt = _parseTimestamp(data['createdAt']);
-      
+
       if (createdAt != null) {
         // Count for current period (last 30 days)
         if (createdAt.isAfter(thirtyDaysAgo)) {
@@ -342,7 +337,8 @@ class OnboardingFirebaseDataSource implements OnboardingDataSource {
           }
         }
         // Count for previous period (30-60 days ago)
-        else if (createdAt.isAfter(sixtyDaysAgo) && createdAt.isBefore(thirtyDaysAgo)) {
+        else if (createdAt.isAfter(sixtyDaysAgo) &&
+            createdAt.isBefore(thirtyDaysAgo)) {
           totalPrevious++;
           switch (status) {
             case 'pending':
@@ -358,45 +354,36 @@ class OnboardingFirebaseDataSource implements OnboardingDataSource {
       }
     }
 
-    // Process store requests
+    // Process store requests (now from users collection with embedded store data)
     for (final doc in storeSnapshot.docs) {
       final data = doc.data();
-      final status = data['status'] as String?;
-      final createdAt = _parseTimestamp(data['createdAt']);
-      
+      final storeData = data['store'] as Map<String, dynamic>?;
+      if (storeData == null) continue;
+
+      final isApproved = storeData['is_approved'] as bool? ?? false;
+      final createdAt = _parseTimestamp(storeData['created_at']) ??
+          _parseTimestamp(data['created_at']);
+
       if (createdAt != null) {
         // Count for current period (last 30 days)
         if (createdAt.isAfter(thirtyDaysAgo)) {
           totalCurrent++;
-          switch (status) {
-            case 'pending':
-            case 'underReview': 
-              pendingCurrent++;
-              pendingStoresCurrent++;
-            case 'approved':
-            case 'active': // Store approved status
-              approvedCurrent++;
-            case 'rejected':
-            case 'suspended': // Store rejected status
-            case 'inactive': // Treating inactive as rejected/not-approved for onboarding stats
-              rejectedCurrent++;
+          if (isApproved) {
+            approvedCurrent++;
+          } else {
+            pendingCurrent++;
+            pendingStoresCurrent++;
           }
         }
         // Count for previous period (30-60 days ago)
-        else if (createdAt.isAfter(sixtyDaysAgo) && createdAt.isBefore(thirtyDaysAgo)) {
+        else if (createdAt.isAfter(sixtyDaysAgo) &&
+            createdAt.isBefore(thirtyDaysAgo)) {
           totalPrevious++;
-          switch (status) {
-            case 'pending':
-            case 'underReview':
-              pendingPrevious++;
-              pendingStoresPrevious++;
-            case 'approved':
-            case 'active':
-              approvedPrevious++;
-            case 'rejected':
-            case 'suspended':
-            case 'inactive':
-              rejectedPrevious++;
+          if (isApproved) {
+            approvedPrevious++;
+          } else {
+            pendingPrevious++;
+            pendingStoresPrevious++;
           }
         }
       }
@@ -426,10 +413,14 @@ class OnboardingFirebaseDataSource implements OnboardingDataSource {
       pendingStoreRequests: pendingStoresCurrent,
       totalRequestsGrowth: calculateGrowth(totalCurrent, totalPrevious),
       pendingRequestsGrowth: calculateGrowth(pendingCurrent, pendingPrevious),
-      approvedRequestsGrowth: calculateGrowth(approvedCurrent, approvedPrevious),
-      rejectedRequestsGrowth: calculateGrowth(rejectedCurrent, rejectedPrevious),
-      pendingStoreRequestsGrowth: calculateGrowth(pendingStoresCurrent, pendingStoresPrevious),
-      pendingDriverRequestsGrowth: calculateGrowth(pendingDriversCurrent, pendingDriversPrevious),
+      approvedRequestsGrowth:
+          calculateGrowth(approvedCurrent, approvedPrevious),
+      rejectedRequestsGrowth:
+          calculateGrowth(rejectedCurrent, rejectedPrevious),
+      pendingStoreRequestsGrowth:
+          calculateGrowth(pendingStoresCurrent, pendingStoresPrevious),
+      pendingDriverRequestsGrowth:
+          calculateGrowth(pendingDriversCurrent, pendingDriversPrevious),
     );
   }
 

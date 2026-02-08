@@ -58,12 +58,43 @@ class OrderDetailsSheet extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            'تفاصيل الطلب',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleLarge
-                                ?.copyWith(fontWeight: FontWeight.bold),
+                          Row(
+                            children: [
+                              Text(
+                                'تفاصيل الطلب',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleLarge
+                                    ?.copyWith(fontWeight: FontWeight.bold),
+                              ),
+                              if (order.isMultiStore) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 3,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.secondary
+                                        .withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(
+                                        AppConstants.radiusSm),
+                                    border: Border.all(
+                                      color: AppColors.secondary
+                                          .withValues(alpha: 0.3),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    'متعدد المتاجر (${order.storeCount})',
+                                    style: const TextStyle(
+                                      color: AppColors.secondary,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                           Text(
                             '#${order.id}',
@@ -111,8 +142,11 @@ class OrderDetailsSheet extends StatelessWidget {
 
                       const SizedBox(height: AppConstants.spacingMd),
 
-                      // Store section with detailed data
-                      if (order.storeId != null) _buildStoreSection(context),
+                      // Store section — single store or multi-store pickup stops
+                      if (order.isMultiStore)
+                        _buildPickupStopsSection(context)
+                      else if (order.storeId != null)
+                        _buildStoreSection(context),
 
                       const SizedBox(height: AppConstants.spacingMd),
 
@@ -191,7 +225,7 @@ class OrderDetailsSheet extends StatelessWidget {
   Widget _buildStoreSection(BuildContext context) {
     return FutureBuilder<DocumentSnapshot>(
       future: FirebaseFirestore.instance
-          .collection('stores')
+          .collection('users')
           .doc(order.storeId)
           .get(),
       builder: (context, snapshot) {
@@ -234,8 +268,8 @@ class OrderDetailsSheet extends StatelessWidget {
           );
         }
 
-        final storeData = snapshot.data!.data() as Map<String, dynamic>?;
-        if (storeData == null) {
+        final userData = snapshot.data!.data() as Map<String, dynamic>?;
+        if (userData == null) {
           return _buildSection(
             context,
             'المتجر',
@@ -247,26 +281,19 @@ class OrderDetailsSheet extends StatelessWidget {
           );
         }
 
-        // Extract store information
+        // Store data is now nested inside the user document
+        final storeData =
+            (userData['store'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+
+        // Extract store information from nested store map
         final storeName =
             storeData['name'] as String? ?? order.storeName ?? 'متجر غير معروف';
         final storePhone = storeData['phone'] as String? ?? 'غير متوفر';
 
-        // Extract address from address map
-        String storeAddress = 'غير متوفر';
-        if (storeData['address'] != null && storeData['address'] is Map) {
-          final addressMap = storeData['address'] as Map<String, dynamic>;
-          final street = addressMap['street'] as String? ?? '';
-          final city = addressMap['city'] as String? ?? '';
-          final country = addressMap['country'] as String? ?? '';
-
-          storeAddress = [street, city, country]
-              .where((part) => part.isNotEmpty)
-              .join(', ');
-
-          if (storeAddress.isEmpty) {
-            storeAddress = 'غير متوفر';
-          }
+        // Address is now a simple string in the store map
+        String storeAddress = storeData['address'] as String? ?? 'غير متوفر';
+        if (storeAddress.isEmpty) {
+          storeAddress = 'غير متوفر';
         }
 
         final storeCategory = storeData['category'] as String? ?? 'متجر';
@@ -349,6 +376,138 @@ class OrderDetailsSheet extends StatelessWidget {
     );
   }
 
+  /// Pickup stops section for multi-store orders
+  Widget _buildPickupStopsSection(BuildContext context) {
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Iconsax.shop, size: 20, color: AppColors.secondary),
+              const SizedBox(width: 8),
+              Text(
+                'محلات الاستلام',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+              const Spacer(),
+              Text(
+                '${order.pickedUpStopsCount}/${order.storeCount} تم الاستلام',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: order.allStoresPickedUp
+                          ? AppColors.success
+                          : AppColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppConstants.spacingSm),
+          const Divider(),
+          ...order.pickupStops.asMap().entries.map((entry) {
+            final index = entry.key;
+            final stop = entry.value;
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Row(
+                children: [
+                  // Stop number
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: _getPickupStopStatusColor(stop.status)
+                          .withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${index + 1}',
+                        style: TextStyle(
+                          color: _getPickupStopStatusColor(stop.status),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  // Store info
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          stop.storeName,
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodyMedium
+                              ?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                        Text(
+                          '${stop.items.length} منتجات',
+                          style: Theme.of(context)
+                              .textTheme
+                              .bodySmall
+                              ?.copyWith(color: AppColors.textSecondary),
+                        ),
+                        if (stop.status == PickupStopStatus.rejected &&
+                            stop.rejectionReason != null)
+                          Text(
+                            'سبب الرفض: ${stop.rejectionReason}',
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(color: AppColors.error),
+                          ),
+                      ],
+                    ),
+                  ),
+                  // Status + subtotal
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _getPickupStopStatusColor(stop.status)
+                              .withValues(alpha: 0.1),
+                          borderRadius:
+                              BorderRadius.circular(AppConstants.radiusSm),
+                        ),
+                        child: Text(
+                          stop.status.arabicName,
+                          style: TextStyle(
+                            color: _getPickupStopStatusColor(stop.status),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        Formatters.currency(stop.subtotal),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primary,
+                            ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
   Widget _buildSection(
     BuildContext context,
     String title,
@@ -405,6 +564,11 @@ class OrderDetailsSheet extends StatelessWidget {
   }
 
   Widget _buildItemsSection(BuildContext context) {
+    // For multi-store orders, show items grouped by store
+    if (order.isMultiStore && order.pickupStops.isNotEmpty) {
+      return _buildMultiStoreItemsSection(context);
+    }
+
     return GlassCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -422,7 +586,7 @@ class OrderDetailsSheet extends StatelessWidget {
               ),
               const Spacer(),
               Text(
-                '${order.items.length} منتجات',
+                '${order.allItems.length} منتجات',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.textSecondary,
                     ),
@@ -431,68 +595,187 @@ class OrderDetailsSheet extends StatelessWidget {
           ),
           const SizedBox(height: AppConstants.spacingSm),
           const Divider(),
-          ...order.items.map((item) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceLight,
-                        borderRadius:
-                            BorderRadius.circular(AppConstants.radiusSm),
-                      ),
-                      child: Center(
-                        child: Text(
-                          '${item.quantity}x',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                        ),
-                      ),
+          ...order.allItems.map((item) => _buildItemTile(context, item)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMultiStoreItemsSection(BuildContext context) {
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Iconsax.shopping_bag,
+                  size: 20, color: AppColors.primary),
+              const SizedBox(width: 8),
+              Text(
+                'المنتجات',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            item.name,
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                          if (item.notes != null)
-                            Text(
-                              item.notes!,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodySmall
-                                  ?.copyWith(
-                                    color: AppColors.textSecondary,
-                                  ),
+              ),
+              const Spacer(),
+              Text(
+                '${order.allItems.length} منتجات من ${order.storeCount} متاجر',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppConstants.spacingSm),
+          const Divider(),
+          // Group items by store (pickup_stop)
+          ...order.pickupStops.map((stop) => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 8),
+                  // Store header with status
+                  Row(
+                    children: [
+                      Icon(
+                        Iconsax.shop,
+                        size: 16,
+                        color: _getPickupStopStatusColor(stop.status),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        stop.storeName,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: _getPickupStopStatusColor(stop.status),
                             ),
-                        ],
                       ),
-                    ),
-                    Text(
-                      Formatters.currency(item.total),
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _getPickupStopStatusColor(stop.status)
+                              .withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          stop.status.arabicName,
+                          style: TextStyle(
+                            color: _getPickupStopStatusColor(stop.status),
+                            fontSize: 10,
                             fontWeight: FontWeight.w600,
                           ),
-                    ),
-                  ],
-                ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        Formatters.currency(stop.subtotal),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primary,
+                            ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  // Store items
+                  ...stop.items.map((item) => _buildItemTile(context, item)),
+                  const Divider(),
+                ],
               )),
         ],
       ),
     );
   }
 
+  Widget _buildItemTile(BuildContext context, OrderItem item) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceLight,
+              borderRadius: BorderRadius.circular(AppConstants.radiusSm),
+            ),
+            child: Center(
+              child: Text(
+                '${item.quantity}x',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.name,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                if (item.storeName != null && item.storeName!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Row(
+                      children: [
+                        const Icon(Iconsax.shop,
+                            size: 12, color: AppColors.textSecondary),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            item.storeName!,
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: AppColors.textSecondary,
+                                      fontSize: 11,
+                                    ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (item.notes != null)
+                  Text(
+                    item.notes!,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                  ),
+              ],
+            ),
+          ),
+          Text(
+            Formatters.currency(item.total),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Color _getPickupStopStatusColor(PickupStopStatus status) {
+    return switch (status) {
+      PickupStopStatus.pending => AppColors.warning,
+      PickupStopStatus.confirmed => AppColors.info,
+      PickupStopStatus.pickedUp => AppColors.success,
+      PickupStopStatus.rejected => AppColors.error,
+    };
+  }
+
   Widget _buildTotalSection(BuildContext context) {
-    // Calculate actual subtotal from items
-    final calculatedSubtotal = order.items.fold<double>(
+    // Calculate actual subtotal from items (handles both single and multi-store)
+    final calculatedSubtotal = order.allItems.fold<double>(
       0.0,
       (sum, item) => sum + item.total,
     );

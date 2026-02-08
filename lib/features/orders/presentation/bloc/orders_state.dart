@@ -25,6 +25,7 @@ class OrdersLoading extends OrdersState {
 class OrdersLoaded extends OrdersState {
   final List<OrderEntity> orders;
   final OrderStatus? currentFilter;
+  final OrderType? orderTypeFilter;
   final bool hasMore;
   final String? lastOrderId;
   final OrderStats? stats;
@@ -34,6 +35,7 @@ class OrdersLoaded extends OrdersState {
   const OrdersLoaded({
     required this.orders,
     this.currentFilter,
+    this.orderTypeFilter,
     this.hasMore = true,
     this.lastOrderId,
     this.stats,
@@ -44,6 +46,7 @@ class OrdersLoaded extends OrdersState {
   OrdersLoaded copyWith({
     List<OrderEntity>? orders,
     OrderStatus? currentFilter,
+    OrderType? orderTypeFilter,
     bool? hasMore,
     String? lastOrderId,
     OrderStats? stats,
@@ -51,10 +54,14 @@ class OrdersLoaded extends OrdersState {
     String? searchQuery,
     bool clearFilter = false,
     bool clearSelectedOrder = false,
+    bool clearOrderTypeFilter = false,
   }) {
     return OrdersLoaded(
       orders: orders ?? this.orders,
       currentFilter: clearFilter ? null : (currentFilter ?? this.currentFilter),
+      orderTypeFilter: clearOrderTypeFilter
+          ? null
+          : (orderTypeFilter ?? this.orderTypeFilter),
       hasMore: hasMore ?? this.hasMore,
       lastOrderId: lastOrderId ?? this.lastOrderId,
       stats: stats ?? this.stats,
@@ -64,23 +71,38 @@ class OrdersLoaded extends OrdersState {
     );
   }
 
-  /// Get orders filtered by search query.
+  /// Get orders filtered by search query and order type.
   List<OrderEntity> get filteredOrders {
-    if (searchQuery.isEmpty) return orders;
+    var result = orders;
 
-    final query = searchQuery.toLowerCase();
-    return orders.where((order) {
-      return order.id.toLowerCase().contains(query) ||
-          order.customerName.toLowerCase().contains(query) ||
-          order.customerPhone.contains(query) ||
-          (order.storeName?.toLowerCase().contains(query) ?? false);
-    }).toList();
+    // Filter by order type
+    if (orderTypeFilter != null) {
+      result =
+          result.where((order) => order.orderType == orderTypeFilter).toList();
+    }
+
+    // Filter by search query
+    if (searchQuery.isNotEmpty) {
+      final query = searchQuery.toLowerCase();
+      result = result.where((order) {
+        return order.id.toLowerCase().contains(query) ||
+            order.customerName.toLowerCase().contains(query) ||
+            order.customerPhone.contains(query) ||
+            (order.storeName?.toLowerCase().contains(query) ?? false) ||
+            order.pickupStops.any(
+              (stop) => stop.storeName.toLowerCase().contains(query),
+            );
+      }).toList();
+    }
+
+    return result;
   }
 
   @override
   List<Object?> get props => [
         orders,
         currentFilter,
+        orderTypeFilter,
         hasMore,
         lastOrderId,
         stats,
@@ -94,6 +116,7 @@ class OrdersLoadingMore extends OrdersLoaded {
   const OrdersLoadingMore({
     required super.orders,
     super.currentFilter,
+    super.orderTypeFilter,
     super.hasMore,
     super.lastOrderId,
     super.stats,
@@ -124,6 +147,7 @@ class OrderActionInProgress extends OrdersLoaded {
     required this.actionOrderId,
     required super.orders,
     super.currentFilter,
+    super.orderTypeFilter,
     super.hasMore,
     super.lastOrderId,
     super.stats,
@@ -143,6 +167,7 @@ class OrderActionSuccess extends OrdersLoaded {
     required this.successMessage,
     required super.orders,
     super.currentFilter,
+    super.orderTypeFilter,
     super.hasMore,
     super.lastOrderId,
     super.stats,

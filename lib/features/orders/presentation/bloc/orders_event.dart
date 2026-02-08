@@ -134,3 +134,13 @@ class LoadOrderStats extends OrdersEvent {
   @override
   List<Object?> get props => [fromDate, toDate];
 }
+
+/// Filter orders by order type (single_store / multi_store).
+class FilterOrdersByType extends OrdersEvent {
+  final OrderType? orderType;
+
+  const FilterOrdersByType(this.orderType);
+
+  @override
+  List<Object?> get props => [orderType];
+}

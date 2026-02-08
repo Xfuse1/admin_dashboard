@@ -213,6 +213,19 @@ class VendorDetailsPanel extends StatelessWidget {
                 icon: Icon(Icons.edit, size: 18, color: statusColor),
                 tooltip: 'تغيير الحالة',
                 onSelected: (newStatus) {
+                  final isMissingLocation = vendor.address.latitude == null ||
+                      vendor.address.longitude == null;
+
+                  // Warn when activating a vendor without location
+                  if (newStatus == VendorStatus.active && isMissingLocation) {
+                    _showActivateWithoutLocationDialog(
+                      context,
+                      vendor,
+                      newStatus,
+                    );
+                    return;
+                  }
+
                   context.read<VendorsBloc>().add(
                         ToggleVendorStatusEvent(vendor.id, newStatus),
                       );
@@ -322,6 +335,41 @@ class VendorDetailsPanel extends StatelessWidget {
             ],
           ),
         ),
+        // Location warning if coordinates are missing
+        if (vendor.address.latitude == null ||
+            vendor.address.longitude == null) ...[
+          const SizedBox(height: AppConstants.spacingSm),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(AppConstants.spacingSm),
+            decoration: BoxDecoration(
+              color: AppColors.error.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(AppConstants.radiusSm),
+              border: Border.all(
+                color: AppColors.error.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.location_off,
+                  color: AppColors.error,
+                  size: 16,
+                ),
+                const SizedBox(width: AppConstants.spacingSm),
+                Expanded(
+                  child: Text(
+                    'لم يتم إرسال الموقع الجغرافي',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.error,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -471,7 +519,7 @@ class VendorDetailsPanel extends StatelessWidget {
         builder: (context, constraints) {
           // For narrow screens (< 360px), show icons only
           final showIconOnly = constraints.maxWidth < 360;
-          
+
           return Row(
             children: [
               Expanded(
@@ -480,7 +528,8 @@ class VendorDetailsPanel extends StatelessWidget {
                         onPressed: () => _showDeleteConfirmation(context),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.error,
-                          side: BorderSide(color: AppColors.error.withValues(alpha: 0.5)),
+                          side: BorderSide(
+                              color: AppColors.error.withValues(alpha: 0.5)),
                           padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
                         child: const Icon(Icons.delete_outline, size: 20),
@@ -491,7 +540,8 @@ class VendorDetailsPanel extends StatelessWidget {
                         label: const Text('حذف'),
                         style: OutlinedButton.styleFrom(
                           foregroundColor: AppColors.error,
-                          side: BorderSide(color: AppColors.error.withValues(alpha: 0.5)),
+                          side: BorderSide(
+                              color: AppColors.error.withValues(alpha: 0.5)),
                         ),
                       ),
               ),
@@ -577,6 +627,77 @@ class VendorDetailsPanel extends StatelessWidget {
     };
   }
 
+  void _showActivateWithoutLocationDialog(
+    BuildContext context,
+    VendorEntity vendor,
+    VendorStatus newStatus,
+  ) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('تنبيه: الموقع غير متوفر'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.error.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: AppColors.error.withValues(alpha: 0.4),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    color: AppColors.error,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'هذا المتجر لم يقم بإرسال الموقع الجغرافي. قد يؤثر ذلك على التوصيل وعرض المتجر على الخريطة.',
+                      style:
+                          Theme.of(dialogContext).textTheme.bodySmall?.copyWith(
+                                color: AppColors.error,
+                              ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'هل تريد تفعيل المتجر "${vendor.name}" بدون موقع جغرافي؟',
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              context.read<VendorsBloc>().add(
+                    ToggleVendorStatusEvent(vendor.id, newStatus),
+                  );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.warning,
+            ),
+            child: const Text('تفعيل رغم ذلك'),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _getDayLabel(DayOfWeek day) {
     return switch (day) {
       DayOfWeek.monday => 'الاثنين',
@@ -624,7 +745,7 @@ class VendorDetailsPanel extends StatelessWidget {
               builder: (context, constraints) {
                 // Responsive grid: 1 column on small, 2 on medium
                 final crossAxisCount = constraints.maxWidth > 300 ? 2 : 1;
-                
+
                 return GridView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -676,7 +797,8 @@ class _ProductCard extends StatelessWidget {
                 width: double.infinity,
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => const Center(
-                  child: Icon(Icons.image_not_supported, color: AppColors.textTertiary),
+                  child: Icon(Icons.image_not_supported,
+                      color: AppColors.textTertiary),
                 ),
               ),
             ),
@@ -827,8 +949,6 @@ class _InfoCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppConstants.spacingXs),
-
-
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [

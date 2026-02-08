@@ -7,6 +7,7 @@ class DashboardStatsModel extends DashboardStats {
     required super.pendingOrders,
     required super.completedOrders,
     required super.cancelledOrders,
+    super.multiStoreOrders,
     required super.totalVendors,
     required super.activeVendors,
     required super.totalDrivers,
@@ -24,6 +25,7 @@ class DashboardStatsModel extends DashboardStats {
       pendingOrders: json['pendingOrders'] as int,
       completedOrders: json['completedOrders'] as int,
       cancelledOrders: json['cancelledOrders'] as int,
+      multiStoreOrders: (json['multiStoreOrders'] as int?) ?? 0,
       totalVendors: json['totalVendors'] as int,
       activeVendors: json['activeVendors'] as int,
       totalDrivers: json['totalDrivers'] as int,
@@ -42,6 +44,7 @@ class DashboardStatsModel extends DashboardStats {
       'pendingOrders': pendingOrders,
       'completedOrders': completedOrders,
       'cancelledOrders': cancelledOrders,
+      'multiStoreOrders': multiStoreOrders,
       'totalVendors': totalVendors,
       'activeVendors': activeVendors,
       'totalDrivers': totalDrivers,
@@ -65,6 +68,8 @@ class RecentOrderModel extends RecentOrder {
     required super.amount,
     required super.status,
     required super.createdAt,
+    super.isMultiStore,
+    super.storeCount,
   });
 
   factory RecentOrderModel.fromJson(Map<String, dynamic> json) {

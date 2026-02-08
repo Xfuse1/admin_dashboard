@@ -60,10 +60,88 @@ class DeliveryAddress extends Equatable {
   List<Object?> get props => [state, city, street, mobile, latitude, longitude];
 }
 
+/// Type of order — single store or multi-store with pickup stops.
+enum OrderType {
+  singleStore('single_store', 'متجر واحد'),
+  multiStore('multi_store', 'متعدد المتاجر');
+
+  final String value;
+  final String arabicName;
+
+  const OrderType(this.value, this.arabicName);
+
+  static OrderType fromValue(String? value) {
+    if (value == 'multi_store') return OrderType.multiStore;
+    return OrderType.singleStore;
+  }
+}
+
+/// Status of a single pickup stop within a multi-store order.
+enum PickupStopStatus {
+  pending('pending', 'قيد الانتظار'),
+  confirmed('confirmed', 'تم التأكيد'),
+  pickedUp('picked_up', 'تم الاستلام'),
+  rejected('rejected', 'مرفوض');
+
+  final String value;
+  final String arabicName;
+
+  const PickupStopStatus(this.value, this.arabicName);
+
+  static PickupStopStatus fromValue(String value) {
+    return PickupStopStatus.values.firstWhere(
+      (s) => s.value == value,
+      orElse: () => PickupStopStatus.pending,
+    );
+  }
+}
+
+/// A single pickup stop in a multi-store order.
+///
+/// Each stop represents one store the driver needs to visit.
+class PickupStop extends Equatable {
+  final String storeId;
+  final String storeName;
+  final double subtotal;
+  final PickupStopStatus status;
+  final List<OrderItem> items;
+  final DateTime? confirmedAt;
+  final DateTime? pickedUpAt;
+  final DateTime? rejectedAt;
+  final String? rejectionReason;
+
+  const PickupStop({
+    required this.storeId,
+    required this.storeName,
+    required this.subtotal,
+    this.status = PickupStopStatus.pending,
+    this.items = const [],
+    this.confirmedAt,
+    this.pickedUpAt,
+    this.rejectedAt,
+    this.rejectionReason,
+  });
+
+  /// Whether this stop has been picked up.
+  bool get isPickedUp => status == PickupStopStatus.pickedUp;
+
+  /// Whether this stop was rejected.
+  bool get isRejected => status == PickupStopStatus.rejected;
+
+  /// Whether this stop is still active (pending or confirmed).
+  bool get isActive =>
+      status == PickupStopStatus.pending ||
+      status == PickupStopStatus.confirmed;
+
+  @override
+  List<Object?> get props => [storeId, status, subtotal];
+}
+
 /// Order entity representing a delivery order.
 ///
 /// This entity is designed to be compatible with both Admin Dashboard
-/// and Deliverzler order structures.
+/// and Deliverzler order structures. Supports both single-store and
+/// multi-store orders with pickup stops.
 class OrderEntity extends Equatable {
   /// Unique order identifier.
   final String id;
@@ -80,10 +158,10 @@ class OrderEntity extends Equatable {
   /// Customer/User profile image URL.
   final String? customerImage;
 
-  /// Store ID (optional - may not exist in Deliverzler orders).
+  /// Store ID (optional - for single-store orders or legacy orders).
   final String? storeId;
 
-  /// Store name (optional - may not exist in Deliverzler orders).
+  /// Store name (optional - for single-store orders or legacy orders).
   final String? storeName;
 
   /// Assigned driver/delivery ID.
@@ -98,7 +176,7 @@ class OrderEntity extends Equatable {
   /// Driver's current location longitude.
   final double? driverLongitude;
 
-  /// Order items list (optional - may not exist in Deliverzler orders).
+  /// Order items list (for single-store orders or legacy orders).
   final List<OrderItem> items;
 
   /// Current order status.
@@ -140,6 +218,15 @@ class OrderEntity extends Equatable {
   /// Order last update timestamp.
   final DateTime updatedAt;
 
+  /// Order type — single store or multi-store.
+  final OrderType orderType;
+
+  /// Pickup stops for multi-store orders.
+  final List<PickupStop> pickupStops;
+
+  /// Driver commission for the delivery.
+  final double? driverCommission;
+
   const OrderEntity({
     required this.id,
     required this.customerId,
@@ -166,7 +253,39 @@ class OrderEntity extends Equatable {
     this.employeeCancelNote,
     required this.createdAt,
     required this.updatedAt,
+    this.orderType = OrderType.singleStore,
+    this.pickupStops = const [],
+    this.driverCommission,
   });
+
+  /// Whether this is a multi-store order.
+  bool get isMultiStore => orderType == OrderType.multiStore;
+
+  /// Returns all items: from pickup stops for multi-store, or direct items otherwise.
+  List<OrderItem> get allItems {
+    if (!isMultiStore || pickupStops.isEmpty) return items;
+    return pickupStops.expand((stop) => stop.items).toList();
+  }
+
+  /// Number of stores involved (from pickup stops).
+  int get storeCount =>
+      isMultiStore ? pickupStops.length : (storeId != null ? 1 : 0);
+
+  /// Number of picked up stops.
+  int get pickedUpStopsCount =>
+      pickupStops.where((stop) => stop.isPickedUp).length;
+
+  /// Number of active (non-rejected) stops.
+  int get activeStopsCount =>
+      pickupStops.where((stop) => !stop.isRejected).length;
+
+  /// Whether all non-rejected stores have been picked up.
+  bool get allStoresPickedUp {
+    if (!isMultiStore || pickupStops.isEmpty) return false;
+    return pickupStops
+        .where((stop) => !stop.isRejected)
+        .every((stop) => stop.isPickedUp);
+  }
 
   /// Returns the formatted delivery address.
   String get formattedAddress => deliveryAddressString ?? address.formatted;
@@ -174,6 +293,33 @@ class OrderEntity extends Equatable {
   /// Returns whether this order has driver location data.
   bool get hasDriverLocation =>
       driverLatitude != null && driverLongitude != null;
+
+  /// Returns all unique store IDs from this order.
+  List<String> get allStoreIds {
+    if (isMultiStore) {
+      return pickupStops.map((s) => s.storeId).toList();
+    }
+    return storeId != null ? [storeId!] : [];
+  }
+
+  /// Revenue for a specific store from this order.
+  double revenueForStore(String targetStoreId) {
+    if (isMultiStore) {
+      final stop = pickupStops.where((s) => s.storeId == targetStoreId);
+      if (stop.isEmpty) return 0;
+      return stop.first.subtotal;
+    }
+    if (storeId == targetStoreId) return subtotal ?? 0;
+    return 0;
+  }
+
+  /// Whether this order involves a specific store.
+  bool involvesStore(String targetStoreId) {
+    if (isMultiStore) {
+      return pickupStops.any((s) => s.storeId == targetStoreId);
+    }
+    return storeId == targetStoreId;
+  }
 
   @override
   List<Object?> get props => [
@@ -184,6 +330,7 @@ class OrderEntity extends Equatable {
         status,
         total,
         createdAt,
+        orderType,
       ];
 }
 
@@ -196,8 +343,10 @@ class OrderItem extends Equatable {
   final double price;
   final double total;
   final String? notes;
-
   final String? category;
+
+  /// Store name that this item belongs to.
+  final String? storeName;
 
   const OrderItem({
     required this.id,
@@ -208,10 +357,12 @@ class OrderItem extends Equatable {
     required this.total,
     this.notes,
     this.category,
+    this.storeName,
   });
 
   @override
-  List<Object?> get props => [id, name, quantity, price, total, category];
+  List<Object?> get props =>
+      [id, name, quantity, price, total, category, storeName];
 }
 
 /// Order timeline entry.

@@ -46,6 +46,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
     on<CancelOrderEvent>(_onCancelOrder);
     on<WatchOrdersEvent>(_onWatchOrders);
     on<LoadOrderStats>(_onLoadOrderStats);
+    on<FilterOrdersByType>(_onFilterByType);
   }
 
   Future<void> _onLoadOrders(
@@ -90,6 +91,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
     emit(OrdersLoadingMore(
       orders: currentState.orders,
       currentFilter: currentState.currentFilter,
+      orderTypeFilter: currentState.orderTypeFilter,
       hasMore: currentState.hasMore,
       lastOrderId: currentState.lastOrderId,
       stats: currentState.stats,
@@ -192,6 +194,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
       actionOrderId: event.orderId,
       orders: currentState.orders,
       currentFilter: currentState.currentFilter,
+      orderTypeFilter: currentState.orderTypeFilter,
       hasMore: currentState.hasMore,
       lastOrderId: currentState.lastOrderId,
       stats: currentState.stats,
@@ -220,6 +223,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
           successMessage: 'تم تحديث حالة الطلب بنجاح',
           orders: updatedOrders,
           currentFilter: currentState.currentFilter,
+          orderTypeFilter: currentState.orderTypeFilter,
           hasMore: currentState.hasMore,
           lastOrderId: currentState.lastOrderId,
           stats: currentState.stats,
@@ -244,6 +248,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
       actionOrderId: event.orderId,
       orders: currentState.orders,
       currentFilter: currentState.currentFilter,
+      orderTypeFilter: currentState.orderTypeFilter,
       hasMore: currentState.hasMore,
       lastOrderId: currentState.lastOrderId,
       stats: currentState.stats,
@@ -263,6 +268,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
           successMessage: 'تم تعيين السائق بنجاح',
           orders: currentState.orders,
           currentFilter: currentState.currentFilter,
+          orderTypeFilter: currentState.orderTypeFilter,
           hasMore: currentState.hasMore,
           lastOrderId: currentState.lastOrderId,
           stats: currentState.stats,
@@ -286,6 +292,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
       actionOrderId: event.orderId,
       orders: currentState.orders,
       currentFilter: currentState.currentFilter,
+      orderTypeFilter: currentState.orderTypeFilter,
       hasMore: currentState.hasMore,
       lastOrderId: currentState.lastOrderId,
       stats: currentState.stats,
@@ -305,6 +312,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
           successMessage: 'تم إلغاء الطلب بنجاح',
           orders: currentState.orders,
           currentFilter: currentState.currentFilter,
+          orderTypeFilter: currentState.orderTypeFilter,
           hasMore: currentState.hasMore,
           lastOrderId: currentState.lastOrderId,
           stats: currentState.stats,
@@ -354,6 +362,19 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
       (failure) => null, // Silently fail for stats
       (stats) => emit(currentState.copyWith(stats: stats)),
     );
+  }
+
+  void _onFilterByType(
+    FilterOrdersByType event,
+    Emitter<OrdersState> emit,
+  ) {
+    final currentState = state;
+    if (currentState is OrdersLoaded) {
+      emit(currentState.copyWith(
+        orderTypeFilter: event.orderType,
+        clearOrderTypeFilter: event.orderType == null,
+      ));
+    }
   }
 
   @override

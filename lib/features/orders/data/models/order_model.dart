@@ -33,6 +33,9 @@ class OrderModel extends OrderEntity {
     super.employeeCancelNote,
     required super.createdAt,
     required super.updatedAt,
+    super.orderType = OrderType.singleStore,
+    super.pickupStops = const [],
+    super.driverCommission,
   });
 
   /// Creates an [OrderModel] from Deliverzler Firestore document.
@@ -92,6 +95,25 @@ class OrderModel extends OrderEntity {
       }
     }
 
+    // Parse order type and pickup stops
+    final orderType = OrderType.fromValue(json['order_type'] as String?);
+    final pickupStops = PickupStopModel.parseList(
+      json['pickup_stops'] as List<dynamic>?,
+    );
+    final driverCommission = (json['driver_commission'] as num?)?.toDouble();
+
+    // For multi_store orders, flatten items from pickup_stops
+    List<OrderItem> items;
+    if (orderType == OrderType.multiStore && pickupStops.isNotEmpty) {
+      items = pickupStops.expand((stop) => stop.items).toList();
+    } else {
+      items = (json['items'] as List<dynamic>?)
+              ?.map((item) =>
+                  OrderItemModel.fromJson(item as Map<String, dynamic>))
+              .toList() ??
+          const [];
+    }
+
     return OrderModel(
       id: documentId,
       customerId: json['customer_id'] as String? ?? '',
@@ -106,11 +128,7 @@ class OrderModel extends OrderEntity {
           geoPoint?.latitude ?? (json['delivery_latitude'] as num?)?.toDouble(),
       driverLongitude: geoPoint?.longitude ??
           (json['delivery_longitude'] as num?)?.toDouble(),
-      items: (json['items'] as List<dynamic>?)
-              ?.map((item) =>
-                  OrderItemModel.fromJson(item as Map<String, dynamic>))
-              .toList() ??
-          const [],
+      items: items,
       status: OrderStatus.fromValue(
         json['status'] as String? ?? 'pending',
       ),
@@ -128,6 +146,9 @@ class OrderModel extends OrderEntity {
       employeeCancelNote: json['employeeCancelNote'] as String?,
       createdAt: createdAt,
       updatedAt: updatedAt,
+      orderType: orderType,
+      pickupStops: pickupStops,
+      driverCommission: driverCommission,
     );
   }
 
@@ -267,6 +288,9 @@ class OrderModel extends OrderEntity {
     String? employeeCancelNote,
     DateTime? createdAt,
     DateTime? updatedAt,
+    OrderType? orderType,
+    List<PickupStop>? pickupStops,
+    double? driverCommission,
   }) {
     return OrderModel(
       id: id ?? this.id,
@@ -295,6 +319,9 @@ class OrderModel extends OrderEntity {
       employeeCancelNote: employeeCancelNote ?? this.employeeCancelNote,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      orderType: orderType ?? this.orderType,
+      pickupStops: pickupStops ?? this.pickupStops,
+      driverCommission: driverCommission ?? this.driverCommission,
     );
   }
 
@@ -365,18 +392,22 @@ class OrderItemModel extends OrderItem {
     required super.total,
     super.notes,
     super.category,
+    super.storeName,
   });
 
   factory OrderItemModel.fromJson(Map<String, dynamic> json) {
     return OrderItemModel(
       id: json['id'] as String? ?? '',
-      name: json['name'] as String? ?? json['title'] as String? ?? 'Unknown Product',
+      name: json['name'] as String? ??
+          json['title'] as String? ??
+          'Unknown Product',
       imageUrl: json['imageUrl'] as String? ?? json['image'] as String?,
       quantity: (json['quantity'] as num?)?.toInt() ?? 1,
       price: (json['price'] as num?)?.toDouble() ?? 0.0,
       total: (json['total'] as num?)?.toDouble() ?? 0.0,
       notes: json['notes'] as String? ?? json['description'] as String?,
       category: json['category'] as String?,
+      storeName: json['store_name'] as String?,
     );
   }
 
@@ -390,8 +421,22 @@ class OrderItemModel extends OrderItem {
       'total': total,
       'notes': notes,
       'category': category,
+      if (storeName != null) 'store_name': storeName,
     };
   }
+
+  /// Creates a copy with a different store name.
+  OrderItemModel withStoreName(String? storeName) => OrderItemModel(
+        id: id,
+        name: name,
+        imageUrl: imageUrl,
+        quantity: quantity,
+        price: price,
+        total: total,
+        notes: notes,
+        category: category,
+        storeName: storeName,
+      );
 }
 
 /// Order timeline model.
@@ -415,6 +460,102 @@ class OrderTimelineModel extends OrderTimeline {
       'status': status.value,
       'timestamp': timestamp.toIso8601String(),
       'note': note,
+    };
+  }
+}
+
+/// Pickup stop model for multi-store orders.
+class PickupStopModel extends PickupStop {
+  const PickupStopModel({
+    required super.storeId,
+    required super.storeName,
+    required super.subtotal,
+    super.status = PickupStopStatus.pending,
+    super.items = const [],
+    super.confirmedAt,
+    super.pickedUpAt,
+    super.rejectedAt,
+    super.rejectionReason,
+  });
+
+  /// Creates from a Firestore pickup_stop map.
+  factory PickupStopModel.fromJson(Map<String, dynamic> json) {
+    final price = (json['subtotal'] as num?)?.toDouble() ?? 0.0;
+    final stopStoreName = json['store_name'] as String? ?? '';
+
+    // Parse items from within the pickup stop
+    final rawItems = json['items'] as List<dynamic>?;
+    final items = rawItems
+            ?.map((item) {
+              if (item is Map<String, dynamic>) {
+                final itemPrice = (item['price'] as num?)?.toDouble() ?? 0.0;
+                final quantity = (item['quantity'] as num?)?.toInt() ?? 1;
+                return OrderItemModel(
+                  id: item['product_id'] as String? ?? '',
+                  name: item['name'] as String? ?? '',
+                  imageUrl: item['image_url'] as String?,
+                  quantity: quantity,
+                  price: itemPrice,
+                  total: itemPrice * quantity,
+                  storeName: stopStoreName,
+                );
+              }
+              return null;
+            })
+            .whereType<OrderItemModel>()
+            .toList() ??
+        const [];
+
+    return PickupStopModel(
+      storeId: json['store_id'] as String? ?? '',
+      storeName: stopStoreName,
+      subtotal: price,
+      status:
+          PickupStopStatus.fromValue(json['status'] as String? ?? 'pending'),
+      items: items,
+      confirmedAt: _parseDateTime(json['confirmed_at']),
+      pickedUpAt: _parseDateTime(json['picked_up_at']),
+      rejectedAt: _parseDateTime(json['rejected_at']),
+      rejectionReason: json['rejection_reason'] as String?,
+    );
+  }
+
+  /// Parses a list of pickup stops from Firestore data.
+  static List<PickupStop> parseList(List<dynamic>? raw) {
+    if (raw == null || raw.isEmpty) return const [];
+    return raw
+        .whereType<Map<String, dynamic>>()
+        .map((json) => PickupStopModel.fromJson(json))
+        .toList();
+  }
+
+  /// Safely parses a datetime string or null.
+  static DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is String && value.isNotEmpty) return DateTime.tryParse(value);
+    return null;
+  }
+
+  /// Converts to Firestore-compatible map.
+  Map<String, dynamic> toJson() {
+    return {
+      'store_id': storeId,
+      'store_name': storeName,
+      'subtotal': subtotal,
+      'status': status.value,
+      'confirmed_at': confirmedAt?.toIso8601String(),
+      'picked_up_at': pickedUpAt?.toIso8601String(),
+      'rejected_at': rejectedAt?.toIso8601String(),
+      'rejection_reason': rejectionReason,
+      'items': items
+          .map((item) => {
+                'product_id': item.id,
+                'name': item.name,
+                'image_url': item.imageUrl,
+                'price': item.price,
+                'quantity': item.quantity,
+              })
+          .toList(),
     };
   }
 }

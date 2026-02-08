@@ -606,7 +606,7 @@ class OrderDetailsPanel extends StatelessWidget {
   Widget _buildStoreSection(BuildContext context) {
     return FutureBuilder<DocumentSnapshot>(
       future: FirebaseFirestore.instance
-          .collection('stores')
+          .collection('users')
           .doc(order.storeId)
           .get(),
       builder: (context, snapshot) {
@@ -647,8 +647,8 @@ class OrderDetailsPanel extends StatelessWidget {
           );
         }
 
-        final storeData = snapshot.data!.data() as Map<String, dynamic>?;
-        if (storeData == null) {
+        final userData = snapshot.data!.data() as Map<String, dynamic>?;
+        if (userData == null) {
           return _buildInfoSection(
             context,
             'المتجر',
@@ -657,26 +657,19 @@ class OrderDetailsPanel extends StatelessWidget {
           );
         }
 
-        // Extract store information
+        // Store data is now nested inside the user document
+        final storeData =
+            (userData['store'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+
+        // Extract store information from nested store map
         final storeName =
             storeData['name'] as String? ?? order.storeName ?? 'متجر غير معروف';
         final storePhone = storeData['phone'] as String? ?? 'غير متوفر';
 
-        // Extract address from address map
-        String storeAddress = 'غير متوفر';
-        if (storeData['address'] != null && storeData['address'] is Map) {
-          final addressMap = storeData['address'] as Map<String, dynamic>;
-          final street = addressMap['street'] as String? ?? '';
-          final city = addressMap['city'] as String? ?? '';
-          final country = addressMap['country'] as String? ?? '';
-
-          storeAddress = [street, city, country]
-              .where((part) => part.isNotEmpty)
-              .join(', ');
-
-          if (storeAddress.isEmpty) {
-            storeAddress = 'غير متوفر';
-          }
+        // Address is now a simple string in the store map
+        String storeAddress = storeData['address'] as String? ?? 'غير متوفر';
+        if (storeAddress.isEmpty) {
+          storeAddress = 'غير متوفر';
         }
 
         final storeCategory = storeData['category'] as String? ?? 'متجر';
@@ -826,9 +819,22 @@ class OrderDetailsPanel extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              item.name,
-              style: Theme.of(context).textTheme.bodySmall,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.name,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                if (item.storeName != null && item.storeName!.isNotEmpty)
+                  Text(
+                    item.storeName!,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                          fontSize: 10,
+                        ),
+                  ),
+              ],
             ),
           ),
           Text(

@@ -6,6 +6,7 @@ class DashboardStats extends Equatable {
   final int pendingOrders;
   final int completedOrders;
   final int cancelledOrders;
+  final int multiStoreOrders;
   final int totalVendors;
   final int activeVendors;
   final int totalDrivers;
@@ -21,6 +22,7 @@ class DashboardStats extends Equatable {
     required this.pendingOrders,
     required this.completedOrders,
     required this.cancelledOrders,
+    this.multiStoreOrders = 0,
     required this.totalVendors,
     required this.activeVendors,
     required this.totalDrivers,
@@ -38,6 +40,7 @@ class DashboardStats extends Equatable {
         pendingOrders,
         completedOrders,
         cancelledOrders,
+        multiStoreOrders,
         totalVendors,
         activeVendors,
         totalDrivers,
@@ -59,6 +62,8 @@ class RecentOrder extends Equatable {
   final double amount;
   final OrderStatus status;
   final DateTime createdAt;
+  final bool isMultiStore;
+  final int storeCount;
 
   const RecentOrder({
     required this.id,
@@ -68,6 +73,8 @@ class RecentOrder extends Equatable {
     required this.amount,
     required this.status,
     required this.createdAt,
+    this.isMultiStore = false,
+    this.storeCount = 1,
   });
 
   @override
@@ -79,6 +86,8 @@ class RecentOrder extends Equatable {
         amount,
         status,
         createdAt,
+        isMultiStore,
+        storeCount,
       ];
 }
 

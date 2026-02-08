@@ -14,11 +14,19 @@ class ProductsFirebaseDatasource {
       // Get all products
       final productsSnapshot = await _firestore.collection('products').get();
 
-      // Get all stores for lookup
-      final storesSnapshot = await _firestore.collection('stores').get();
-      final storesMap = {
-        for (var doc in storesSnapshot.docs) doc.id: doc.data()
-      };
+      // Get all seller users for store lookup (stores are now embedded in users)
+      final sellersSnapshot = await _firestore
+          .collection('users')
+          .where('role', isEqualTo: 'seller')
+          .get();
+      final storesMap = <String, Map<String, dynamic>>{};
+      for (var doc in sellersSnapshot.docs) {
+        final userData = doc.data();
+        final storeData = userData['store'] as Map<String, dynamic>?;
+        if (storeData != null) {
+          storesMap[doc.id] = storeData;
+        }
+      }
 
       final products = <ProductEntity>[];
 

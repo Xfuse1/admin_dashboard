@@ -4,8 +4,10 @@ import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../domain/entities/order_entities.dart';
 import '../bloc/orders_bloc.dart';
 import '../bloc/orders_event.dart';
+import '../bloc/orders_state.dart';
 
 /// Order filters bottom sheet.
 class OrderFiltersSheet extends StatefulWidget {
@@ -17,6 +19,7 @@ class OrderFiltersSheet extends StatefulWidget {
 
 class _OrderFiltersSheetState extends State<OrderFiltersSheet> {
   DateTimeRange? _dateRange;
+  OrderType? _selectedOrderType;
   OrdersBloc? _ordersBloc;
 
   @override
@@ -25,6 +28,11 @@ class _OrderFiltersSheetState extends State<OrderFiltersSheet> {
     if (_ordersBloc == null) {
       try {
         _ordersBloc = context.read<OrdersBloc>();
+        // Initialize from current state
+        final currentState = _ordersBloc?.state;
+        if (currentState is OrdersLoaded) {
+          _selectedOrderType = currentState.orderTypeFilter;
+        }
       } catch (e) {
         // Bloc not available in this context, will try again later
       }
@@ -148,6 +156,42 @@ class _OrderFiltersSheetState extends State<OrderFiltersSheet> {
             ),
           ),
 
+          const SizedBox(height: AppConstants.spacingMd),
+
+          // Order type filter
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppConstants.spacingMd,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'نوع الطلب',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                ),
+                const SizedBox(height: AppConstants.spacingSm),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _buildOrderTypeChip('الكل', null),
+                    _buildOrderTypeChip(
+                      OrderType.singleStore.arabicName,
+                      OrderType.singleStore,
+                    ),
+                    _buildOrderTypeChip(
+                      OrderType.multiStore.arabicName,
+                      OrderType.multiStore,
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
           const SizedBox(height: AppConstants.spacingLg),
 
           // Apply button
@@ -179,6 +223,18 @@ class _OrderFiltersSheetState extends State<OrderFiltersSheet> {
     );
   }
 
+  Widget _buildOrderTypeChip(String label, OrderType? type) {
+    final isSelected = _selectedOrderType == type;
+
+    return FilterChip(
+      selected: isSelected,
+      label: Text(label),
+      onSelected: (_) {
+        setState(() => _selectedOrderType = type);
+      },
+    );
+  }
+
   Future<void> _selectDateRange() async {
     final range = await showDateRangePicker(
       context: context,
@@ -196,19 +252,24 @@ class _OrderFiltersSheetState extends State<OrderFiltersSheet> {
   void _resetFilters() {
     setState(() {
       _dateRange = null;
+      _selectedOrderType = null;
     });
     Navigator.of(context).pop();
+    _ordersBloc?.add(const FilterOrdersByType(null));
     _ordersBloc?.add(const LoadOrders());
   }
 
   void _applyFilters() {
     Navigator.of(context).pop();
 
+    // Apply order type filter
+    _ordersBloc?.add(FilterOrdersByType(_selectedOrderType));
+
     if (_dateRange != null) {
       _ordersBloc?.add(FilterOrdersByDate(
-            fromDate: _dateRange!.start,
-            toDate: _dateRange!.end,
-          ));
+        fromDate: _dateRange!.start,
+        toDate: _dateRange!.end,
+      ));
     }
   }
 

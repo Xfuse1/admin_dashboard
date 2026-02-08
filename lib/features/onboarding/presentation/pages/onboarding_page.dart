@@ -46,7 +46,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
         } else if (state is OnboardingError) {
           // Log error to console
           logger.error('Onboarding Error: ${state.message}');
-          
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(state.message),
@@ -57,7 +57,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
       },
       builder: (context, state) {
         final effectiveState = _getEffectiveState(state);
-        
+
         return Scaffold(
           body: Column(
             children: [
@@ -73,7 +73,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
               // Content
               Expanded(
-                child: _buildContent(context, state, effectiveState, deviceType),
+                child:
+                    _buildContent(context, state, effectiveState, deviceType),
               ),
             ],
           ),
@@ -341,8 +342,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
             crossAxisSpacing: 16,
             mainAxisExtent: deviceType == DeviceType.mobile ? 260 : 280,
           ),
-          itemCount:
-              effectiveState.requests.length + (effectiveState.isLoadingMore ? 1 : 0),
+          itemCount: effectiveState.requests.length +
+              (effectiveState.isLoadingMore ? 1 : 0),
           itemBuilder: (context, index) {
             if (index >= effectiveState.requests.length) {
               return const Center(child: CircularProgressIndicator());
@@ -390,6 +391,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
     final notesController = TextEditingController();
     final onboardingBloc = context.read<OnboardingBloc>();
 
+    // Check if this is a store without location
+    final isStoreMissingLocation =
+        request is StoreOnboardingEntity && !request.hasLocation;
+
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -398,8 +403,63 @@ class _OnboardingPageState extends State<OnboardingPage> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Location warning banner
+            if (isStoreMissingLocation) ...[
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: AppColors.error.withValues(alpha: 0.4),
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.warning_amber_rounded,
+                      color: AppColors.error,
+                      size: 22,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'تنبيه: الموقع الجغرافي غير متوفر',
+                            style: Theme.of(dialogContext)
+                                .textTheme
+                                .titleSmall
+                                ?.copyWith(
+                                  color: AppColors.error,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'هذا المتجر لم يقم بإرسال إحداثيات الموقع الجغرافي (خط الطول وخط العرض). قد يؤثر ذلك على عرض المتجر على الخريطة وتوصيل الطلبات.',
+                            style: Theme.of(dialogContext)
+                                .textTheme
+                                .bodySmall
+                                ?.copyWith(
+                                  color: AppColors.error.withValues(alpha: 0.8),
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
             Text(
-              'هل تريد الموافقة على طلب انضمام "${request.name}"؟',
+              isStoreMissingLocation
+                  ? 'هل أنت متأكد من الموافقة على طلب "${request.name}" بدون موقع جغرافي؟'
+                  : 'هل تريد الموافقة على طلب انضمام "${request.name}"؟',
             ),
             const SizedBox(height: 16),
             TextField(
@@ -421,16 +481,18 @@ class _OnboardingPageState extends State<OnboardingPage> {
             onPressed: () {
               Navigator.pop(dialogContext);
               onboardingBloc.add(ApproveRequestEvent(
-                    requestId: request.id,
-                    notes: notesController.text.isNotEmpty
-                        ? notesController.text
-                        : null,
-                  ));
+                requestId: request.id,
+                notes: notesController.text.isNotEmpty
+                    ? notesController.text
+                    : null,
+              ));
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.success,
+              backgroundColor: isStoreMissingLocation
+                  ? AppColors.warning
+                  : AppColors.success,
             ),
-            child: const Text('موافقة'),
+            child: Text(isStoreMissingLocation ? 'موافقة رغم ذلك' : 'موافقة'),
           ),
         ],
       ),
@@ -484,9 +546,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
               }
               Navigator.pop(dialogContext);
               onboardingBloc.add(RejectRequestEvent(
-                    requestId: request.id,
-                    reason: reasonController.text,
-                  ));
+                requestId: request.id,
+                reason: reasonController.text,
+              ));
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.error,

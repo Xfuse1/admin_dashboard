@@ -82,6 +82,8 @@ class StoreOnboardingEntity extends OnboardingRequestEntity {
   final String? commercialRegisterUrl;
   final String? ownerIdUrl;
   final List<String> categories;
+  final double? latitude;
+  final double? longitude;
 
   const StoreOnboardingEntity({
     required super.id,
@@ -104,7 +106,12 @@ class StoreOnboardingEntity extends OnboardingRequestEntity {
     this.commercialRegisterUrl,
     this.ownerIdUrl,
     this.categories = const [],
+    this.latitude,
+    this.longitude,
   }) : super(type: OnboardingType.store);
+
+  /// Whether this store has valid location coordinates.
+  bool get hasLocation => latitude != null && longitude != null;
 
   @override
   List<Object?> get props => [
@@ -119,6 +126,8 @@ class StoreOnboardingEntity extends OnboardingRequestEntity {
         commercialRegisterUrl,
         ownerIdUrl,
         categories,
+        latitude,
+        longitude,
       ];
 }
 

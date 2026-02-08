@@ -22,6 +22,32 @@ class OrdersFirebaseDataSource implements OrdersDataSource {
   OrdersFirebaseDataSource({FirebaseFirestore? firestore})
       : _firestore = firestore ?? FirebaseFirestore.instance;
 
+  /// Cache for store names to avoid redundant Firestore calls.
+  final Map<String, String> _storeNameCache = {};
+
+  /// Resolves store name from users collection with caching.
+  Future<String?> _getStoreName(String storeId) async {
+    if (storeId.isEmpty) return null;
+    if (_storeNameCache.containsKey(storeId)) {
+      return _storeNameCache[storeId];
+    }
+    try {
+      final doc = await _firestore
+          .collection(FirestoreCollections.users)
+          .doc(storeId)
+          .get();
+      if (doc.exists) {
+        final storeData = (doc.data()?['store'] as Map<String, dynamic>?) ?? {};
+        final name = storeData['name'] as String?;
+        if (name != null && name.isNotEmpty) {
+          _storeNameCache[storeId] = name;
+          return name;
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
   CollectionReference<Map<String, dynamic>> get _ordersCollection =>
       _firestore.collection(FirestoreCollections.orders);
 
@@ -67,7 +93,7 @@ class OrdersFirebaseDataSource implements OrdersDataSource {
     }
 
     if (storeId != null) {
-      orders = orders.where((o) => o.storeId == storeId).toList();
+      orders = orders.where((o) => o.involvesStore(storeId)).toList();
     }
 
     if (driverId != null) {
@@ -89,10 +115,21 @@ class OrdersFirebaseDataSource implements OrdersDataSource {
     // 4. Return limited results
     final limitedOrders = orders.take(limit).toList();
 
-    // 5. Fetch items for each order (Parallel fetch)
+    // 5. Fetch items for each order and resolve store names
     final ordersWithItems = await Future.wait(
       limitedOrders.map((order) async {
+        if (order.isMultiStore) return order;
         final items = await _getOrderItems(order.id);
+        // Resolve store name and apply to items
+        String? storeName;
+        if (order.storeId != null) {
+          storeName = await _getStoreName(order.storeId!);
+        }
+        if (storeName != null) {
+          final itemsWithStore =
+              items.map((item) => item.withStoreName(storeName)).toList();
+          return order.copyWith(items: itemsWithStore, storeName: storeName);
+        }
         return order.copyWith(items: items);
       }),
     );
@@ -109,7 +146,22 @@ class OrdersFirebaseDataSource implements OrdersDataSource {
     }
 
     final order = OrderModel.fromDeliverzler(doc.data()!, documentId: doc.id);
+
+    // Skip item fetch for multi_store orders (items are embedded in pickup_stops)
+    if (order.isMultiStore) return order;
+
     final items = await _getOrderItems(order.id);
+
+    // Resolve store name and apply to items
+    String? storeName;
+    if (order.storeId != null) {
+      storeName = await _getStoreName(order.storeId!);
+    }
+    if (storeName != null) {
+      final itemsWithStore =
+          items.map((item) => item.withStoreName(storeName)).toList();
+      return order.copyWith(items: itemsWithStore, storeName: storeName);
+    }
 
     return order.copyWith(items: items);
   }
@@ -170,10 +222,20 @@ class OrdersFirebaseDataSource implements OrdersDataSource {
       // Return first 50 after filtering
       final limitedOrders = orders.take(50).toList();
 
-      // Fetch items for each order
+      // Fetch items for each order and resolve store names
       final ordersWithItems = await Future.wait(
         limitedOrders.map((order) async {
+          if (order.isMultiStore) return order;
           final items = await _getOrderItems(order.id);
+          String? storeName;
+          if (order.storeId != null) {
+            storeName = await _getStoreName(order.storeId!);
+          }
+          if (storeName != null) {
+            final itemsWithStore =
+                items.map((item) => item.withStoreName(storeName)).toList();
+            return order.copyWith(items: itemsWithStore, storeName: storeName);
+          }
           return order.copyWith(items: items);
         }),
       );
@@ -200,9 +262,9 @@ class OrdersFirebaseDataSource implements OrdersDataSource {
           // Check if we need to enrich with product details
           // Condition: Name is missing/unknown AND we have a product_id
           final productId = data['product_id'] as String?;
-          final needsEnrichment = (item.name == 'Unknown Product' ||
-                  item.name.isEmpty) &&
-              (productId != null && productId.isNotEmpty);
+          final needsEnrichment =
+              (item.name == 'Unknown Product' || item.name.isEmpty) &&
+                  (productId != null && productId.isNotEmpty);
 
           if (needsEnrichment) {
             try {
@@ -211,11 +273,10 @@ class OrdersFirebaseDataSource implements OrdersDataSource {
                 final productData = productDoc.data()!;
                 final productPrice =
                     (productData['price'] as num?)?.toDouble() ?? 0.0;
-                
+
                 // Calculate total if missing
-                final calculatedTotal = item.total > 0
-                    ? item.total
-                    : productPrice * item.quantity;
+                final calculatedTotal =
+                    item.total > 0 ? item.total : productPrice * item.quantity;
 
                 return OrderItemModel(
                   id: item.id,
@@ -230,6 +291,7 @@ class OrdersFirebaseDataSource implements OrdersDataSource {
                   total: calculatedTotal,
                   notes: item.notes,
                   category: productData['category'] as String? ?? item.category,
+                  storeName: item.storeName,
                 );
               }
             } catch (e) {
@@ -244,12 +306,11 @@ class OrdersFirebaseDataSource implements OrdersDataSource {
           // Return a simplified error item or null (filtered out later) if strictly needed
           // For now, return a placeholder to avoid empty list if possible, or rethrow
           return OrderItemModel(
-            id: doc.id, 
-            name: 'Error loading item', 
-            quantity: 1, 
-            price: 0, 
-            total: 0
-          );
+              id: doc.id,
+              name: 'Error loading item',
+              quantity: 1,
+              price: 0,
+              total: 0);
         }
       }));
 

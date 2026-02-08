@@ -5,15 +5,131 @@ import '../../domain/entities/vendor_entity.dart';
 import 'vendors_datasource.dart';
 
 /// Firebase Firestore implementation for vendors.
+/// Vendors (stores) are now embedded inside the `users` collection
+/// as a `store` map field for users with `role: "seller"`.
 class VendorsFirebaseDataSource implements VendorsDataSource {
   final FirebaseFirestore _firestore;
-  final String _collection = 'stores';
+  final String _collection = 'users';
+
+  /// Cached orders snapshot for batch vendor stats calculation.
+  /// Avoids redundant reads when computing stats for many vendors at once.
+  List<QueryDocumentSnapshot<Map<String, dynamic>>>? _cachedOrderDocs;
+  DateTime? _cacheTimestamp;
+  static const _cacheDuration = Duration(minutes: 2);
 
   VendorsFirebaseDataSource({FirebaseFirestore? firestore})
       : _firestore = firestore ?? FirebaseFirestore.instance;
 
+  /// Returns (possibly cached) orders docs for vendor stats calculation.
+  Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
+      _getOrderDocs() async {
+    final now = DateTime.now();
+    if (_cachedOrderDocs != null &&
+        _cacheTimestamp != null &&
+        now.difference(_cacheTimestamp!) < _cacheDuration) {
+      return _cachedOrderDocs!;
+    }
+    final snapshot = await _firestore.collection('orders').get();
+    _cachedOrderDocs = snapshot.docs;
+    _cacheTimestamp = now;
+    return _cachedOrderDocs!;
+  }
+
+  /// Invalidates cached orders.
+  void _invalidateOrdersCache() {
+    _cachedOrderDocs = null;
+    _cacheTimestamp = null;
+  }
+
+  /// Calculates order count and revenue for a specific vendor.
+  ///
+  /// Handles both:
+  /// - **Single-store orders**: where `store_id == vendorId`
+  /// - **Multi-store orders**: where `vendorId` appears in `pickup_stops`
+  ///
+  /// Revenue calculation:
+  /// - Single-store: uses `total` or `subtotal` field
+  /// - Multi-store: uses the relevant pickup_stop's `subtotal`
+  ({int totalOrders, double totalRevenue}) _calculateVendorOrderStats(
+    String vendorId,
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> orderDocs,
+  ) {
+    int totalOrders = 0;
+    double totalRevenue = 0.0;
+
+    for (final doc in orderDocs) {
+      final data = doc.data();
+      final orderType = data['order_type'] as String?;
+      final storeId = data['store_id'] as String?;
+
+      if (orderType == 'multi_store') {
+        // Multi-store: check pickup_stops array
+        final pickupStops = data['pickup_stops'] as List<dynamic>?;
+        if (pickupStops != null) {
+          for (final stop in pickupStops) {
+            if (stop is Map<String, dynamic> && stop['store_id'] == vendorId) {
+              totalOrders++;
+              totalRevenue += (stop['subtotal'] as num?)?.toDouble() ?? 0.0;
+              break; // Count this order once per store
+            }
+          }
+        }
+      } else {
+        // Single-store order
+        if (storeId == vendorId) {
+          totalOrders++;
+          totalRevenue += (data['total'] as num?)?.toDouble() ??
+              (data['subtotal'] as num?)?.toDouble() ??
+              (data['totalAmount'] as num?)?.toDouble() ??
+              0.0;
+        }
+      }
+    }
+
+    return (totalOrders: totalOrders, totalRevenue: totalRevenue);
+  }
+
   CollectionReference<Map<String, dynamic>> get _vendorsRef =>
       _firestore.collection(_collection);
+
+  /// Base query that filters only seller users (who have stores).
+  Query<Map<String, dynamic>> get _sellersQuery =>
+      _vendorsRef.where('role', isEqualTo: 'seller');
+
+  /// Extracts vendor-compatible data from a user document that has a `store` map.
+  Map<String, dynamic> _extractVendorFromUser(
+      String docId, Map<String, dynamic> userData) {
+    final storeData =
+        (userData['store'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+
+    return {
+      'id': docId,
+      'name': storeData['name'] ?? userData['full_name'] ?? 'Unknown',
+      'description': storeData['description'],
+      'category': storeData['category'],
+      'phone': storeData['phone'] ?? userData['phone'] ?? '',
+      'email': storeData['support_email'] ?? userData['email'],
+      'logoUrl': storeData['image_url'],
+      'rating': storeData['rating'] ?? 0,
+      'isApproved': storeData['is_approved'] ?? false,
+      'isActive': storeData['is_approved'] ?? false,
+      'address': {
+        'street': storeData['address'] ?? userData['street'] ?? '',
+        'city': userData['city'] ?? '',
+        'country': userData['country'] ?? '',
+        'latitude': storeData['latitude'],
+        'longitude': storeData['longitude'],
+      },
+      'createdAt': storeData['created_at'] ?? userData['created_at'],
+      'updatedAt': storeData['updated_at'] ?? userData['updated_at'],
+      'ownerId': docId,
+      'whatsappNumber': storeData['whatsapp_number'],
+      'returnPolicy': storeData['return_policy'],
+      'openTime': storeData['open_time'],
+      'closeTime': storeData['close_time'],
+      'workingDays': storeData['working_days'],
+    };
+  }
 
   @override
   Future<List<VendorEntity>> getVendors({
@@ -24,17 +140,28 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
     String? lastDocumentId,
   }) async {
     try {
-      Query<Map<String, dynamic>> query = _vendorsRef;
+      Query<Map<String, dynamic>> query = _sellersQuery;
 
+      // Filter by status using nested store fields
       if (status != null) {
-        query = query.where('status', isEqualTo: status.name);
+        switch (status) {
+          case VendorStatus.active:
+            query = query.where('store.is_approved', isEqualTo: true);
+            break;
+          case VendorStatus.pending:
+            query = query.where('store.is_approved', isEqualTo: false);
+            break;
+          case VendorStatus.inactive:
+          case VendorStatus.suspended:
+            // Client-side filtering for these statuses
+            break;
+        }
       }
 
-      if (category != null) {
-        query = query.where('category', isEqualTo: category.name);
-      }
+      // Category is now a plain string in store map - filter client-side
+      // since values are Arabic strings, not enum names
 
-      query = query.orderBy('createdAt', descending: true);
+      query = query.orderBy('created_at', descending: true);
 
       if (lastDocumentId != null) {
         final lastDoc = await _vendorsRef.doc(lastDocumentId).get();
@@ -49,19 +176,22 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
 
       final snapshot = await query.get();
 
-      // Use stored rating values for list performance
-      // Detailed ratings are fetched in getVendor() for individual vendor details
-      var vendors = snapshot.docs.map((doc) {
-        final data = doc.data();
-        data['id'] = doc.id;
-        return VendorEntity.fromMap(_processVendorData(data));
+      // Extract vendor data from user documents with embedded store map
+      var vendors = snapshot.docs
+          .where((doc) =>
+              doc.data()['store'] != null) // Only users with store data
+          .map((doc) {
+        final vendorData = _extractVendorFromUser(doc.id, doc.data());
+        return VendorEntity.fromMap(_processVendorData(vendorData));
       }).toList();
 
-      // Fetch products and orders count for each vendor
+      // Fetch products count and accurate order stats for each vendor
       if (vendors.isNotEmpty) {
+        // Pre-fetch all orders once (cached)
+        final orderDocs = await _getOrderDocs();
+
         final countFutures = vendors.map((vendor) async {
           int productsCount = vendor.productsCount;
-          int totalOrders = vendor.totalOrders;
 
           try {
             final productCountSnapshot = await _firestore
@@ -74,41 +204,13 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
             // Keep default/existing value on error
           }
 
-          try {
-            final orderCountSnapshot = await _firestore
-                .collection('orders')
-                .where('store_id', isEqualTo: vendor.id)
-                .count()
-                .get();
-            totalOrders = orderCountSnapshot.count ?? 0;
-            
-            // Calculate total revenue by summing order totals
-            if (totalOrders > 0) {
-              final ordersSnapshot = await _firestore
-                  .collection('orders')
-                  .where('store_id', isEqualTo: vendor.id)
-                  .get();
-              
-              final totalRevenue = ordersSnapshot.docs.fold<double>(0.0, (sum, doc) {
-                final data = doc.data();
-                final amount = (data['total'] as num?)?.toDouble() ?? 
-                               (data['totalAmount'] as num?)?.toDouble() ?? 0.0;
-                return sum + amount;
-              });
-              
-              return vendor.copyWith(
-                productsCount: productsCount,
-                totalOrders: totalOrders,
-                totalRevenue: totalRevenue,
-              );
-            }
-          } catch (e) {
-            // Keep default/existing value on error
-          }
+          // Calculate orders & revenue using the efficient helper
+          final stats = _calculateVendorOrderStats(vendor.id, orderDocs);
 
           return vendor.copyWith(
             productsCount: productsCount,
-            totalOrders: totalOrders,
+            totalOrders: stats.totalOrders,
+            totalRevenue: stats.totalRevenue,
           );
         });
 
@@ -145,8 +247,8 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
     if (!doc.exists) {
       throw Exception('Vendor not found');
     }
-    final data = doc.data()!;
-    data['id'] = doc.id;
+    final userData = doc.data()!;
+    final data = _extractVendorFromUser(doc.id, userData);
 
     // Fetch ratings from store_reviews
     try {
@@ -182,26 +284,12 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
       data['productsCount'] = 0;
     }
 
-    // Fetch orders count and total revenue from orders collection
+    // Fetch orders count and total revenue — handles both single & multi-store
     try {
-      final ordersSnapshot = await _firestore
-          .collection('orders')
-          .where('store_id', isEqualTo: id)
-          .get();
-      
-      data['totalOrders'] = ordersSnapshot.size;
-      
-      if (ordersSnapshot.docs.isNotEmpty) {
-        final totalRevenue = ordersSnapshot.docs.fold<double>(0.0, (sum, doc) {
-          final orderData = doc.data();
-          final amount = (orderData['total'] as num?)?.toDouble() ?? 
-                         (orderData['totalAmount'] as num?)?.toDouble() ?? 0.0;
-          return sum + amount;
-        });
-        data['totalRevenue'] = totalRevenue;
-      } else {
-        data['totalRevenue'] = 0.0;
-      }
+      final orderDocs = await _getOrderDocs();
+      final stats = _calculateVendorOrderStats(id, orderDocs);
+      data['totalOrders'] = stats.totalOrders;
+      data['totalRevenue'] = stats.totalRevenue;
     } catch (e) {
       // Keep existing value if available or default to 0
       if (data['totalOrders'] == null) data['totalOrders'] = 0;
@@ -213,31 +301,71 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
 
   @override
   Future<VendorEntity> addVendor(VendorEntity vendor) async {
-    final data = vendor.toMap();
-    data.remove('id');
-    data['createdAt'] = FieldValue.serverTimestamp();
-    data['updatedAt'] = FieldValue.serverTimestamp();
+    // Create a new user document with store data embedded
+    final storeData = {
+      'name': vendor.name,
+      'description': vendor.description,
+      'category': vendor.category.name,
+      'phone': vendor.phone,
+      'support_email': vendor.email,
+      'image_url': vendor.logoUrl,
+      'is_approved': vendor.status == VendorStatus.active,
+      'address': vendor.address.street,
+      'latitude': vendor.address.latitude,
+      'longitude': vendor.address.longitude,
+      'rating': vendor.rating,
+      'created_at': FieldValue.serverTimestamp(),
+      'updated_at': FieldValue.serverTimestamp(),
+    };
 
-    final docRef = await _vendorsRef.add(data);
-    final newDoc = await docRef.get();
-    final newData = newDoc.data()!;
-    newData['id'] = newDoc.id;
-    return VendorEntity.fromMap(_processVendorData(newData));
+    final userData = {
+      'role': 'seller',
+      'full_name': vendor.name,
+      'email': vendor.email ?? '',
+      'phone': vendor.phone,
+      'city': vendor.address.city,
+      'country': vendor.address.country,
+      'street': vendor.address.street,
+      'store': storeData,
+      'created_at': FieldValue.serverTimestamp(),
+      'updated_at': FieldValue.serverTimestamp(),
+    };
+
+    final docRef = await _vendorsRef.add(userData);
+    return getVendor(docRef.id);
   }
 
   @override
   Future<VendorEntity> updateVendor(VendorEntity vendor) async {
-    final data = vendor.toMap();
-    data.remove('id');
-    data['updatedAt'] = FieldValue.serverTimestamp();
-
-    await _vendorsRef.doc(vendor.id).update(data);
+    // Update store data inside the user document using dot notation
+    await _vendorsRef.doc(vendor.id).update({
+      'store.name': vendor.name,
+      'store.description': vendor.description,
+      'store.category': vendor.category.name,
+      'store.phone': vendor.phone,
+      'store.support_email': vendor.email,
+      'store.image_url': vendor.logoUrl,
+      'store.is_approved': vendor.status == VendorStatus.active,
+      'store.address': vendor.address.street,
+      'store.latitude': vendor.address.latitude,
+      'store.longitude': vendor.address.longitude,
+      'store.updated_at': FieldValue.serverTimestamp(),
+      'city': vendor.address.city,
+      'country': vendor.address.country,
+      'street': vendor.address.street,
+      'updated_at': FieldValue.serverTimestamp(),
+    });
     return getVendor(vendor.id);
   }
 
   @override
   Future<void> deleteVendor(String id) async {
-    await _vendorsRef.doc(id).delete();
+    // Remove the store field from the user document
+    await _vendorsRef.doc(id).update({
+      'store': FieldValue.delete(),
+      'role': 'customer', // Demote to customer
+      'updated_at': FieldValue.serverTimestamp(),
+    });
   }
 
   @override
@@ -246,8 +374,9 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
     VendorStatus status,
   ) async {
     await _vendorsRef.doc(id).update({
-      'status': status.name,
-      'updatedAt': FieldValue.serverTimestamp(),
+      'store.is_approved': status == VendorStatus.active,
+      'store.updated_at': FieldValue.serverTimestamp(),
+      'updated_at': FieldValue.serverTimestamp(),
     });
     return getVendor(id);
   }
@@ -259,19 +388,20 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
     int totalRatings,
   ) async {
     await _vendorsRef.doc(id).update({
-      'rating': rating,
-      'totalRatings': totalRatings,
-      'updatedAt': FieldValue.serverTimestamp(),
+      'store.rating': rating,
+      'store.updated_at': FieldValue.serverTimestamp(),
     });
     return getVendor(id);
   }
 
   @override
   Future<Map<String, dynamic>> getVendorStats() async {
-    final snapshot = await _vendorsRef.get();
-    final vendors = snapshot.docs
-        .map((doc) => VendorEntity.fromMap(_processVendorData(doc.data())))
-        .toList();
+    final snapshot = await _sellersQuery.get();
+    final vendors =
+        snapshot.docs.where((doc) => doc.data()['store'] != null).map((doc) {
+      final vendorData = _extractVendorFromUser(doc.id, doc.data());
+      return VendorEntity.fromMap(_processVendorData(vendorData));
+    }).toList();
 
     final activeCount =
         vendors.where((v) => v.status == VendorStatus.active).length;
@@ -282,22 +412,23 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
     final suspendedCount =
         vendors.where((v) => v.status == VendorStatus.suspended).length;
 
-    // Calculate accurate totals from orders collection
+    // Calculate accurate totals from orders collection (handles multi-store)
     double totalRevenue = 0.0;
     int totalOrders = 0;
 
     try {
-      final ordersSnapshot = await _firestore.collection('orders').get();
-      totalOrders = ordersSnapshot.size;
-      
-      if (ordersSnapshot.docs.isNotEmpty) {
-        totalRevenue = ordersSnapshot.docs.fold<double>(0.0, (sum, doc) {
-          final data = doc.data();
-          final amount = (data['total'] as num?)?.toDouble() ?? 
-                         (data['totalAmount'] as num?)?.toDouble() ?? 0.0;
-          return sum + amount;
-        });
+      // Invalidate cache to get fresh data for stats
+      _invalidateOrdersCache();
+      final orderDocs = await _getOrderDocs();
+
+      // Aggregate per-vendor revenue
+      for (final vendor in vendors) {
+        final stats = _calculateVendorOrderStats(vendor.id, orderDocs);
+        totalRevenue += stats.totalRevenue;
       }
+
+      // Count distinct orders (an order counted once regardless of stores)
+      totalOrders = orderDocs.length;
     } catch (e) {
       print('Error calculating global vendor stats: $e');
       // Fallback to local sum if fetch fails
@@ -335,30 +466,39 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
     VendorStatus? status,
     VendorCategory? category,
   }) {
-    Query<Map<String, dynamic>> query = _vendorsRef;
+    Query<Map<String, dynamic>> query = _sellersQuery;
 
     if (status != null) {
-      query = query.where('status', isEqualTo: status.name);
+      switch (status) {
+        case VendorStatus.active:
+          query = query.where('store.is_approved', isEqualTo: true);
+          break;
+        case VendorStatus.pending:
+          query = query.where('store.is_approved', isEqualTo: false);
+          break;
+        case VendorStatus.inactive:
+        case VendorStatus.suspended:
+          break;
+      }
     }
 
-    if (category != null) {
-      query = query.where('category', isEqualTo: category.name);
-    }
-
-    query = query.orderBy('createdAt', descending: true);
+    query = query.orderBy('created_at', descending: true);
 
     return query.snapshots().asyncMap((snapshot) async {
-      var vendors = snapshot.docs.map((doc) {
-        final data = doc.data();
-        data['id'] = doc.id;
-        return VendorEntity.fromMap(_processVendorData(data));
+      var vendors =
+          snapshot.docs.where((doc) => doc.data()['store'] != null).map((doc) {
+        final vendorData = _extractVendorFromUser(doc.id, doc.data());
+        return VendorEntity.fromMap(_processVendorData(vendorData));
       }).toList();
 
-      // Fetch products and orders count for each vendor
+      // Fetch products count and accurate order stats for each vendor
       if (vendors.isNotEmpty) {
+        // Invalidate cache for fresh data on stream update
+        _invalidateOrdersCache();
+        final orderDocs = await _getOrderDocs();
+
         final countFutures = vendors.map((vendor) async {
           int productsCount = vendor.productsCount;
-          int totalOrders = vendor.totalOrders;
 
           try {
             final productCountSnapshot = await _firestore
@@ -371,41 +511,13 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
             // Keep default
           }
 
-          try {
-            final orderCountSnapshot = await _firestore
-                .collection('orders')
-                .where('store_id', isEqualTo: vendor.id)
-                .count()
-                .get();
-            totalOrders = orderCountSnapshot.count ?? 0;
-            
-            // Calculate total revenue
-            if (totalOrders > 0) {
-              final ordersSnapshot = await _firestore
-                  .collection('orders')
-                  .where('store_id', isEqualTo: vendor.id)
-                  .get();
-              
-              final totalRevenue = ordersSnapshot.docs.fold<double>(0.0, (sum, doc) {
-                final data = doc.data();
-                final amount = (data['total'] as num?)?.toDouble() ?? 
-                               (data['totalAmount'] as num?)?.toDouble() ?? 0.0;
-                return sum + amount;
-              });
-              
-              return vendor.copyWith(
-                productsCount: productsCount,
-                totalOrders: totalOrders,
-                totalRevenue: totalRevenue,
-              );
-            }
-          } catch (e) {
-            // Keep default
-          }
+          // Calculate orders & revenue for both single & multi-store
+          final stats = _calculateVendorOrderStats(vendor.id, orderDocs);
 
           return vendor.copyWith(
             productsCount: productsCount,
-            totalOrders: totalOrders,
+            totalOrders: stats.totalOrders,
+            totalRevenue: stats.totalRevenue,
           );
         });
 
@@ -420,37 +532,39 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
   Future<List<VendorEntity>> getVendorsByCategory(
     VendorCategory category,
   ) async {
-    final snapshot = await _vendorsRef
-        .where('category', isEqualTo: category.name)
-        .where('status', isEqualTo: VendorStatus.active.name)
-        .get();
+    // Fetch all active sellers and filter by category client-side
+    final snapshot =
+        await _sellersQuery.where('store.is_approved', isEqualTo: true).get();
 
-    return snapshot.docs.map((doc) {
-      final data = doc.data();
-      data['id'] = doc.id;
-      return VendorEntity.fromMap(_processVendorData(data));
-    }).toList();
+    return snapshot.docs
+        .where((doc) => doc.data()['store'] != null)
+        .map((doc) {
+          final vendorData = _extractVendorFromUser(doc.id, doc.data());
+          return VendorEntity.fromMap(_processVendorData(vendorData));
+        })
+        .where((v) => v.category == category)
+        .toList();
   }
 
   @override
   Future<List<VendorEntity>> getFeaturedVendors() async {
-    final snapshot = await _vendorsRef
-        .where('isFeatured', isEqualTo: true)
-        .where('status', isEqualTo: VendorStatus.active.name)
+    final snapshot = await _sellersQuery
+        .where('store.is_approved', isEqualTo: true)
+        .where('store.isFeatured', isEqualTo: true)
         .get();
 
-    return snapshot.docs.map((doc) {
-      final data = doc.data();
-      data['id'] = doc.id;
-      return VendorEntity.fromMap(_processVendorData(data));
+    return snapshot.docs.where((doc) => doc.data()['store'] != null).map((doc) {
+      final vendorData = _extractVendorFromUser(doc.id, doc.data());
+      return VendorEntity.fromMap(_processVendorData(vendorData));
     }).toList();
   }
 
   @override
   Future<VendorEntity> toggleFeaturedStatus(String id, bool isFeatured) async {
     await _vendorsRef.doc(id).update({
-      'isFeatured': isFeatured,
-      'updatedAt': FieldValue.serverTimestamp(),
+      'store.isFeatured': isFeatured,
+      'store.updated_at': FieldValue.serverTimestamp(),
+      'updated_at': FieldValue.serverTimestamp(),
     });
     return getVendor(id);
   }
@@ -458,8 +572,9 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
   @override
   Future<VendorEntity> verifyVendor(String id) async {
     await _vendorsRef.doc(id).update({
-      'isVerified': true,
-      'updatedAt': FieldValue.serverTimestamp(),
+      'store.isVerified': true,
+      'store.updated_at': FieldValue.serverTimestamp(),
+      'updated_at': FieldValue.serverTimestamp(),
     });
     return getVendor(id);
   }
@@ -474,7 +589,7 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
 
       // Get all product IDs for this vendor
       final productIds = snapshot.docs.map((doc) => doc.id).toList();
-      
+
       if (productIds.isEmpty) {
         return [];
       }
@@ -482,7 +597,7 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
       // Fetch order_items to calculate sales count for each product
       // We need to count how many times each product was sold (sum of quantities)
       final Map<String, int> productSalesCount = {};
-      
+
       // Firestore 'whereIn' has a limit of 30 items, so we batch if needed
       for (int i = 0; i < productIds.length; i += 30) {
         final batch = productIds.skip(i).take(30).toList();
@@ -491,14 +606,14 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
               .collection('order_items')
               .where('product_id', whereIn: batch)
               .get();
-          
+
           for (final doc in orderItemsSnapshot.docs) {
             final data = doc.data();
             final productId = data['product_id'] as String?;
             final quantity = (data['quantity'] as num?)?.toInt() ?? 1;
-            
+
             if (productId != null) {
-              productSalesCount[productId] = 
+              productSalesCount[productId] =
                   (productSalesCount[productId] ?? 0) + quantity;
             }
           }
@@ -511,11 +626,11 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
       return snapshot.docs.map((doc) {
         final data = doc.data();
         data['id'] = doc.id;
-        
+
         // Override ordersCount with calculated sales from order_items
         final calculatedSalesCount = productSalesCount[doc.id] ?? 0;
         data['ordersCount'] = calculatedSalesCount;
-        
+
         return ProductEntity.fromMap(data);
       }).toList();
     } catch (e) {

@@ -16,7 +16,7 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
       _firestore.collection('profiles');
 
   CollectionReference<Map<String, dynamic>> get _storesCollection =>
-      _firestore.collection(FirestoreCollections.stores);
+      _firestore.collection('users');
 
   CollectionReference<Map<String, dynamic>> get _driversCollection =>
       _firestore.collection(FirestoreCollections.drivers);
@@ -205,7 +205,6 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
                   0.0;
               return sum + amount;
             });
-
           }
 
           // Get last order
@@ -330,28 +329,22 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
     int limit = 20,
     String? lastId,
   }) async {
-    Query<Map<String, dynamic>> query = _storesCollection;
-
-    if (isActive != null) {
-      query = query.where('isActive', isEqualTo: isActive);
-    }
+    // Filter only seller users (who have stores)
+    Query<Map<String, dynamic>> query =
+        _storesCollection.where('role', isEqualTo: 'seller');
 
     if (isApproved != null) {
-      query = query.where('isApproved', isEqualTo: isApproved);
+      query = query.where('store.is_approved', isEqualTo: isApproved);
     }
 
-    if (type != null && type.isNotEmpty) {
-      query = query.where('type', isEqualTo: type);
+    if (isActive != null) {
+      query = query.where('store.is_approved', isEqualTo: isActive);
     }
 
-    if (searchQuery != null && searchQuery.isNotEmpty) {
-      query = query
-          .where('name', isGreaterThanOrEqualTo: searchQuery)
-          .where('name', isLessThan: '$searchQuery\uf8ff')
-          .orderBy('name');
-    } else {
-      query = query.orderBy('createdAt', descending: true);
-    }
+    // Category/type and search filtering done client-side
+    // since store data is nested
+
+    query = query.orderBy('created_at', descending: true);
 
     query = query.limit(limit);
 
@@ -364,11 +357,46 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
 
     final snapshot = await query.get();
 
-    var stores = snapshot.docs.map((doc) {
-      final data = doc.data();
-      data['id'] = doc.id;
+    var stores =
+        snapshot.docs.where((doc) => doc.data()['store'] != null).map((doc) {
+      final userData = doc.data();
+      final storeData =
+          (userData['store'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+      final data = <String, dynamic>{
+        'id': doc.id,
+        'name': storeData['name'] ?? userData['full_name'] ?? 'Unknown',
+        'email': storeData['support_email'] ?? userData['email'] ?? '',
+        'phone': storeData['phone'] ?? userData['phone'] ?? '',
+        'imageUrl': storeData['image_url'],
+        'isActive': storeData['is_approved'] ?? false,
+        'isApproved': storeData['is_approved'] ?? false,
+        'type': storeData['category'] ?? 'other',
+        'description': storeData['description'],
+        'address': storeData['address'] ?? userData['street'] ?? '',
+        'latitude': storeData['latitude'],
+        'longitude': storeData['longitude'],
+        'rating': storeData['rating'] ?? 0,
+        'created_at': storeData['created_at'] ?? userData['created_at'],
+        'updated_at': storeData['updated_at'] ?? userData['updated_at'],
+      };
       return StoreModel.fromJson(_normalizeDateFields(data));
     }).toList();
+
+    // Client-side search filtering
+    if (searchQuery != null && searchQuery.isNotEmpty) {
+      final queryLower = searchQuery.toLowerCase();
+      stores = stores
+          .where((s) =>
+              s.name.toLowerCase().contains(queryLower) ||
+              s.email.toLowerCase().contains(queryLower) ||
+              (s.address?.toLowerCase().contains(queryLower) ?? false))
+          .toList();
+    }
+
+    // Client-side type filtering
+    if (type != null && type.isNotEmpty) {
+      stores = stores.where((s) => s.type == type).toList();
+    }
 
     // Dynamically fetch totalOrders for each store
     if (stores.isNotEmpty) {
@@ -377,7 +405,7 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
         try {
           final orderCountSnapshot = await _firestore
               .collection('orders')
-              .where('store_id', isEqualTo: store.id) // Ensure using store_id
+              .where('store_id', isEqualTo: store.id)
               .count()
               .get();
           totalOrders = orderCountSnapshot.count ?? 0;
@@ -397,8 +425,26 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
     final doc = await _storesCollection.doc(id).get();
     if (!doc.exists) throw Exception('Store not found');
 
-    final data = doc.data()!;
-    data['id'] = doc.id;
+    final userData = doc.data()!;
+    final storeData =
+        (userData['store'] as Map<String, dynamic>?) ?? <String, dynamic>{};
+    final data = <String, dynamic>{
+      'id': doc.id,
+      'name': storeData['name'] ?? userData['full_name'] ?? 'Unknown',
+      'email': storeData['support_email'] ?? userData['email'] ?? '',
+      'phone': storeData['phone'] ?? userData['phone'] ?? '',
+      'imageUrl': storeData['image_url'],
+      'isActive': storeData['is_approved'] ?? false,
+      'isApproved': storeData['is_approved'] ?? false,
+      'type': storeData['category'] ?? 'other',
+      'description': storeData['description'],
+      'address': storeData['address'] ?? userData['street'] ?? '',
+      'latitude': storeData['latitude'],
+      'longitude': storeData['longitude'],
+      'rating': storeData['rating'] ?? 0,
+      'created_at': storeData['created_at'] ?? userData['created_at'],
+      'updated_at': storeData['updated_at'] ?? userData['updated_at'],
+    };
 
     var store = StoreModel.fromJson(_normalizeDateFields(data));
 
@@ -421,14 +467,18 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
   @override
   Future<void> toggleStoreStatus(String id, bool isActive) async {
     await _storesCollection.doc(id).update({
-      'isActive': isActive,
-      'status': isActive ? 'active' : 'inactive',
+      'store.is_approved': isActive,
+      'store.updated_at': FieldValue.serverTimestamp(),
+      'updated_at': FieldValue.serverTimestamp(),
     });
   }
 
   @override
   Future<void> updateStoreCommission(String id, double rate) async {
-    await _storesCollection.doc(id).update({'commissionRate': rate});
+    await _storesCollection.doc(id).update({
+      'store.commissionRate': rate,
+      'store.updated_at': FieldValue.serverTimestamp(),
+    });
   }
 
   // ============================================
@@ -586,13 +636,16 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
 
   @override
   Future<AccountStats> getAccountStats() async {
+    // Stores are now inside users collection with role=seller
+    final sellersQuery = _storesCollection.where('role', isEqualTo: 'seller');
+
     // Parallel fetch for aggregates
     final results = await Future.wait([
       _customersCollection.count().get(),
       _customersCollection.where('isActive', isEqualTo: true).count().get(),
-      _storesCollection.count().get(),
-      _storesCollection.where('isActive', isEqualTo: true).count().get(),
-      _storesCollection.where('isApproved', isEqualTo: true).count().get(),
+      sellersQuery.count().get(),
+      sellersQuery.where('store.is_approved', isEqualTo: true).count().get(),
+      sellersQuery.where('store.is_approved', isEqualTo: true).count().get(),
       _driversCollection.count().get(),
       _driversCollection.where('isActive', isEqualTo: true).count().get(),
       _driversCollection.where('isOnline', isEqualTo: true).count().get(),

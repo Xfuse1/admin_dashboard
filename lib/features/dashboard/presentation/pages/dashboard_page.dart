@@ -137,7 +137,7 @@ class _DashboardContent extends StatelessWidget {
   }
 
   Widget _buildStatsGrid(BuildContext context, bool isDesktop, bool isTablet) {
-    final crossAxisCount = isDesktop ? 4 : (isTablet ? 2 : 1);
+    final crossAxisCount = isDesktop ? 5 : (isTablet ? 2 : 1);
 
     final statsCards = [
       _StatCardData(
@@ -155,6 +155,15 @@ class _DashboardContent extends StatelessWidget {
         percentChange: state.stats.revenueGrowth,
         subtitle:
             'آخر 24 ساعة: ${Formatters.currency(state.stats.todayRevenue)}',
+      ),
+      _StatCardData(
+        title: 'طلبات متعددة المتاجر',
+        value: Formatters.number(state.stats.multiStoreOrders),
+        icon: Icons.store_outlined,
+        iconColor: AppColors.secondary,
+        subtitle: state.stats.totalOrders > 0
+            ? '${((state.stats.multiStoreOrders / state.stats.totalOrders) * 100).toStringAsFixed(1)}% من الإجمالي'
+            : null,
       ),
       _StatCardData(
         title: AppStrings.activeDrivers,

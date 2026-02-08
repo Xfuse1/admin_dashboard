@@ -23,6 +23,8 @@ class StoreOnboardingModel extends StoreOnboardingEntity {
     super.commercialRegisterUrl,
     super.ownerIdUrl,
     super.categories,
+    super.latitude,
+    super.longitude,
   });
 
   factory StoreOnboardingModel.fromJson(Map<String, dynamic> json) {
@@ -60,6 +62,8 @@ class StoreOnboardingModel extends StoreOnboardingEntity {
               ?.map((e) => e.toString())
               .toList() ??
           [],
+      latitude: (json['latitude'] as num?)?.toDouble(),
+      longitude: (json['longitude'] as num?)?.toDouble(),
     );
   }
 
@@ -86,6 +90,8 @@ class StoreOnboardingModel extends StoreOnboardingEntity {
       'commercialRegisterUrl': commercialRegisterUrl,
       'ownerIdUrl': ownerIdUrl,
       'categories': categories,
+      'latitude': latitude,
+      'longitude': longitude,
     };
   }
 

@@ -335,46 +335,84 @@ class RequestDetailsSheet extends StatelessWidget {
     BuildContext context,
     StoreOnboardingEntity store,
   ) {
-    return _buildSection(
-      context,
-      title: 'معلومات المتجر',
+    return Column(
       children: [
-        _buildInfoTile(
+        _buildSection(
           context,
-          icon: Iconsax.building,
-          label: 'اسم المتجر',
-          value: store.storeName,
+          title: 'معلومات المتجر',
+          children: [
+            _buildInfoTile(
+              context,
+              icon: Iconsax.building,
+              label: 'اسم المتجر',
+              value: store.storeName,
+            ),
+            _buildInfoTile(
+              context,
+              icon: Iconsax.category,
+              label: 'نوع المتجر',
+              value: store.storeType,
+            ),
+            _buildInfoTile(
+              context,
+              icon: Iconsax.location,
+              label: 'العنوان',
+              value: store.address,
+            ),
+            _buildInfoTile(
+              context,
+              icon: Iconsax.user,
+              label: 'اسم المالك',
+              value: store.ownerName,
+            ),
+            _buildInfoTile(
+              context,
+              icon: Iconsax.card,
+              label: 'رقم الهوية',
+              value: store.ownerIdNumber,
+            ),
+            _buildInfoTile(
+              context,
+              icon: Iconsax.document,
+              label: 'السجل التجاري',
+              value: store.commercialRegister,
+            ),
+          ],
         ),
-        _buildInfoTile(
-          context,
-          icon: Iconsax.category,
-          label: 'نوع المتجر',
-          value: store.storeType,
-        ),
-        _buildInfoTile(
-          context,
-          icon: Iconsax.location,
-          label: 'العنوان',
-          value: store.address,
-        ),
-        _buildInfoTile(
-          context,
-          icon: Iconsax.user,
-          label: 'اسم المالك',
-          value: store.ownerName,
-        ),
-        _buildInfoTile(
-          context,
-          icon: Iconsax.card,
-          label: 'رقم الهوية',
-          value: store.ownerIdNumber,
-        ),
-        _buildInfoTile(
-          context,
-          icon: Iconsax.document,
-          label: 'السجل التجاري',
-          value: store.commercialRegister,
-        ),
+        // Location warning
+        if (!store.hasLocation) ...[
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColors.error.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.error.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.location_off,
+                  color: AppColors.error,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'لم يتم إرسال الموقع الجغرافي - قد يؤثر على التوصيل وعرض المتجر على الخريطة',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.error,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -495,11 +533,13 @@ class RequestDetailsSheet extends StatelessWidget {
                     fit: BoxFit.cover,
                     placeholder: (context, url) => Center(
                       child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation(AppColors.primary.withValues(alpha: 0.5)),
+                        valueColor: AlwaysStoppedAnimation(
+                            AppColors.primary.withValues(alpha: 0.5)),
                       ),
                     ),
                     errorWidget: (context, url, error) => const Center(
-                      child: Icon(Icons.image_not_supported_outlined, color: AppColors.error),
+                      child: Icon(Icons.image_not_supported_outlined,
+                          color: AppColors.error),
                     ),
                   ),
                 ),
@@ -521,7 +561,8 @@ class RequestDetailsSheet extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.image_not_supported_outlined, color: AppColors.textTertiary),
+                    Icon(Icons.image_not_supported_outlined,
+                        color: AppColors.textTertiary),
                     SizedBox(height: 4),
                     Text(
                       'لم يتم رفع المستند',
@@ -558,7 +599,8 @@ class RequestDetailsSheet extends StatelessWidget {
               // Photo View
               PhotoView(
                 imageProvider: CachedNetworkImageProvider(imageUrl),
-                backgroundDecoration: const BoxDecoration(color: Colors.transparent),
+                backgroundDecoration:
+                    const BoxDecoration(color: Colors.transparent),
                 minScale: PhotoViewComputedScale.contained,
                 maxScale: PhotoViewComputedScale.covered * 2.5,
                 heroAttributes: PhotoViewHeroAttributes(tag: imageUrl),
@@ -581,7 +623,8 @@ class RequestDetailsSheet extends StatelessWidget {
                         shape: BoxShape.circle,
                         border: Border.all(color: Colors.white24),
                       ),
-                      child: const Icon(Icons.close, color: Colors.white, size: 24),
+                      child: const Icon(Icons.close,
+                          color: Colors.white, size: 24),
                     ),
                   ),
                 ).animate().scale(delay: 200.ms, duration: 300.ms),

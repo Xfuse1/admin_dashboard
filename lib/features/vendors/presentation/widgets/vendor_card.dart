@@ -159,10 +159,51 @@ class VendorCard extends StatelessWidget {
                           _InfoChip(
                             icon: Iconsax.wallet_3,
                             iconColor: AppColors.success,
-                            label: '${NumberFormat.compact().format(vendor.totalRevenue)} ج.م',
+                            label:
+                                '${NumberFormat.compact().format(vendor.totalRevenue)} ج.م',
                           ),
                         ],
                       ),
+
+                      // Location warning if coordinates are missing
+                      if (vendor.address.latitude == null ||
+                          vendor.address.longitude == null) ...[
+                        const SizedBox(height: AppConstants.spacingSm),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: AppColors.error.withValues(alpha: 0.1),
+                            borderRadius:
+                                BorderRadius.circular(AppConstants.radiusSm),
+                            border: Border.all(
+                              color: AppColors.error.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.location_off,
+                                size: 14,
+                                color: AppColors.error,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'لم يتم إرسال الموقع',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: AppColors.error,
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 11,
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
