@@ -253,5 +253,11 @@ List<SidebarItem> getSidebarItems() {
       activeIcon: Icons.settings_input_component,
       route: AppRoutes.simulatorSettings,
     ),
+    SidebarItem(
+      label: AppStrings.manageAdmins,
+      icon: Icons.admin_panel_settings_outlined,
+      activeIcon: Icons.admin_panel_settings,
+      route: AppRoutes.manageAdmins,
+    ),
   ];
 }

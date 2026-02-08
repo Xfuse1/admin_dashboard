@@ -36,6 +36,7 @@ abstract final class AppStrings {
   static const String accounts = 'الحسابات';
   static const String settings = 'الإعدادات';
   static const String simulatorSettings = 'إعدادات المحاكي';
+  static const String manageAdmins = 'إدارة المسؤولين';
 
   // ============================================
   // 👥 ACCOUNTS

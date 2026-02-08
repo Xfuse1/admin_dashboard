@@ -38,14 +38,21 @@ class AuthFirebaseDataSource implements AuthDataSource {
 
       // Get admin user data from Firestore
       final doc =
-          await _firestore.collection('admins').doc(credential.user!.uid).get();
+          await _firestore.collection('users').doc(credential.user!.uid).get();
 
       if (!doc.exists) {
+        await _auth.signOut();
+        throw const AuthException(message: 'الحساب غير موجود');
+      }
+
+      final data = doc.data()!;
+
+      // Check if user has admin role
+      if (data['role'] != 'admin') {
         await _auth.signOut();
         throw const AuthException(message: 'هذا الحساب ليس حساب مدير');
       }
 
-      final data = doc.data()!;
       data['id'] = doc.id;
       data['email'] = credential.user!.email;
       data['lastLoginAt'] = DateTime.now().toIso8601String();
@@ -82,14 +89,14 @@ class AuthFirebaseDataSource implements AuthDataSource {
         // We wait for the first emission from authStateChanges.
         // On web, this is more reliable for session recovery.
         user = await _auth.authStateChanges().first.timeout(
-          const Duration(seconds: 2),
-          onTimeout: () => null,
-        );
+              const Duration(seconds: 2),
+              onTimeout: () => null,
+            );
       }
 
       if (user == null) return null;
 
-      final doc = await _firestore.collection('admins').doc(user.uid).get();
+      final doc = await _firestore.collection('users').doc(user.uid).get();
 
       if (!doc.exists) {
         await _auth.signOut();
@@ -97,6 +104,13 @@ class AuthFirebaseDataSource implements AuthDataSource {
       }
 
       final data = doc.data()!;
+
+      // Check if user has admin role
+      if (data['role'] != 'admin') {
+        await _auth.signOut();
+        return null;
+      }
+
       data['id'] = doc.id;
       data['email'] = user.email;
 

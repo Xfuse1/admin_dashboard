@@ -20,7 +20,7 @@ class SimulatorSettingsPage extends StatefulWidget {
 class _SimulatorSettingsPageState extends State<SimulatorSettingsPage> {
   final _firestore = FirebaseFirestore.instance;
   final _formKey = GlobalKey<FormState>();
-  
+
   bool _isSimulatorEnabled = false;
   bool _isLoading = true;
   bool _isSaving = false;
@@ -69,12 +69,17 @@ class _SimulatorSettingsPageState extends State<SimulatorSettingsPage> {
           _isSimulatorEnabled = data['enabled'] ?? false;
           _rowsController.text = (data['rows'] ?? 4).toString();
           _columnsController.text = (data['columns'] ?? 3).toString();
-          _productsPerRowController.text = (data['productsPerRow'] ?? 5).toString();
-          _productsPerColumnController.text = (data['productsPerColumn'] ?? 4).toString();
-          _maxCartItemsController.text = (data['maxCartItems'] ?? 20).toString();
-          _minOrderAmountController.text = (data['minOrderAmount'] ?? 50).toString();
+          _productsPerRowController.text =
+              (data['productsPerRow'] ?? 5).toString();
+          _productsPerColumnController.text =
+              (data['productsPerColumn'] ?? 4).toString();
+          _maxCartItemsController.text =
+              (data['maxCartItems'] ?? 20).toString();
+          _minOrderAmountController.text =
+              (data['minOrderAmount'] ?? 50).toString();
           _cartTimeoutController.text = (data['cartTimeout'] ?? 30).toString();
-          _autoScrollSpeedController.text = (data['autoScrollSpeed'] ?? 3).toString();
+          _autoScrollSpeedController.text =
+              (data['autoScrollSpeed'] ?? 3).toString();
           _enableSounds = data['enableSounds'] ?? true;
           _enableVibration = data['enableVibration'] ?? true;
           _isLoading = false;
@@ -106,7 +111,7 @@ class _SimulatorSettingsPageState extends State<SimulatorSettingsPage> {
       'enableVibration': true,
       'updatedAt': FieldValue.serverTimestamp(),
     });
-    
+
     // تعيين القيم الافتراضية في الـ controllers
     _rowsController.text = '4';
     _columnsController.text = '3';
@@ -212,7 +217,8 @@ class _SimulatorSettingsPageState extends State<SimulatorSettingsPage> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
-              padding: EdgeInsets.all(isDesktop ? AppConstants.spacingLg : AppConstants.spacingMd),
+              padding: EdgeInsets.all(
+                  isDesktop ? AppConstants.spacingLg : AppConstants.spacingMd),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -221,10 +227,11 @@ class _SimulatorSettingsPageState extends State<SimulatorSettingsPage> {
                     // العنوان
                     Text(
                       'إعدادات المحاكي',
-                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                            color: AppColors.textPrimary,
-                            fontWeight: FontWeight.bold,
-                          ),
+                      style:
+                          Theme.of(context).textTheme.headlineMedium?.copyWith(
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.bold,
+                              ),
                     ),
                     const SizedBox(height: AppConstants.spacingMd),
 
@@ -352,7 +359,8 @@ class _SimulatorSettingsPageState extends State<SimulatorSettingsPage> {
                           elevation: 0,
                         ),
                         child: _isSaving
-                            ? const CircularProgressIndicator(color: Colors.white)
+                            ? const CircularProgressIndicator(
+                                color: Colors.white)
                             : const Text(
                                 'حفظ جميع الإعدادات',
                                 style: TextStyle(
@@ -386,7 +394,8 @@ class _SimulatorSettingsPageState extends State<SimulatorSettingsPage> {
               ),
               child: Icon(
                 _isSimulatorEnabled ? Icons.visibility : Icons.visibility_off,
-                color: _isSimulatorEnabled ? AppColors.success : AppColors.error,
+                color:
+                    _isSimulatorEnabled ? AppColors.success : AppColors.error,
                 size: 32,
               ),
             ),
@@ -503,9 +512,8 @@ class _SimulatorSettingsPageState extends State<SimulatorSettingsPage> {
                 if (value == null || value.isEmpty) {
                   return 'مطلوب';
                 }
-                final number = isDecimal
-                    ? double.tryParse(value)
-                    : int.tryParse(value);
+                final number =
+                    isDecimal ? double.tryParse(value) : int.tryParse(value);
                 if (number == null) {
                   return 'رقم غير صحيح';
                 }
