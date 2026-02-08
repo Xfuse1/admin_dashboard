@@ -29,6 +29,23 @@ class DriverCommissionLoaded extends SettingsState {
   List<Object> get props => [commissionRate];
 }
 
+class AllDriverCommissionsLoaded extends SettingsState {
+  final double rate1Order;
+  final double rate2Orders;
+  final double rate3Orders;
+  final double rate4Orders;
+
+  const AllDriverCommissionsLoaded({
+    required this.rate1Order,
+    required this.rate2Orders,
+    required this.rate3Orders,
+    required this.rate4Orders,
+  });
+
+  @override
+  List<Object> get props => [rate1Order, rate2Orders, rate3Orders, rate4Orders];
+}
+
 class SettingsError extends SettingsState {
   final String message;
 

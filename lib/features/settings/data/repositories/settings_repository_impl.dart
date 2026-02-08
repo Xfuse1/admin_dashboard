@@ -26,4 +26,24 @@ class SettingsRepositoryImpl implements SettingsRepository {
   Future<void> updateDriverCommission(double rate) async {
     await dataSource.updateDriverCommission(rate);
   }
+
+  @override
+  Future<Map<String, double>> getAllDriverCommissions() async {
+    return await dataSource.getAllDriverCommissions();
+  }
+
+  @override
+  Future<void> updateAllDriverCommissions({
+    required double rate1Order,
+    required double rate2Orders,
+    required double rate3Orders,
+    required double rate4Orders,
+  }) async {
+    await dataSource.updateAllDriverCommissions(
+      rate1Order: rate1Order,
+      rate2Orders: rate2Orders,
+      rate3Orders: rate3Orders,
+      rate4Orders: rate4Orders,
+    );
+  }
 }

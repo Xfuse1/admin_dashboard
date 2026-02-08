@@ -14,7 +14,7 @@ class CommissionSettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => sl<SettingsCubit>()..getDriverCommission(),
+      create: (context) => sl<SettingsCubit>()..getAllDriverCommissions(),
       child: const _CommissionSettingsView(),
     );
   }
@@ -30,11 +30,17 @@ class _CommissionSettingsView extends StatefulWidget {
 
 class _CommissionSettingsViewState extends State<_CommissionSettingsView> {
   final _formKey = GlobalKey<FormState>();
-  final _rateController = TextEditingController();
+  final _rate1OrderController = TextEditingController();
+  final _rate2OrdersController = TextEditingController();
+  final _rate3OrdersController = TextEditingController();
+  final _rate4OrdersController = TextEditingController();
 
   @override
   void dispose() {
-    _rateController.dispose();
+    _rate1OrderController.dispose();
+    _rate2OrdersController.dispose();
+    _rate3OrdersController.dispose();
+    _rate4OrdersController.dispose();
     super.dispose();
   }
 
@@ -55,12 +61,14 @@ class _CommissionSettingsViewState extends State<_CommissionSettingsView> {
             fontWeight: FontWeight.bold,
           ),
         ),
-
       ),
       body: BlocConsumer<SettingsCubit, SettingsState>(
         listener: (context, state) {
-          if (state is DriverCommissionLoaded) {
-            _rateController.text = state.commissionRate.toString();
+          if (state is AllDriverCommissionsLoaded) {
+            _rate1OrderController.text = state.rate1Order.toString();
+            _rate2OrdersController.text = state.rate2Orders.toString();
+            _rate3OrdersController.text = state.rate3Orders.toString();
+            _rate4OrdersController.text = state.rate4Orders.toString();
           }
           if (state is SettingsSuccess) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -80,7 +88,7 @@ class _CommissionSettingsViewState extends State<_CommissionSettingsView> {
           }
         },
         builder: (context, state) {
-          if (state is SettingsLoading && _rateController.text.isEmpty) {
+          if (state is SettingsLoading && _rate1OrderController.text.isEmpty) {
             return const Center(child: CircularProgressIndicator());
           }
 
@@ -127,7 +135,7 @@ class _CommissionSettingsViewState extends State<_CommissionSettingsView> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'عمولة السائق',
+                                  'عمولات السائق',
                                   style: Theme.of(context)
                                       .textTheme
                                       .headlineSmall
@@ -138,7 +146,7 @@ class _CommissionSettingsViewState extends State<_CommissionSettingsView> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  'قم بتحديد مبلغ العمولة للسائق عن كل توصيلة',
+                                  'قم بتحديد مبلغ العمولة للسائق حسب عدد الطلبات',
                                   style: Theme.of(context)
                                       .textTheme
                                       .bodyMedium
@@ -153,7 +161,7 @@ class _CommissionSettingsViewState extends State<_CommissionSettingsView> {
                       ),
                       const SizedBox(height: 32),
                       TextFormField(
-                        controller: _rateController,
+                        controller: _rate1OrderController,
                         keyboardType: const TextInputType.numberWithOptions(
                           decimal: true,
                         ),
@@ -163,8 +171,167 @@ class _CommissionSettingsViewState extends State<_CommissionSettingsView> {
                           ),
                         ],
                         decoration: InputDecoration(
-                          labelText: 'مبلغ العمولة',
+                          labelText: 'مبلغ العمولة - طلب واحد',
                           hintText: 'مثال: 50',
+                          prefixIcon: const Icon(
+                            Iconsax.money_4,
+                            color: AppColors.primary,
+                          ),
+                          suffixText: 'ج.م',
+                          filled: true,
+                          fillColor: AppColors.background,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: Colors.grey.withValues(alpha: 0.2),
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                              color: AppColors.primary,
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'يرجى إدخال مبلغ العمولة';
+                          }
+                          final amount = double.tryParse(value);
+                          if (amount == null) {
+                            return 'يرجى إدخال رقم صحيح';
+                          }
+                          if (amount < 0) {
+                            return 'يجب أن يكون المبلغ أكبر من أو يساوي صفر';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        controller: _rate2OrdersController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(
+                            RegExp(r'^\d+\.?\d{0,2}'),
+                          ),
+                        ],
+                        decoration: InputDecoration(
+                          labelText: 'مبلغ العمولة - 2 طلب',
+                          hintText: 'مثال: 45',
+                          prefixIcon: const Icon(
+                            Iconsax.money_4,
+                            color: AppColors.primary,
+                          ),
+                          suffixText: 'ج.م',
+                          filled: true,
+                          fillColor: AppColors.background,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: Colors.grey.withValues(alpha: 0.2),
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                              color: AppColors.primary,
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'يرجى إدخال مبلغ العمولة';
+                          }
+                          final amount = double.tryParse(value);
+                          if (amount == null) {
+                            return 'يرجى إدخال رقم صحيح';
+                          }
+                          if (amount < 0) {
+                            return 'يجب أن يكون المبلغ أكبر من أو يساوي صفر';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        controller: _rate3OrdersController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(
+                            RegExp(r'^\d+\.?\d{0,2}'),
+                          ),
+                        ],
+                        decoration: InputDecoration(
+                          labelText: 'مبلغ العمولة - 3 طلب',
+                          hintText: 'مثال: 40',
+                          prefixIcon: const Icon(
+                            Iconsax.money_4,
+                            color: AppColors.primary,
+                          ),
+                          suffixText: 'ج.م',
+                          filled: true,
+                          fillColor: AppColors.background,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide(
+                              color: Colors.grey.withValues(alpha: 0.2),
+                            ),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: const BorderSide(
+                              color: AppColors.primary,
+                              width: 2,
+                            ),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'يرجى إدخال مبلغ العمولة';
+                          }
+                          final amount = double.tryParse(value);
+                          if (amount == null) {
+                            return 'يرجى إدخال رقم صحيح';
+                          }
+                          if (amount < 0) {
+                            return 'يجب أن يكون المبلغ أكبر من أو يساوي صفر';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        controller: _rate4OrdersController,
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(
+                            RegExp(r'^\d+\.?\d{0,2}'),
+                          ),
+                        ],
+                        decoration: InputDecoration(
+                          labelText: 'مبلغ العمولة - 4 طلب',
+                          hintText: 'مثال: 35',
                           prefixIcon: const Icon(
                             Iconsax.money_4,
                             color: AppColors.primary,
@@ -224,7 +391,7 @@ class _CommissionSettingsViewState extends State<_CommissionSettingsView> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                'مبلغ العمولة يُطبق على كل طلب يقوم السائق بتوصيله',
+                                'مبالغ العمولة تُطبق على السائق حسب عدد الطلبات التي يقوم بتوصيلها',
                                 style: Theme.of(context)
                                     .textTheme
                                     .bodySmall
@@ -245,11 +412,22 @@ class _CommissionSettingsViewState extends State<_CommissionSettingsView> {
                               ? null
                               : () {
                                   if (_formKey.currentState!.validate()) {
-                                    final rate =
-                                        double.parse(_rateController.text);
+                                    final rate1Order = double.parse(
+                                        _rate1OrderController.text);
+                                    final rate2Orders = double.parse(
+                                        _rate2OrdersController.text);
+                                    final rate3Orders = double.parse(
+                                        _rate3OrdersController.text);
+                                    final rate4Orders = double.parse(
+                                        _rate4OrdersController.text);
                                     context
                                         .read<SettingsCubit>()
-                                        .updateDriverCommission(rate);
+                                        .updateAllDriverCommissions(
+                                          rate1Order: rate1Order,
+                                          rate2Orders: rate2Orders,
+                                          rate3Orders: rate3Orders,
+                                          rate4Orders: rate4Orders,
+                                        );
                                   }
                                 },
                           style: ElevatedButton.styleFrom(

@@ -48,4 +48,45 @@ class SettingsFirebaseDataSource implements SettingsDataSource {
       SetOptions(merge: true),
     );
   }
+
+  @override
+  Future<Map<String, double>> getAllDriverCommissions() async {
+    final doc =
+        await _firestore.collection('settings').doc('driverCommission').get();
+
+    if (doc.exists && doc.data() != null) {
+      final data = doc.data()!;
+      return {
+        'rate': (data['rate'] as num?)?.toDouble() ?? 10.0,
+        'rate2Orders': (data['rate2Orders'] as num?)?.toDouble() ?? 10.0,
+        'rate3Orders': (data['rate3Orders'] as num?)?.toDouble() ?? 10.0,
+        'rate4Orders': (data['rate4Orders'] as num?)?.toDouble() ?? 10.0,
+      };
+    } else {
+      return {
+        'rate': 10.0,
+        'rate2Orders': 10.0,
+        'rate3Orders': 10.0,
+        'rate4Orders': 10.0,
+      };
+    }
+  }
+
+  @override
+  Future<void> updateAllDriverCommissions({
+    required double rate1Order,
+    required double rate2Orders,
+    required double rate3Orders,
+    required double rate4Orders,
+  }) async {
+    await _firestore.collection('settings').doc('driverCommission').set(
+      {
+        'rate': rate1Order,
+        'rate2Orders': rate2Orders,
+        'rate3Orders': rate3Orders,
+        'rate4Orders': rate4Orders,
+      },
+      SetOptions(merge: true),
+    );
+  }
 }

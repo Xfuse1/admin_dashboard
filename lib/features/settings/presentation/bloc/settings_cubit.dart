@@ -62,4 +62,41 @@ class SettingsCubit extends Cubit<SettingsState> {
       emit(SettingsError(e.toString()));
     }
   }
+
+  Future<void> getAllDriverCommissions() async {
+    emit(SettingsLoading());
+    try {
+      final commissions = await repository.getAllDriverCommissions();
+      emit(AllDriverCommissionsLoaded(
+        rate1Order: commissions['rate'] ?? 10.0,
+        rate2Orders: commissions['rate2Orders'] ?? 10.0,
+        rate3Orders: commissions['rate3Orders'] ?? 10.0,
+        rate4Orders: commissions['rate4Orders'] ?? 10.0,
+      ));
+    } catch (e) {
+      emit(SettingsError(e.toString()));
+    }
+  }
+
+  Future<void> updateAllDriverCommissions({
+    required double rate1Order,
+    required double rate2Orders,
+    required double rate3Orders,
+    required double rate4Orders,
+  }) async {
+    emit(SettingsLoading());
+    try {
+      await repository.updateAllDriverCommissions(
+        rate1Order: rate1Order,
+        rate2Orders: rate2Orders,
+        rate3Orders: rate3Orders,
+        rate4Orders: rate4Orders,
+      );
+      emit(const SettingsSuccess('تم تحديث العمولات بنجاح'));
+      // Refresh the data
+      await getAllDriverCommissions();
+    } catch (e) {
+      emit(SettingsError(e.toString()));
+    }
+  }
 }
