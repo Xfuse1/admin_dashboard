@@ -125,56 +125,60 @@ class StatCard extends StatelessWidget {
               ),
               // Percent change
               if (percentChange != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppConstants.spacingSm,
-                    vertical: AppConstants.spacingXs,
-                  ),
-                  decoration: BoxDecoration(
-                    color: (isPositive ? AppColors.success : AppColors.error)
-                        .withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(AppConstants.radiusSm),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        isPositive ? Icons.trending_up : Icons.trending_down,
-                        color: isPositive ? AppColors.success : AppColors.error,
-                        size: 14,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${percentChange!.abs().toStringAsFixed(1)}%',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: isPositive
-                                  ? AppColors.success
-                                  : AppColors.error,
-                              fontWeight: FontWeight.w600,
-                            ),
-                      ),
-                    ],
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: (isPositive ? AppColors.success : AppColors.error)
+                          .withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(AppConstants.radiusSm),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isPositive ? Icons.trending_up : Icons.trending_down,
+                          color: isPositive ? AppColors.success : AppColors.error,
+                          size: 14,
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            '${percentChange!.abs().toStringAsFixed(1)}%',
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                  color: isPositive
+                                      ? AppColors.success
+                                      : AppColors.error,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
             ],
           ),
-          const SizedBox(height: AppConstants.spacingSm),
-          Flexible(
-            fit: FlexFit.loose,
+          const SizedBox(height: 8),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
               children: [
                 // Value
                 AutoSizeText(
                   value,
                   maxLines: 1,
+                  minFontSize: 14,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         color: AppColors.textPrimary,
                         fontWeight: FontWeight.bold,
                       ),
                 ),
-                const SizedBox(height: AppConstants.spacingXs),
+                const Spacer(),
                 // Title
                 AutoSizeText(
                   title,
@@ -186,7 +190,7 @@ class StatCard extends StatelessWidget {
                       ),
                 ),
                 if (subtitle != null) ...[
-                  const SizedBox(height: AppConstants.spacingXs),
+                  const SizedBox(height: 2),
                   AutoSizeText(
                     subtitle!,
                     maxLines: 1,

@@ -84,7 +84,7 @@ class _ManageAdminsPageState extends State<ManageAdminsPage> {
   }
 
   /// إضافة مسؤول جديد
-  Future<void> _addAdmin() async {
+  Future<void> _addAdmin(BuildContext dialogContext) async {
     if (!_formKey.currentState!.validate()) return;
 
     if (!mounted) return;
@@ -108,19 +108,29 @@ class _ManageAdminsPageState extends State<ManageAdminsPage> {
       });
 
       if (!mounted) return;
-      setState(() => _isSaving = false);
-      _showSuccessMessage('تم إضافة المسؤول بنجاح');
 
       // مسح الحقول
       _nameController.clear();
       _emailController.clear();
       _passwordController.clear();
 
-      // إعادة تحميل القائمة
-      _loadAdmins();
+      setState(() => _isSaving = false);
 
-      // إغلاق الـ dialog
-      if (mounted) Navigator.of(context).pop();
+      // إغلاق الـ dialog باستخدام context الخاص بالـ Dialog
+      if (dialogContext.mounted) {
+        Navigator.of(dialogContext).pop();
+      }
+
+      // الانتظار قليلاً لضمان اكتمال إغلاق الـ Dialog
+      await Future.delayed(const Duration(milliseconds: 300));
+
+      if (!mounted) return;
+
+      // عرض رسالة النجاح بعد إغلاق الـ Dialog
+      _showSuccessMessage('تم إضافة المسؤول بنجاح');
+
+      // إعادة تحميل القائمة
+      await _loadAdmins();
     } catch (e) {
       if (!mounted) return;
       setState(() => _isSaving = false);
@@ -211,7 +221,7 @@ class _ManageAdminsPageState extends State<ManageAdminsPage> {
   void _showAddAdminDialog() {
     showDialog(
       context: context,
-      builder: (context) => _buildAddAdminDialog(),
+      builder: (dialogContext) => _buildAddAdminDialog(dialogContext),
     );
   }
 
@@ -465,7 +475,7 @@ class _ManageAdminsPageState extends State<ManageAdminsPage> {
     );
   }
 
-  Widget _buildAddAdminDialog() {
+  Widget _buildAddAdminDialog(BuildContext dialogContext) {
     return AlertDialog(
       title: const Text('إضافة مسؤول جديد'),
       content: Form(
@@ -538,11 +548,11 @@ class _ManageAdminsPageState extends State<ManageAdminsPage> {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.of(dialogContext).pop(),
           child: const Text('إلغاء'),
         ),
         ElevatedButton(
-          onPressed: _isSaving ? null : _addAdmin,
+          onPressed: _isSaving ? null : () => _addAdmin(dialogContext),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,

@@ -250,7 +250,7 @@ class _SimulatorSettingsPageState extends State<SimulatorSettingsPage> {
                       crossAxisCount: crossAxisCount,
                       crossAxisSpacing: AppConstants.spacingMd,
                       mainAxisSpacing: AppConstants.spacingMd,
-                      childAspectRatio: isDesktop ? 2.5 : 2.0,
+                      childAspectRatio: isDesktop ? 3.0 : 2.5,
                       children: [
                         _buildNumberField(
                           controller: _rowsController,
@@ -278,7 +278,7 @@ class _SimulatorSettingsPageState extends State<SimulatorSettingsPage> {
                       crossAxisCount: crossAxisCount,
                       crossAxisSpacing: AppConstants.spacingMd,
                       mainAxisSpacing: AppConstants.spacingMd,
-                      childAspectRatio: isDesktop ? 2.5 : 2.0,
+                      childAspectRatio: isDesktop ? 3.0 : 2.5,
                       children: [
                         _buildNumberField(
                           controller: _productsPerRowController,
@@ -306,7 +306,7 @@ class _SimulatorSettingsPageState extends State<SimulatorSettingsPage> {
                       crossAxisCount: crossAxisCount,
                       crossAxisSpacing: AppConstants.spacingMd,
                       mainAxisSpacing: AppConstants.spacingMd,
-                      childAspectRatio: isDesktop ? 2.5 : 2.0,
+                      childAspectRatio: isDesktop ? 3.0 : 2.5,
                       children: [
                         _buildNumberField(
                           controller: _maxCartItemsController,
@@ -453,9 +453,10 @@ class _SimulatorSettingsPageState extends State<SimulatorSettingsPage> {
   }) {
     return GlassCard(
       child: Padding(
-        padding: const EdgeInsets.all(AppConstants.spacingMd),
+        padding: const EdgeInsets.all(AppConstants.spacingSm),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Row(
               children: [
@@ -473,7 +474,7 @@ class _SimulatorSettingsPageState extends State<SimulatorSettingsPage> {
                 ),
               ],
             ),
-            const SizedBox(height: AppConstants.spacingSm),
+            const SizedBox(height: 8),
             TextFormField(
               controller: controller,
               keyboardType: TextInputType.numberWithOptions(decimal: isDecimal),
@@ -544,7 +545,7 @@ class _SimulatorSettingsPageState extends State<SimulatorSettingsPage> {
                 children: [
                   Icon(Iconsax.volume_high, color: AppColors.primary, size: 20),
                   const SizedBox(width: 8),
-                  const Text('تفعيل الأصوات'),
+                  const Flexible(child: Text('تفعيل الأصوات')),
                 ],
               ),
               subtitle: const Text('تشغيل الأصوات التفاعلية في المحاكي'),
@@ -561,7 +562,7 @@ class _SimulatorSettingsPageState extends State<SimulatorSettingsPage> {
                 children: [
                   Icon(Iconsax.mobile, color: AppColors.primary, size: 20),
                   const SizedBox(width: 8),
-                  const Text('تفعيل الاهتزاز'),
+                  const Flexible(child: Text('تفعيل الاهتزاز')),
                 ],
               ),
               subtitle: const Text('تشغيل الاهتزاز عند التفاعل مع المحاكي'),
