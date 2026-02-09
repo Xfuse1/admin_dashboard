@@ -29,7 +29,7 @@ abstract final class AppStrings {
 
   static const String dashboard = 'لوحة التحكم';
   static const String orders = 'الطلبات';
-  static const String rejectionRequests = 'طلبات الرفض';
+  static const String rejectionRequests = 'اعتذارات السائقين';
   static const String driversStats = 'إحصائيات السائقين';
   static const String onboarding = 'طلبات الانضمام';
   static const String vendors = 'المتاجر';

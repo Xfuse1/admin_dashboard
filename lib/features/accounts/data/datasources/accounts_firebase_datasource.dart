@@ -88,13 +88,14 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
 
     // Ensure safe types for other potentially problematic fields
     // Image URL normalization - handle multiple field names
-    if (!normalized.containsKey('imageUrl') || normalized['imageUrl'] is! String) {
-      normalized['imageUrl'] = normalized['profile_image'] ?? 
-                               normalized['image_url'] ?? 
-                               normalized['photo_url'];
+    if (!normalized.containsKey('imageUrl') ||
+        normalized['imageUrl'] is! String) {
+      normalized['imageUrl'] = normalized['profile_image'] ??
+          normalized['image_url'] ??
+          normalized['photo_url'];
     }
     if (normalized['imageUrl'] is! String) normalized['imageUrl'] = null;
-    
+
     if (normalized['phone'] is! String) normalized['phone'] = '';
     if (normalized['email'] is! String) normalized['email'] = '';
 
@@ -131,8 +132,8 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
     int limit = 20,
     String? lastId,
   }) async {
-    Query<Map<String, dynamic>> query = _customersCollection
-        .where('role', isEqualTo: 'customer');
+    Query<Map<String, dynamic>> query =
+        _customersCollection.where('role', isEqualTo: 'customer');
 
     if (isActive != null) {
       query = query.where('isActive', isEqualTo: isActive);
@@ -189,12 +190,12 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
     }
 
     final data = doc.data()!;
-    
+
     // Verify this is a customer user
     if (data['role'] != 'customer') {
       throw Exception('User is not a customer');
     }
-    
+
     data['id'] = doc.id;
     var customer = CustomerModel.fromJson(_normalizeDateFields(data));
 
@@ -525,8 +526,9 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
   @override
   Future<AccountStats> getAccountStats() async {
     // Customers are now inside users collection with role=customer
-    final customersQuery = _customersCollection.where('role', isEqualTo: 'customer');
-    
+    final customersQuery =
+        _customersCollection.where('role', isEqualTo: 'customer');
+
     // Stores are now inside users collection with role=seller
     final sellersQuery = _storesCollection.where('role', isEqualTo: 'seller');
 

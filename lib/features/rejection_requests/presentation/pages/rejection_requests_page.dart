@@ -249,7 +249,7 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'طلبات الرفض',
+                      'اعتذارات السائقين',
                       style:
                           Theme.of(context).textTheme.headlineSmall?.copyWith(
                                 fontWeight: FontWeight.bold,
@@ -607,7 +607,8 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                              DataCell(Text('#${request.orderId.substring(0, 8)}')),
+                              DataCell(
+                                  Text('#${request.orderId.substring(0, 8)}')),
                               DataCell(
                                 SizedBox(
                                   width: 200,
@@ -747,7 +748,6 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
         return Colors.grey;
     }
   }
-
 
   Future<void> _showApproveDialog(
     BuildContext context,
