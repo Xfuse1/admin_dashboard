@@ -40,6 +40,17 @@ class ToggleCustomerStatus {
   }
 }
 
+/// Use case to get a single customer by ID with detailed stats.
+class GetCustomerById {
+  final AccountsRepository repository;
+
+  GetCustomerById(this.repository);
+
+  Future<Either<Failure, CustomerEntity>> call(String id) {
+    return repository.getCustomerById(id);
+  }
+}
+
 // ============================================
 // 🏪 STORES USE CASES
 // ============================================
@@ -91,6 +102,17 @@ class UpdateStoreCommission {
   }
 }
 
+/// Use case to get a single store by ID with detailed stats.
+class GetStoreById {
+  final AccountsRepository repository;
+
+  GetStoreById(this.repository);
+
+  Future<Either<Failure, StoreEntity>> call(String id) {
+    return repository.getStoreById(id);
+  }
+}
+
 // ============================================
 // 🚗 DRIVERS USE CASES
 // ============================================
@@ -128,6 +150,17 @@ class ToggleDriverStatus {
 
   Future<Either<Failure, void>> call(String id, bool isActive) {
     return repository.toggleDriverStatus(id, isActive);
+  }
+}
+
+/// Use case to get a single driver by ID with detailed stats.
+class GetDriverById {
+  final AccountsRepository repository;
+
+  GetDriverById(this.repository);
+
+  Future<Either<Failure, DriverEntity>> call(String id) {
+    return repository.getDriverById(id);
   }
 }
 

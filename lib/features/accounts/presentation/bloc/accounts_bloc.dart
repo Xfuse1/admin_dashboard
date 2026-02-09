@@ -10,11 +10,14 @@ import 'accounts_state.dart';
 /// BLoC for managing account-related state.
 class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
   final GetCustomers _getCustomers;
+  final GetCustomerById _getCustomerById;
   final ToggleCustomerStatus _toggleCustomerStatus;
   final GetStores _getStores;
+  final GetStoreById _getStoreById;
   final ToggleStoreStatus _toggleStoreStatus;
   final UpdateStoreCommission _updateStoreCommission;
   final GetDrivers _getDrivers;
+  final GetDriverById _getDriverById;
   final ToggleDriverStatus _toggleDriverStatus;
   final GetAccountStats _getAccountStats;
   final DriverApplicationsRepository _applicationsRepository;
@@ -23,20 +26,26 @@ class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
 
   AccountsBloc({
     required GetCustomers getCustomers,
+    required GetCustomerById getCustomerById,
     required ToggleCustomerStatus toggleCustomerStatus,
     required GetStores getStores,
+    required GetStoreById getStoreById,
     required ToggleStoreStatus toggleStoreStatus,
     required UpdateStoreCommission updateStoreCommission,
     required GetDrivers getDrivers,
+    required GetDriverById getDriverById,
     required ToggleDriverStatus toggleDriverStatus,
     required GetAccountStats getAccountStats,
     required DriverApplicationsRepository applicationsRepository,
   })  : _getCustomers = getCustomers,
+        _getCustomerById = getCustomerById,
         _toggleCustomerStatus = toggleCustomerStatus,
         _getStores = getStores,
+        _getStoreById = getStoreById,
         _toggleStoreStatus = toggleStoreStatus,
         _updateStoreCommission = updateStoreCommission,
         _getDrivers = getDrivers,
+        _getDriverById = getDriverById,
         _toggleDriverStatus = toggleDriverStatus,
         _getAccountStats = getAccountStats,
         _applicationsRepository = applicationsRepository,
@@ -47,17 +56,20 @@ class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
     on<SearchCustomers>(_onSearchCustomers);
     on<ToggleCustomerStatusEvent>(_onToggleCustomerStatus);
     on<SelectCustomer>(_onSelectCustomer);
+    on<LoadCustomerDetails>(_onLoadCustomerDetails);
     on<LoadStores>(_onLoadStores);
     on<LoadMoreStores>(_onLoadMoreStores);
     on<SearchStores>(_onSearchStores);
     on<ToggleStoreStatusEvent>(_onToggleStoreStatus);
     on<UpdateStoreCommissionEvent>(_onUpdateStoreCommission);
     on<SelectStore>(_onSelectStore);
+    on<LoadStoreDetails>(_onLoadStoreDetails);
     on<LoadDrivers>(_onLoadDrivers);
     on<LoadMoreDrivers>(_onLoadMoreDrivers);
     on<SearchDrivers>(_onSearchDrivers);
     on<ToggleDriverStatusEvent>(_onToggleDriverStatus);
     on<SelectDriver>(_onSelectDriver);
+    on<LoadDriverDetails>(_onLoadDriverDetails);
     on<LoadDriverApplications>(_onLoadDriverApplications);
     on<FilterDriverApplications>(_onFilterDriverApplications);
     on<UpdateApplicationStatusEvent>(_onUpdateApplicationStatus);
@@ -209,12 +221,12 @@ class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
         }).toList();
 
         final updatedState = currentState.copyWith(customers: updatedCustomers);
-        
+
         emit(AccountActionSuccess(
           message: event.isActive ? 'تم تفعيل العميل' : 'تم تعطيل العميل',
           updatedState: updatedState,
         ));
-        
+
         // Reset state to AccountsLoaded so subsequent actions work
         emit(updatedState);
       },
@@ -232,7 +244,31 @@ class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
       emit(currentState.copyWith(clearSelectedCustomer: true));
     } else {
       emit(currentState.copyWith(selectedCustomer: event.customer));
+      // Load detailed stats in background
+      add(LoadCustomerDetails(event.customer!.id));
     }
+  }
+
+  Future<void> _onLoadCustomerDetails(
+    LoadCustomerDetails event,
+    Emitter<AccountsState> emit,
+  ) async {
+    final currentState = state;
+    if (currentState is! AccountsLoaded) return;
+
+    final result = await _getCustomerById(event.customerId);
+
+    result.fold(
+      (_) {}, // Silently ignore - we still show basic data
+      (detailedCustomer) {
+        final freshState = state;
+        if (freshState is! AccountsLoaded) return;
+        // Update the selected customer with detailed stats
+        if (freshState.selectedCustomer?.id == event.customerId) {
+          emit(freshState.copyWith(selectedCustomer: detailedCustomer));
+        }
+      },
+    );
   }
 
   // ============================================
@@ -363,7 +399,7 @@ class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
           message: event.isActive ? 'تم تفعيل المتجر' : 'تم تعطيل المتجر',
           updatedState: updatedState,
         ));
-        
+
         // Reset state to AccountsLoaded so subsequent actions work
         emit(updatedState);
       },
@@ -422,7 +458,7 @@ class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
           message: 'تم تحديث نسبة العمولة',
           updatedState: updatedState,
         ));
-        
+
         // Reset state to AccountsLoaded so subsequent actions work
         emit(updatedState);
       },
@@ -440,7 +476,30 @@ class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
       emit(currentState.copyWith(clearSelectedStore: true));
     } else {
       emit(currentState.copyWith(selectedStore: event.store));
+      // Load detailed stats in background
+      add(LoadStoreDetails(event.store!.id));
     }
+  }
+
+  Future<void> _onLoadStoreDetails(
+    LoadStoreDetails event,
+    Emitter<AccountsState> emit,
+  ) async {
+    final currentState = state;
+    if (currentState is! AccountsLoaded) return;
+
+    final result = await _getStoreById(event.storeId);
+
+    result.fold(
+      (_) {},
+      (detailedStore) {
+        final freshState = state;
+        if (freshState is! AccountsLoaded) return;
+        if (freshState.selectedStore?.id == event.storeId) {
+          emit(freshState.copyWith(selectedStore: detailedStore));
+        }
+      },
+    );
   }
 
   // ============================================
@@ -574,7 +633,7 @@ class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
           message: event.isActive ? 'تم تفعيل السائق' : 'تم تعطيل السائق',
           updatedState: updatedState,
         ));
-        
+
         // Reset state to AccountsLoaded so subsequent actions work
         emit(updatedState);
       },
@@ -592,7 +651,30 @@ class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
       emit(currentState.copyWith(clearSelectedDriver: true));
     } else {
       emit(currentState.copyWith(selectedDriver: event.driver));
+      // Load detailed stats in background
+      add(LoadDriverDetails(event.driver!.id));
     }
+  }
+
+  Future<void> _onLoadDriverDetails(
+    LoadDriverDetails event,
+    Emitter<AccountsState> emit,
+  ) async {
+    final currentState = state;
+    if (currentState is! AccountsLoaded) return;
+
+    final result = await _getDriverById(event.driverId);
+
+    result.fold(
+      (_) {},
+      (detailedDriver) {
+        final freshState = state;
+        if (freshState is! AccountsLoaded) return;
+        if (freshState.selectedDriver?.id == event.driverId) {
+          emit(freshState.copyWith(selectedDriver: detailedDriver));
+        }
+      },
+    );
   }
 
   // ============================================

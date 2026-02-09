@@ -39,10 +39,12 @@ class _AccountsPageState extends State<AccountsPage>
     _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(_onTabChanged);
 
-    // Load initial data
+    // Load all tabs data in parallel for instant tab switching
     context.read<AccountsBloc>()
       ..add(const LoadAccountStats())
-      ..add(const LoadCustomers());
+      ..add(const LoadCustomers())
+      ..add(const LoadStores())
+      ..add(const LoadDrivers());
   }
 
   @override
@@ -132,7 +134,6 @@ class _AccountsPageState extends State<AccountsPage>
             }
           },
           builder: (context, state) {
-            
             // Unwrap state to keep showing content during actions or after success
             final effectiveState = switch (state) {
               AccountActionSuccess(updatedState: final s) => s,
@@ -143,15 +144,17 @@ class _AccountsPageState extends State<AccountsPage>
 
             // If we are still loading initial data or error
             if (effectiveState == null) {
-              if (state is AccountsLoading) return const Center(child: CircularProgressIndicator());
-               if (state is AccountsError) return Center(child: Text(state.message)); // Simplified error
-               return const SizedBox.shrink();
+              if (state is AccountsLoading)
+                return const Center(child: CircularProgressIndicator());
+              if (state is AccountsError)
+                return Center(child: Text(state.message)); // Simplified error
+              return const SizedBox.shrink();
             }
 
             return Scaffold(
               body: Column(
                 children: [
-                   // Header
+                  // Header
                   _buildHeader(deviceType),
 
                   // Stats Cards
@@ -163,7 +166,8 @@ class _AccountsPageState extends State<AccountsPage>
 
                   // Content
                   Expanded(
-                    child: _buildContentWithSidePanel(effectiveState, deviceType),
+                    child:
+                        _buildContentWithSidePanel(effectiveState, deviceType),
                   ),
                 ],
               ),
@@ -173,8 +177,9 @@ class _AccountsPageState extends State<AccountsPage>
       },
     );
   }
-  
-  void _showCustomerDetailsSheet(BuildContext context, CustomerEntity customer) {
+
+  void _showCustomerDetailsSheet(
+      BuildContext context, CustomerEntity customer) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -236,7 +241,8 @@ class _AccountsPageState extends State<AccountsPage>
     });
   }
 
-  Widget _buildContentWithSidePanel(AccountsLoaded state, DeviceType deviceType) {
+  Widget _buildContentWithSidePanel(
+      AccountsLoaded state, DeviceType deviceType) {
     bool showSidePanel = deviceType != DeviceType.mobile &&
         (state.selectedCustomer != null || state.selectedDriver != null);
 
@@ -244,12 +250,14 @@ class _AccountsPageState extends State<AccountsPage>
     if (state.selectedCustomer != null) {
       sidePanel = CustomerDetailsPanel(
         customer: state.selectedCustomer!,
-        onClose: () => context.read<AccountsBloc>().add(const SelectCustomer(null)),
+        onClose: () =>
+            context.read<AccountsBloc>().add(const SelectCustomer(null)),
       );
     } else if (state.selectedDriver != null) {
       sidePanel = DriverDetailsPanel(
         driver: state.selectedDriver!,
-        onClose: () => context.read<AccountsBloc>().add(const SelectDriver(null)),
+        onClose: () =>
+            context.read<AccountsBloc>().add(const SelectDriver(null)),
       );
     }
 
@@ -415,7 +423,7 @@ class _AccountsPageState extends State<AccountsPage>
   Widget _buildCustomersTab(AccountsState state, DeviceType deviceType) {
     // Cast to AccountsLoaded is safe here because we check before calling
     final loadedState = state as AccountsLoaded;
-    
+
     if (loadedState.customers.isEmpty) {
       return _buildEmptyState('لا يوجد عملاء', Iconsax.people);
     }
@@ -437,7 +445,6 @@ class _AccountsPageState extends State<AccountsPage>
       deviceType: deviceType,
     );
   }
-
 
   Widget _buildStoresTab(AccountsState state, DeviceType deviceType) {
     if (state is! AccountsLoaded) {
@@ -549,8 +556,6 @@ class _AccountsPageState extends State<AccountsPage>
       ),
     );
   }
-
-
 
   void _showDriverLocation(DriverEntity driver) {
     if (driver.latitude == null || driver.longitude == null) {

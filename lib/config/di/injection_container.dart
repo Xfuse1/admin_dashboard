@@ -261,11 +261,14 @@ Future<void> _initAccountsDependencies() async {
 
   // Use Cases
   sl.registerLazySingleton(() => GetCustomers(sl()));
+  sl.registerLazySingleton(() => GetCustomerById(sl()));
   sl.registerLazySingleton(() => ToggleCustomerStatus(sl()));
   sl.registerLazySingleton(() => GetStores(sl()));
+  sl.registerLazySingleton(() => GetStoreById(sl()));
   sl.registerLazySingleton(() => ToggleStoreStatus(sl()));
   sl.registerLazySingleton(() => UpdateStoreCommission(sl()));
   sl.registerLazySingleton(() => GetDrivers(sl()));
+  sl.registerLazySingleton(() => GetDriverById(sl()));
   sl.registerLazySingleton(() => ToggleDriverStatus(sl()));
   sl.registerLazySingleton(() => GetAccountStats(sl()));
 
@@ -273,11 +276,14 @@ Future<void> _initAccountsDependencies() async {
   sl.registerFactory(
     () => AccountsBloc(
       getCustomers: sl(),
+      getCustomerById: sl(),
       toggleCustomerStatus: sl(),
       getStores: sl(),
+      getStoreById: sl(),
       toggleStoreStatus: sl(),
       updateStoreCommission: sl(),
       getDrivers: sl(),
+      getDriverById: sl(),
       toggleDriverStatus: sl(),
       getAccountStats: sl(),
       applicationsRepository: sl(),

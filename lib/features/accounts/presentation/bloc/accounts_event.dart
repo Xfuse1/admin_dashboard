@@ -74,6 +74,16 @@ class SelectCustomer extends AccountsEvent {
   List<Object?> get props => [customer];
 }
 
+/// Load detailed customer data (with stats) for the details panel.
+class LoadCustomerDetails extends AccountsEvent {
+  final String customerId;
+
+  const LoadCustomerDetails(this.customerId);
+
+  @override
+  List<Object?> get props => [customerId];
+}
+
 // ============================================
 // 🏪 STORES
 // ============================================
@@ -149,6 +159,16 @@ class SelectStore extends AccountsEvent {
   List<Object?> get props => [store];
 }
 
+/// Load detailed store data (with stats) for the details panel.
+class LoadStoreDetails extends AccountsEvent {
+  final String storeId;
+
+  const LoadStoreDetails(this.storeId);
+
+  @override
+  List<Object?> get props => [storeId];
+}
+
 // ============================================
 // 🚗 DRIVERS
 // ============================================
@@ -208,6 +228,16 @@ class SelectDriver extends AccountsEvent {
 
   @override
   List<Object?> get props => [driver];
+}
+
+/// Load detailed driver data (with stats) for the details panel.
+class LoadDriverDetails extends AccountsEvent {
+  final String driverId;
+
+  const LoadDriverDetails(this.driverId);
+
+  @override
+  List<Object?> get props => [driverId];
 }
 
 /// Switch account tab.

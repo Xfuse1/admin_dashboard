@@ -14,7 +14,7 @@ enum VendorCategory {
 /// Helper function to map old category names to new ones
 VendorCategory _mapCategoryFromFirestore(String? category) {
   if (category == null) return VendorCategory.other;
-  
+
   // Map old category names to new ones
   final categoryMap = {
     'restaurant': VendorCategory.food,
