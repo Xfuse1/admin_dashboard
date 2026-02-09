@@ -145,6 +145,7 @@ class VendorEntity extends Equatable {
   final String name;
   final String? description;
   final VendorCategory category;
+  final String? categoryLabel;
   final VendorStatus status;
   final VendorAddress address;
   final String phone;
@@ -173,6 +174,7 @@ class VendorEntity extends Equatable {
     required this.name,
     this.description,
     required this.category,
+    this.categoryLabel,
     required this.status,
     required this.address,
     required this.phone,
@@ -203,6 +205,7 @@ class VendorEntity extends Equatable {
         name,
         description,
         category,
+        categoryLabel,
         status,
         address,
         phone,
@@ -232,6 +235,7 @@ class VendorEntity extends Equatable {
     String? name,
     String? description,
     VendorCategory? category,
+    String? categoryLabel,
     VendorStatus? status,
     VendorAddress? address,
     String? phone,
@@ -260,6 +264,7 @@ class VendorEntity extends Equatable {
       name: name ?? this.name,
       description: description ?? this.description,
       category: category ?? this.category,
+      categoryLabel: categoryLabel ?? this.categoryLabel,
       status: status ?? this.status,
       address: address ?? this.address,
       phone: phone ?? this.phone,
@@ -291,6 +296,7 @@ class VendorEntity extends Equatable {
       'name': name,
       'description': description,
       'category': category.name,
+      'categoryLabel': categoryLabel,
       'status': status.name,
       'address': address.toMap(),
       'phone': phone,
@@ -325,6 +331,7 @@ class VendorEntity extends Equatable {
         (e) => e.name == map['category'],
         orElse: () => VendorCategory.other,
       ),
+      categoryLabel: map['categoryLabel'],
       status: VendorStatus.values.firstWhere(
         (e) => e.name == map['status'],
         orElse: () => VendorStatus.pending,

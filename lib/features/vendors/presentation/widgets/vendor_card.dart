@@ -107,7 +107,10 @@ class VendorCard extends StatelessWidget {
                       const SizedBox(height: AppConstants.spacingXs),
                       Row(
                         children: [
-                          _CategoryBadge(category: vendor.category),
+                          _CategoryBadge(
+                            category: vendor.category,
+                            label: vendor.categoryLabel,
+                          ),
                           const SizedBox(width: AppConstants.spacingSm),
                           Icon(
                             Icons.location_on,
@@ -345,8 +348,12 @@ class _StatusBadge extends StatelessWidget {
 
 class _CategoryBadge extends StatelessWidget {
   final VendorCategory category;
+  final String? label;
 
-  const _CategoryBadge({required this.category});
+  const _CategoryBadge({
+    required this.category,
+    this.label,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -392,6 +399,10 @@ class _CategoryBadge extends StatelessWidget {
   }
 
   String _getCategoryLabel() {
+    final normalizedLabel = label?.trim();
+    if (normalizedLabel != null && normalizedLabel.isNotEmpty) {
+      return normalizedLabel;
+    }
     return switch (category) {
       VendorCategory.restaurant => 'مطعم',
       VendorCategory.grocery => 'بقالة',

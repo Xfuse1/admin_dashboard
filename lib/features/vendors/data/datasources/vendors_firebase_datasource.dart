@@ -107,6 +107,7 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
       'name': storeData['name'] ?? userData['full_name'] ?? 'Unknown',
       'description': storeData['description'],
       'category': storeData['category'],
+      'categoryLabel': storeData['category'],
       'phone': storeData['phone'] ?? userData['phone'] ?? '',
       'email': storeData['support_email'] ?? userData['email'],
       'logoUrl': storeData['image_url'],
