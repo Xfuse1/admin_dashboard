@@ -2,8 +2,12 @@
  * Import function triggers from their respective submodules
  * and initialize the admin SDK.
  */
-const {onDocumentWritten} = require("firebase-functions/v2/firestore");
-const functions = require("firebase-functions");
+const {
+  onDocumentUpdated,
+  onDocumentCreated,
+  onDocumentDeleted,
+  onDocumentWritten,
+} = require("firebase-functions/v2/firestore");
 const admin = require("firebase-admin");
 
 admin.initializeApp();
@@ -14,57 +18,55 @@ const db = admin.firestore();
 /**
  * Send notification when an order status changes.
  */
-exports.senddevices = functions.firestore
-  .document("orders/{id}")
-  .onUpdate((change, context) => {
-    const data = change.after.data();
-    const previousData = change.before.data();
+exports.senddevices = onDocumentUpdated("orders/{id}", (event) => {
+  const data = event.data.after.data();
+  const previousData = event.data.before.data();
 
-    const topic = "general";
-    const pickupOption = data.pickupOption;
-    const deliveryStatus = data.deliveryStatus;
-    const previousDeliveryStatus = previousData.deliveryStatus;
+  const topic = "general";
+  const pickupOption = data.pickupOption;
+  const deliveryStatus = data.deliveryStatus;
+  const previousDeliveryStatus = previousData.deliveryStatus;
 
-    if (pickupOption === "delivery" &&
-        deliveryStatus === "upcoming" &&
-        previousDeliveryStatus === "pending") {
-      const userName = data.userName;
-      const message = {
-        notification: {
-          title: "New Order!",
-          body: `New Delivery Order from "${userName}" has been added.`,
-        },
-        data: {"routeLocation": "/home"},
-      };
+  if (pickupOption === "delivery" &&
+      deliveryStatus === "upcoming" &&
+      previousDeliveryStatus === "pending") {
+    const userName = data.userName;
+    const message = {
+      notification: {
+        title: "New Order!",
+        body: `New Delivery Order from "${userName}" has been added.`,
+      },
+      data: {"routeLocation": "/home"},
+    };
 
-      return fcm.sendToTopic(topic, message);
-    }
-    return null;
-  });
+    return fcm.sendToTopic(topic, message);
+  }
+  return null;
+});
 
 /**
  * Create admin notification when a new driver request is submitted.
  */
-exports.onDriverRequestCreated = functions.firestore
-  .document("driver_requests/{driverId}")
-  .onCreate(async (snap, context) => {
+exports.onDriverRequestCreated = onDocumentCreated(
+  "driver_requests/{driverId}",
+  async (event) => {
     try {
-      const data = snap.data();
-      const driverId = context.params.driverId;
-      
+      const data = event.data.data();
+      const driverId = event.params.driverId;
+
       // Get all admin users to notify them
       const adminsSnapshot = await db.collection("users")
         .where("role", "==", "admin")
         .get();
 
-      const driverName = data.firstName && data.lastName 
+      const driverName = data.firstName && data.lastName
         ? `${data.firstName} ${data.lastName}`
         : data.email || "سائق جديد";
 
       const promises = [];
       adminsSnapshot.docs.forEach((adminDoc) => {
         const adminId = adminDoc.id;
-        
+
         promises.push(
           db.collection("admin_notifications")
             .doc(adminId)
@@ -99,14 +101,14 @@ exports.onDriverRequestCreated = functions.firestore
 /**
  * Create admin notification when a driver request status is updated.
  */
-exports.onDriverRequestStatusUpdated = functions.firestore
-  .document("driver_requests/{driverId}")
-  .onUpdate(async (change, context) => {
+exports.onDriverRequestStatusUpdated = onDocumentUpdated(
+  "driver_requests/{driverId}",
+  async (event) => {
     try {
-      const newData = change.after.data();
-      const previousData = change.before.data();
-      const driverId = context.params.driverId;
-      
+      const newData = event.data.after.data();
+      const previousData = event.data.before.data();
+      const driverId = event.params.driverId;
+
       // Only notify if status changed
       if (newData.status === previousData.status) {
         return null;
@@ -117,7 +119,7 @@ exports.onDriverRequestStatusUpdated = functions.firestore
         .where("role", "==", "admin")
         .get();
 
-      const driverName = newData.firstName && newData.lastName 
+      const driverName = newData.firstName && newData.lastName
         ? `${newData.firstName} ${newData.lastName}`
         : newData.email || "سائق";
 
@@ -128,13 +130,13 @@ exports.onDriverRequestStatusUpdated = functions.firestore
         "suspended": `تم إيقاف السائق ${driverName}`,
       };
 
-      const message = statusMessages[newData.status] || 
+      const message = statusMessages[newData.status] ||
         `تحديث حالة السائق ${driverName}: ${newData.status}`;
 
       const promises = [];
       adminsSnapshot.docs.forEach((adminDoc) => {
         const adminId = adminDoc.id;
-        
+
         promises.push(
           db.collection("admin_notifications")
             .doc(adminId)
@@ -168,16 +170,19 @@ exports.onDriverRequestStatusUpdated = functions.firestore
   });
 
 /**
- * Update store rating when a review is created.
+ * Update store rating when a review is created, updated, or deleted.
  */
-exports.onReviewCreated = onDocumentWritten("store_reviews/{reviewId}",
+exports.onReviewWritten = onDocumentWritten(
+  "store_reviews/{reviewId}",
   async (event) => {
-    const data = event.data.after.data();
-    const storeId = data ? data.storeId : null;
+    // On delete, event.data.after.data() is undefined
+    const afterData = event.data.after ? event.data.after.data() : null;
+    const beforeData = event.data.before ? event.data.before.data() : null;
+    const storeId = (afterData && afterData.storeId) ||
+                    (beforeData && beforeData.storeId);
     if (!storeId) return null;
     return updateStoreRating(storeId);
   });
-
 
 /**
  * Helper function to recalculate and update store rating.

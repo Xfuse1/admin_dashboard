@@ -47,8 +47,9 @@ class AuthFirebaseDataSource implements AuthDataSource {
 
       final data = doc.data()!;
 
-      // Check if user has admin role
-      if (data['role'] != 'admin') {
+      // Check if user has admin or superAdmin role
+      final role = data['role'];
+      if (role != 'admin' && role != 'superAdmin') {
         await _auth.signOut();
         throw const AuthException(message: 'هذا الحساب ليس حساب مدير');
       }
@@ -105,8 +106,9 @@ class AuthFirebaseDataSource implements AuthDataSource {
 
       final data = doc.data()!;
 
-      // Check if user has admin role
-      if (data['role'] != 'admin') {
+      // Check if user has admin or superAdmin role
+      final role = data['role'];
+      if (role != 'admin' && role != 'superAdmin') {
         await _auth.signOut();
         return null;
       }
