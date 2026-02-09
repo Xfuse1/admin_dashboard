@@ -123,6 +123,7 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
       'createdAt': storeData['created_at'] ?? userData['created_at'],
       'updatedAt': storeData['updated_at'] ?? userData['updated_at'],
       'ownerId': docId,
+      'ownerName': userData['full_name'],
       'whatsappNumber': storeData['whatsapp_number'],
       'returnPolicy': storeData['return_policy'],
       'openTime': storeData['open_time'],

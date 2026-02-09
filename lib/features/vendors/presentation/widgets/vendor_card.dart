@@ -129,6 +129,32 @@ class VendorCard extends StatelessWidget {
                           ),
                         ],
                       ),
+                      if (vendor.ownerName != null &&
+                          vendor.ownerName!.trim().isNotEmpty) ...[
+                        const SizedBox(height: AppConstants.spacingXs),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.person,
+                              size: 14,
+                              color: AppColors.textTertiary,
+                            ),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                vendor.ownerName!,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: AppColors.textTertiary,
+                                    ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                       const SizedBox(height: AppConstants.spacingMd),
                       Wrap(
                         spacing: AppConstants.spacingSm,

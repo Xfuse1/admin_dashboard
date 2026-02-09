@@ -165,6 +165,7 @@ class VendorEntity extends Equatable {
   final DateTime createdAt;
   final DateTime updatedAt;
   final String? ownerId;
+  final String? ownerName;
   final Map<String, dynamic>? metadata;
 
   const VendorEntity({
@@ -192,6 +193,7 @@ class VendorEntity extends Equatable {
     required this.createdAt,
     required this.updatedAt,
     this.ownerId,
+    this.ownerName,
     this.metadata,
   });
 
@@ -221,6 +223,7 @@ class VendorEntity extends Equatable {
         createdAt,
         updatedAt,
         ownerId,
+        ownerName,
         metadata,
       ];
 
@@ -249,6 +252,7 @@ class VendorEntity extends Equatable {
     DateTime? createdAt,
     DateTime? updatedAt,
     String? ownerId,
+    String? ownerName,
     Map<String, dynamic>? metadata,
   }) {
     return VendorEntity(
@@ -276,6 +280,7 @@ class VendorEntity extends Equatable {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       ownerId: ownerId ?? this.ownerId,
+      ownerName: ownerName ?? this.ownerName,
       metadata: metadata ?? this.metadata,
     );
   }
@@ -306,6 +311,7 @@ class VendorEntity extends Equatable {
       'createdAt': createdAt.toIso8601String(),
       'updatedAt': updatedAt.toIso8601String(),
       'ownerId': ownerId,
+      'ownerName': ownerName,
       'metadata': metadata,
     };
   }
@@ -349,6 +355,7 @@ class VendorEntity extends Equatable {
           ? DateTime.parse(map['updatedAt'])
           : DateTime.now(),
       ownerId: map['ownerId'],
+      ownerName: map['ownerName'],
       metadata: map['metadata'],
     );
   }
