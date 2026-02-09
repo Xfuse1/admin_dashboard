@@ -134,14 +134,16 @@ class StatCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: (isPositive ? AppColors.success : AppColors.error)
                           .withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(AppConstants.radiusSm),
+                      borderRadius:
+                          BorderRadius.circular(AppConstants.radiusSm),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
                           isPositive ? Icons.trending_up : Icons.trending_down,
-                          color: isPositive ? AppColors.success : AppColors.error,
+                          color:
+                              isPositive ? AppColors.success : AppColors.error,
                           size: 14,
                         ),
                         const SizedBox(width: 4),
@@ -149,12 +151,13 @@ class StatCard extends StatelessWidget {
                           child: Text(
                             '${percentChange!.abs().toStringAsFixed(1)}%',
                             overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: isPositive
-                                      ? AppColors.success
-                                      : AppColors.error,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: isPositive
+                                          ? AppColors.success
+                                          : AppColors.error,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                           ),
                         ),
                       ],
