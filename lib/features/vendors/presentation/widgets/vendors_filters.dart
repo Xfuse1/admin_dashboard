@@ -235,22 +235,24 @@ class _VendorsFiltersState extends State<VendorsFilters> {
 
   String _getCategoryLabel(VendorCategory category) {
     return switch (category) {
-      VendorCategory.restaurant => 'مطعم',
+      VendorCategory.food => 'أغذية',
       VendorCategory.grocery => 'بقالة',
-      VendorCategory.pharmacy => 'صيدلية',
+      VendorCategory.health => 'صحة',
       VendorCategory.electronics => 'إلكترونيات',
-      VendorCategory.fashion => 'أزياء',
+      VendorCategory.clothes => 'ملابس',
+      VendorCategory.furniture => 'أثاث',
       VendorCategory.other => 'أخرى',
     };
   }
 
   IconData _getCategoryIcon(VendorCategory category) {
     return switch (category) {
-      VendorCategory.restaurant => Icons.restaurant,
+      VendorCategory.food => Icons.restaurant,
       VendorCategory.grocery => Icons.local_grocery_store,
-      VendorCategory.pharmacy => Icons.local_pharmacy,
+      VendorCategory.health => Icons.local_hospital,
       VendorCategory.electronics => Icons.devices,
-      VendorCategory.fashion => Icons.checkroom,
+      VendorCategory.clothes => Icons.checkroom,
+      VendorCategory.furniture => Icons.chair,
       VendorCategory.other => Icons.store,
     };
   }
@@ -344,7 +346,7 @@ class _AddVendorDialogState extends State<_AddVendorDialog> {
   final _cityController = TextEditingController();
   final _commissionController = TextEditingController(text: '10');
 
-  VendorCategory _selectedCategory = VendorCategory.restaurant;
+  VendorCategory _selectedCategory = VendorCategory.food;
   bool _isLoading = false;
 
   @override
@@ -605,11 +607,12 @@ class _AddVendorDialogState extends State<_AddVendorDialog> {
 
   String _getCategoryLabel(VendorCategory category) {
     return switch (category) {
-      VendorCategory.restaurant => 'مطعم',
+      VendorCategory.food => 'أغذية',
       VendorCategory.grocery => 'بقالة',
-      VendorCategory.pharmacy => 'صيدلية',
+      VendorCategory.health => 'صحة',
       VendorCategory.electronics => 'إلكترونيات',
-      VendorCategory.fashion => 'أزياء',
+      VendorCategory.clothes => 'ملابس',
+      VendorCategory.furniture => 'أثاث',
       VendorCategory.other => 'أخرى',
     };
   }

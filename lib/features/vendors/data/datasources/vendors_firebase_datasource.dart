@@ -219,6 +219,11 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
         vendors = await Future.wait(countFutures);
       }
 
+      // Client-side category filtering
+      if (category != null) {
+        vendors = vendors.where((v) => v.category == category).toList();
+      }
+
       // Client-side search filtering
       if (searchQuery != null && searchQuery.isNotEmpty) {
         final queryLower = searchQuery.toLowerCase();

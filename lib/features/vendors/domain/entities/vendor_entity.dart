@@ -2,12 +2,50 @@ import 'package:equatable/equatable.dart';
 
 /// Vendor category type.
 enum VendorCategory {
-  restaurant,
+  food,
   grocery,
-  pharmacy,
+  health,
   electronics,
-  fashion,
+  clothes,
+  furniture,
   other,
+}
+
+/// Helper function to map old category names to new ones
+VendorCategory _mapCategoryFromFirestore(String? category) {
+  if (category == null) return VendorCategory.other;
+  
+  // Map old category names to new ones
+  final categoryMap = {
+    'restaurant': VendorCategory.food,
+    'pharmacy': VendorCategory.health,
+    'fashion': VendorCategory.clothes,
+    'أغذية': VendorCategory.food,
+    'مطعم': VendorCategory.food,
+    'بقالة': VendorCategory.grocery,
+    'صحة': VendorCategory.health,
+    'صيدلية': VendorCategory.health,
+    'إلكترونيات': VendorCategory.electronics,
+    'ملابس': VendorCategory.clothes,
+    'أزياء': VendorCategory.clothes,
+    'أثاث': VendorCategory.furniture,
+    'أخرى': VendorCategory.other,
+  };
+
+  // Check if it's a direct mapping
+  if (categoryMap.containsKey(category)) {
+    return categoryMap[category]!;
+  }
+
+  // Try to match by enum name
+  try {
+    return VendorCategory.values.firstWhere(
+      (e) => e.name == category.toLowerCase(),
+      orElse: () => VendorCategory.other,
+    );
+  } catch (_) {
+    return VendorCategory.other;
+  }
 }
 
 /// Vendor status.
@@ -327,10 +365,7 @@ class VendorEntity extends Equatable {
       id: map['id'] ?? '',
       name: map['name'] ?? '',
       description: map['description'],
-      category: VendorCategory.values.firstWhere(
-        (e) => e.name == map['category'],
-        orElse: () => VendorCategory.other,
-      ),
+      category: _mapCategoryFromFirestore(map['category'] as String?),
       categoryLabel: map['categoryLabel'],
       status: VendorStatus.values.firstWhere(
         (e) => e.name == map['status'],
