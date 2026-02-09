@@ -99,11 +99,24 @@ class VendorDetailsPanel extends StatelessWidget {
                   ],
                 ),
                 Text(
-                  _getCategoryLabel(vendor.category),
+                  _getCategoryLabel(
+                    vendor.category,
+                    vendor.categoryLabel,
+                  ),
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppColors.textSecondary,
                       ),
                 ),
+                if (vendor.ownerName != null &&
+                    vendor.ownerName!.trim().isNotEmpty)
+                  Text(
+                    vendor.ownerName!,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textTertiary,
+                        ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
               ],
             ),
           ),
@@ -607,7 +620,11 @@ class VendorDetailsPanel extends StatelessWidget {
     );
   }
 
-  String _getCategoryLabel(VendorCategory category) {
+  String _getCategoryLabel(VendorCategory category, String? label) {
+    final normalizedLabel = label?.trim();
+    if (normalizedLabel != null && normalizedLabel.isNotEmpty) {
+      return normalizedLabel;
+    }
     return switch (category) {
       VendorCategory.restaurant => 'مطعم',
       VendorCategory.grocery => 'بقالة',
