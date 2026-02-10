@@ -17,7 +17,7 @@ class AccountStatsCards extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 110,
+      height: 120,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: ListView(
         scrollDirection: Axis.horizontal,
@@ -77,7 +77,7 @@ class AccountStatsCards extends StatelessWidget {
   }) {
     return Container(
       width: 170,
-      margin: const EdgeInsets.only(left: 12),
+      margin: const EdgeInsetsDirectional.only(end: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: iconColor.withValues(alpha: 0.1),

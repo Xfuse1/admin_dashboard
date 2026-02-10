@@ -21,7 +21,7 @@ class OrderStatsCards extends StatelessWidget {
         if (prev is OrdersLoaded && curr is OrdersLoaded) {
           return prev.stats != curr.stats;
         }
-        return false;
+        return prev.runtimeType != curr.runtimeType;
       },
       builder: (context, state) {
         if (state is! OrdersLoaded || state.stats == null) {
@@ -99,7 +99,7 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GlassCard(
-      width: 140,
+      width: 160,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -127,6 +127,8 @@ class _StatCard extends StatelessWidget {
           ),
         ],
       ),
-    ).animate().fadeIn(duration: 200.ms);
+    )
+        .animate(delay: Duration(milliseconds: 80 * index))
+        .fadeIn(duration: 200.ms);
   }
 }

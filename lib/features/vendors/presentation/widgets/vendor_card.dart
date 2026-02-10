@@ -107,9 +107,11 @@ class VendorCard extends StatelessWidget {
                       const SizedBox(height: AppConstants.spacingXs),
                       Row(
                         children: [
-                          _CategoryBadge(
-                            category: vendor.category,
-                            label: vendor.categoryLabel,
+                          Flexible(
+                            child: _CategoryBadge(
+                              category: vendor.category,
+                              label: vendor.categoryLabel,
+                            ),
                           ),
                           const SizedBox(width: AppConstants.spacingSm),
                           Icon(
@@ -218,16 +220,19 @@ class VendorCard extends StatelessWidget {
                                 color: AppColors.error,
                               ),
                               const SizedBox(width: 4),
-                              Text(
-                                'لم يتم إرسال الموقع',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodySmall
-                                    ?.copyWith(
-                                      color: AppColors.error,
-                                      fontWeight: FontWeight.w600,
-                                      fontSize: 11,
-                                    ),
+                              Flexible(
+                                child: Text(
+                                  'لم يتم إرسال الموقع',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        color: AppColors.error,
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 11,
+                                      ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                             ],
                           ),
@@ -334,12 +339,15 @@ class _StatusBadge extends StatelessWidget {
             ),
           ),
           const SizedBox(width: AppConstants.spacingXs),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: color,
-                  fontWeight: FontWeight.w600,
-                ),
+          Flexible(
+            child: Text(
+              label,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w600,
+                  ),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),
@@ -376,12 +384,15 @@ class _CategoryBadge extends StatelessWidget {
             color: AppColors.textSecondary,
           ),
           const SizedBox(width: 4),
-          Text(
-            _getCategoryLabel(),
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textSecondary,
-                  fontSize: 11,
-                ),
+          Flexible(
+            child: Text(
+              _getCategoryLabel(),
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textSecondary,
+                    fontSize: 11,
+                  ),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ),
@@ -441,22 +452,26 @@ class _InfoChip extends StatelessWidget {
           color: iconColor ?? AppColors.textTertiary,
         ),
         const SizedBox(width: 4),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
-          overflow: TextOverflow.ellipsis,
+        Flexible(
+          child: Text(
+            label,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.textPrimary,
+                ),
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
         if (sublabel != null) ...[
           const SizedBox(width: 2),
-          Text(
-            sublabel!,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.textTertiary,
-                ),
-            overflow: TextOverflow.ellipsis,
+          Flexible(
+            child: Text(
+              sublabel!,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.textTertiary,
+                  ),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
         ],
       ],

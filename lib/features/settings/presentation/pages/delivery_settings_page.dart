@@ -91,7 +91,7 @@ class _DeliverySettingsViewState extends State<_DeliverySettingsView> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -108,7 +108,7 @@ class _DeliverySettingsViewState extends State<_DeliverySettingsView> {
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: AppColors.primary.withOpacity(0.1),
+                              color: AppColors.primary.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: const Icon(
@@ -161,7 +161,7 @@ class _DeliverySettingsViewState extends State<_DeliverySettingsView> {
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
                             borderSide: BorderSide(
-                              color: AppColors.border.withOpacity(0.5),
+                              color: AppColors.border.withValues(alpha: 0.5),
                             ),
                           ),
                           focusedBorder: OutlineInputBorder(

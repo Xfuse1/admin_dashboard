@@ -362,14 +362,23 @@ class _AddVendorDialogState extends State<_AddVendorDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isCompact = screenWidth < 600;
+    final dialogWidth = isCompact ? screenWidth * 0.95 : 600.0;
+
     return Dialog(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppConstants.radiusLg),
       ),
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: isCompact ? 8 : 40,
+        vertical: 24,
+      ),
       child: Container(
-        width: 600,
-        constraints: const BoxConstraints(maxHeight: 700),
-        padding: const EdgeInsets.all(AppConstants.spacingXl),
+        width: dialogWidth,
+        constraints: BoxConstraints(maxHeight: isCompact ? 600 : 700),
+        padding: EdgeInsets.all(
+            isCompact ? AppConstants.spacingMd : AppConstants.spacingXl),
         child: Form(
           key: _formKey,
           child: Column(
@@ -379,11 +388,14 @@ class _AddVendorDialogState extends State<_AddVendorDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'إضافة متجر جديد',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                  Flexible(
+                    child: Text(
+                      'إضافة متجر جديد',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                   IconButton(
                     icon: const Icon(Icons.close),
@@ -394,104 +406,7 @@ class _AddVendorDialogState extends State<_AddVendorDialog> {
               const Divider(height: AppConstants.spacingLg * 2),
               Expanded(
                 child: SingleChildScrollView(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Basic Info Section
-                      _buildSectionTitle(context, 'المعلومات الأساسية'),
-                      const SizedBox(height: AppConstants.spacingMd),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildTextField(
-                              controller: _nameController,
-                              label: 'اسم المتجر',
-                              validator: (v) =>
-                                  v?.isEmpty == true ? 'الاسم مطلوب' : null,
-                            ),
-                          ),
-                          const SizedBox(width: AppConstants.spacingMd),
-                          Expanded(
-                            child: _buildDropdown<VendorCategory>(
-                              label: 'الفئة',
-                              value: _selectedCategory,
-                              items: VendorCategory.values
-                                  .map((c) => DropdownMenuItem(
-                                        value: c,
-                                        child: Text(_getCategoryLabel(c)),
-                                      ))
-                                  .toList(),
-                              onChanged: (v) =>
-                                  setState(() => _selectedCategory = v!),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AppConstants.spacingMd),
-                      _buildTextField(
-                        controller: _descriptionController,
-                        label: 'الوصف',
-                        maxLines: 2,
-                      ),
-
-                      const SizedBox(height: AppConstants.spacingLg),
-
-                      // Contact Info Section
-                      _buildSectionTitle(context, 'معلومات التواصل'),
-                      const SizedBox(height: AppConstants.spacingMd),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildTextField(
-                              controller: _phoneController,
-                              label: 'رقم الهاتف',
-                              keyboardType: TextInputType.phone,
-                              validator: (v) =>
-                                  v?.isEmpty == true ? 'الهاتف مطلوب' : null,
-                            ),
-                          ),
-                          const SizedBox(width: AppConstants.spacingMd),
-                          Expanded(
-                            child: _buildTextField(
-                              controller: _emailController,
-                              label: 'البريد الإلكتروني',
-                              keyboardType: TextInputType.emailAddress,
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: AppConstants.spacingLg),
-
-                      // Address Section
-                      _buildSectionTitle(context, 'العنوان'),
-                      const SizedBox(height: AppConstants.spacingMd),
-                      Row(
-                        children: [
-                          Expanded(
-                            flex: 2,
-                            child: _buildTextField(
-                              controller: _streetController,
-                              label: 'الشارع',
-                              validator: (v) =>
-                                  v?.isEmpty == true ? 'العنوان مطلوب' : null,
-                            ),
-                          ),
-                          const SizedBox(width: AppConstants.spacingMd),
-                          Expanded(
-                            child: _buildTextField(
-                              controller: _cityController,
-                              label: 'المدينة',
-                              validator: (v) =>
-                                  v?.isEmpty == true ? 'المدينة مطلوبة' : null,
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: AppConstants.spacingLg),
-                    ],
-                  ),
+                  child: _buildFormContent(context, isCompact),
                 ),
               ),
               const Divider(height: AppConstants.spacingLg * 2),
@@ -521,6 +436,149 @@ class _AddVendorDialogState extends State<_AddVendorDialog> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildFormContent(BuildContext context, bool isCompact) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Basic Info Section
+        _buildSectionTitle(context, 'المعلومات الأساسية'),
+        const SizedBox(height: AppConstants.spacingMd),
+        if (isCompact) ...[
+          _buildTextField(
+            controller: _nameController,
+            label: 'اسم المتجر',
+            validator: (v) => v?.isEmpty == true ? 'الاسم مطلوب' : null,
+          ),
+          const SizedBox(height: AppConstants.spacingMd),
+          _buildDropdown<VendorCategory>(
+            label: 'الفئة',
+            value: _selectedCategory,
+            items: VendorCategory.values
+                .map((c) => DropdownMenuItem(
+                      value: c,
+                      child: Text(_getCategoryLabel(c)),
+                    ))
+                .toList(),
+            onChanged: (v) => setState(() => _selectedCategory = v!),
+          ),
+        ] else
+          Row(
+            children: [
+              Expanded(
+                child: _buildTextField(
+                  controller: _nameController,
+                  label: 'اسم المتجر',
+                  validator: (v) => v?.isEmpty == true ? 'الاسم مطلوب' : null,
+                ),
+              ),
+              const SizedBox(width: AppConstants.spacingMd),
+              Expanded(
+                child: _buildDropdown<VendorCategory>(
+                  label: 'الفئة',
+                  value: _selectedCategory,
+                  items: VendorCategory.values
+                      .map((c) => DropdownMenuItem(
+                            value: c,
+                            child: Text(_getCategoryLabel(c)),
+                          ))
+                      .toList(),
+                  onChanged: (v) => setState(() => _selectedCategory = v!),
+                ),
+              ),
+            ],
+          ),
+        const SizedBox(height: AppConstants.spacingMd),
+        _buildTextField(
+          controller: _descriptionController,
+          label: 'الوصف',
+          maxLines: 2,
+        ),
+
+        const SizedBox(height: AppConstants.spacingLg),
+
+        // Contact Info Section
+        _buildSectionTitle(context, 'معلومات التواصل'),
+        const SizedBox(height: AppConstants.spacingMd),
+        if (isCompact) ...[
+          _buildTextField(
+            controller: _phoneController,
+            label: 'رقم الهاتف',
+            keyboardType: TextInputType.phone,
+            validator: (v) => v?.isEmpty == true ? 'الهاتف مطلوب' : null,
+          ),
+          const SizedBox(height: AppConstants.spacingMd),
+          _buildTextField(
+            controller: _emailController,
+            label: 'البريد الإلكتروني',
+            keyboardType: TextInputType.emailAddress,
+          ),
+        ] else
+          Row(
+            children: [
+              Expanded(
+                child: _buildTextField(
+                  controller: _phoneController,
+                  label: 'رقم الهاتف',
+                  keyboardType: TextInputType.phone,
+                  validator: (v) => v?.isEmpty == true ? 'الهاتف مطلوب' : null,
+                ),
+              ),
+              const SizedBox(width: AppConstants.spacingMd),
+              Expanded(
+                child: _buildTextField(
+                  controller: _emailController,
+                  label: 'البريد الإلكتروني',
+                  keyboardType: TextInputType.emailAddress,
+                ),
+              ),
+            ],
+          ),
+
+        const SizedBox(height: AppConstants.spacingLg),
+
+        // Address Section
+        _buildSectionTitle(context, 'العنوان'),
+        const SizedBox(height: AppConstants.spacingMd),
+        if (isCompact) ...[
+          _buildTextField(
+            controller: _streetController,
+            label: 'الشارع',
+            validator: (v) => v?.isEmpty == true ? 'العنوان مطلوب' : null,
+          ),
+          const SizedBox(height: AppConstants.spacingMd),
+          _buildTextField(
+            controller: _cityController,
+            label: 'المدينة',
+            validator: (v) => v?.isEmpty == true ? 'المدينة مطلوبة' : null,
+          ),
+        ] else
+          Row(
+            children: [
+              Expanded(
+                flex: 2,
+                child: _buildTextField(
+                  controller: _streetController,
+                  label: 'الشارع',
+                  validator: (v) => v?.isEmpty == true ? 'العنوان مطلوب' : null,
+                ),
+              ),
+              const SizedBox(width: AppConstants.spacingMd),
+              Expanded(
+                child: _buildTextField(
+                  controller: _cityController,
+                  label: 'المدينة',
+                  validator: (v) =>
+                      v?.isEmpty == true ? 'المدينة مطلوبة' : null,
+                ),
+              ),
+            ],
+          ),
+
+        const SizedBox(height: AppConstants.spacingLg),
+      ],
     );
   }
 

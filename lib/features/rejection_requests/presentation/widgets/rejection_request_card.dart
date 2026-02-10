@@ -105,13 +105,17 @@ class RejectionRequestCard extends StatelessWidget {
               const Icon(Iconsax.timer_1,
                   size: 16, color: AppColors.textSecondary),
               const SizedBox(width: 8),
-              _buildWaitTimeChip(context),
-              const Spacer(),
-              Text(
-                Formatters.formatRelativeTime(request.requestedAt),
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: AppColors.textSecondary,
-                    ),
+              Flexible(child: _buildWaitTimeChip(context)),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  Formatters.formatRelativeTime(request.requestedAt),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                ),
               ),
             ],
           ),
@@ -207,12 +211,15 @@ class RejectionRequestCard extends StatelessWidget {
         children: [
           Icon(icon, size: 14, color: color),
           const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],

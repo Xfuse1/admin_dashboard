@@ -740,7 +740,7 @@ class VendorDetailsPanel extends StatelessWidget {
                   physics: const NeverScrollableScrollPhysics(),
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: crossAxisCount,
-                    childAspectRatio: 0.8, // Adjust as needed
+                    childAspectRatio: 0.75,
                     crossAxisSpacing: AppConstants.spacingSm,
                     mainAxisSpacing: AppConstants.spacingSm,
                   ),
@@ -800,13 +800,15 @@ class _ProductCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    product.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                  Flexible(
+                    child: Text(
+                      product.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
                   ),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1031,12 +1033,16 @@ class _ActionButton extends StatelessWidget {
             children: [
               Icon(icon, size: 16, color: color),
               const SizedBox(width: AppConstants.spacingXs),
-              Text(
-                label,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: color,
-                      fontWeight: FontWeight.w600,
-                    ),
+              Flexible(
+                child: Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: color,
+                        fontWeight: FontWeight.w600,
+                      ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
               ),
             ],
           ),

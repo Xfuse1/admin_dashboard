@@ -5,6 +5,7 @@ import 'package:toastification/toastification.dart';
 import '../../../../config/di/injection_container.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../domain/entities/vendor_entity.dart';
 import '../bloc/vendors_bloc.dart';
 import '../bloc/vendors_event.dart';
 import '../bloc/vendors_state.dart';
@@ -55,66 +56,77 @@ class VendorsView extends StatelessWidget {
         }
       },
       builder: (context, state) {
-        return Row(
-          children: [
-            // Main content
-            Expanded(
-              flex: 3,
-              child: Column(
-                children: [
-                  // Stats Cards
-                  if (state is VendorsLoaded && state.stats != null)
-                    VendorsStatsCards(stats: state.stats!),
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final isWideScreen = constraints.maxWidth > 900;
+            final showPanelInline = isWideScreen &&
+                state is VendorsLoaded &&
+                state.selectedVendor != null;
 
-                  // Filters
-                  Padding(
-                    padding: const EdgeInsets.all(AppConstants.spacingMd),
-                    child: VendorsFilters(
-                      currentStatusFilter: state is VendorsLoaded
-                          ? state.currentStatusFilter
-                          : null,
-                      currentCategoryFilter: state is VendorsLoaded
-                          ? state.currentCategoryFilter
-                          : null,
-                      searchQuery:
-                          state is VendorsLoaded ? state.searchQuery : null,
-                    ),
-                  ),
+            return Row(
+              children: [
+                // Main content
+                Expanded(
+                  flex: showPanelInline ? 3 : 1,
+                  child: Column(
+                    children: [
+                      // Stats Cards
+                      if (state is VendorsLoaded && state.stats != null)
+                        VendorsStatsCards(stats: state.stats!),
 
-                  // Vendors List
-                  Expanded(
-                    child: _buildContent(context, state),
-                  ),
-                ],
-              ),
-            ),
+                      // Filters
+                      Padding(
+                        padding: const EdgeInsets.all(AppConstants.spacingMd),
+                        child: VendorsFilters(
+                          currentStatusFilter: state is VendorsLoaded
+                              ? state.currentStatusFilter
+                              : null,
+                          currentCategoryFilter: state is VendorsLoaded
+                              ? state.currentCategoryFilter
+                              : null,
+                          searchQuery:
+                              state is VendorsLoaded ? state.searchQuery : null,
+                        ),
+                      ),
 
-            // Details Panel
-            if (state is VendorsLoaded && state.selectedVendor != null)
-              Container(
-                width: 420,
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  border: Border(
-                    left: BorderSide(
-                      color: AppColors.border.withValues(alpha: 0.5),
-                    ),
+                      // Vendors List
+                      Expanded(
+                        child: _buildContent(context, state, isWideScreen),
+                      ),
+                    ],
                   ),
                 ),
-                child: VendorDetailsPanel(
-                  vendor: state.selectedVendor!,
-                  onClose: () => context
-                      .read<VendorsBloc>()
-                      .add(const ClearSelectedVendor()),
-                ),
-              ),
-          ],
+
+                // Details Panel (only on wide screens)
+                if (showPanelInline && state is VendorsLoaded)
+                  Container(
+                    width: 380,
+                    constraints: const BoxConstraints(maxWidth: 420),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      border: Border(
+                        left: BorderSide(
+                          color: AppColors.border.withValues(alpha: 0.5),
+                        ),
+                      ),
+                    ),
+                    child: VendorDetailsPanel(
+                      vendor: state.selectedVendor!,
+                      onClose: () => context
+                          .read<VendorsBloc>()
+                          .add(const ClearSelectedVendor()),
+                    ),
+                  ),
+              ],
+            );
+          },
         );
       },
     );
   }
 
-  Widget _buildContent(BuildContext context, VendorsState state) {
+  Widget _buildContent(
+      BuildContext context, VendorsState state, bool isWideScreen) {
     if (state is VendorsLoading) {
       return const Center(
         child: CircularProgressIndicator(color: AppColors.primary),
@@ -186,8 +198,12 @@ class VendorsView extends StatelessWidget {
               child: VendorCard(
                 vendor: vendor,
                 isSelected: state.selectedVendor?.id == vendor.id,
-                onTap: () =>
-                    context.read<VendorsBloc>().add(SelectVendor(vendor.id)),
+                onTap: () {
+                  context.read<VendorsBloc>().add(SelectVendor(vendor.id));
+                  if (!isWideScreen) {
+                    _showVendorDetailsSheet(context, vendor);
+                  }
+                },
               ),
             );
           },
@@ -196,5 +212,33 @@ class VendorsView extends StatelessWidget {
     }
 
     return const SizedBox.shrink();
+  }
+
+  void _showVendorDetailsSheet(BuildContext context, VendorEntity vendor) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => DraggableScrollableSheet(
+        initialChildSize: 0.9,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        builder: (_, scrollController) => Container(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(AppConstants.radiusLg),
+            ),
+          ),
+          child: BlocProvider.value(
+            value: context.read<VendorsBloc>(),
+            child: VendorDetailsPanel(
+              vendor: vendor,
+              onClose: () => Navigator.pop(sheetContext),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

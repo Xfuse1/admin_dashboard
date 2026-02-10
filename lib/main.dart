@@ -14,7 +14,6 @@ import 'core/theme/app_theme.dart';
 import 'core/utils/app_logger.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/auth/presentation/bloc/auth_event.dart';
-import 'core/utils/seeding.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,16 +28,18 @@ void main() async {
   usePathUrlStrategy();
 
   // Initialize Firebase before dependencies
-  await FirebaseService.instance.initialize();
+  try {
+    await FirebaseService.instance.initialize();
+  } catch (e, stack) {
+    logger.error('Firebase initialization failed', e, stack);
+  }
 
   // Initialize dependencies
-  await initDependencies();
-
-  // Temporary: fix data consistency
-  await SeedingService().fixDataConsistency();
-
-  // Temporary: Seed stores
-  // await SeedingService().seedStores(); // Uncomment to seed once
+  try {
+    await initDependencies();
+  } catch (e, stack) {
+    logger.error('Dependency injection failed', e, stack);
+  }
 
   logger.info('App started successfully');
   runApp(const AdminDashboardApp());

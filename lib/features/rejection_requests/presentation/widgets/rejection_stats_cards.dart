@@ -36,7 +36,7 @@ class RejectionStatsCards extends StatelessWidget {
             crossAxisCount: crossAxisCount,
             crossAxisSpacing: AppConstants.spacingMd,
             mainAxisSpacing: AppConstants.spacingMd,
-            childAspectRatio: isDesktop ? 1.5 : 0.8,
+            childAspectRatio: isDesktop ? 2.5 : 1.5,
             children: [
               _buildStatCard(
                 context,
@@ -86,20 +86,20 @@ class RejectionStatsCards extends StatelessWidget {
   }) {
     return GlassCard(
       child: Padding(
-        padding: const EdgeInsets.all(8.0),
+        padding: const EdgeInsets.all(6.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: color, size: 20),
+              child: Icon(icon, color: color, size: 18),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 3),
             FittedBox(
               fit: BoxFit.scaleDown,
               child: Text(
@@ -107,7 +107,7 @@ class RejectionStatsCards extends StatelessWidget {
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: color,
-                      fontSize: isCompact ? 14 : 18,
+                      fontSize: isCompact ? 13 : 16,
                     ),
                 textAlign: TextAlign.center,
                 maxLines: 1,

@@ -168,7 +168,9 @@ final class AppRouter {
               pageBuilder: (context, state) => CustomTransitionPage(
                 key: state.pageKey,
                 child: BlocProvider(
-                  create: (_) => sl<AccountsBloc>()..add(const LoadDrivers()),
+                  create: (_) => sl<AccountsBloc>()
+                    ..add(const LoadAccountStats())
+                    ..add(const LoadDrivers()),
                   child: const DriversStatsPage(),
                 ),
                 transitionsBuilder: _fadeTransition,

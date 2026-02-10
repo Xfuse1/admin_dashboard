@@ -134,76 +134,73 @@ class _OnboardingPageState extends State<OnboardingPage> {
       currentStatus = state.filterStatus;
     }
 
-    return Container(
-      width: double.infinity,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        clipBehavior: Clip.none,
-        child: Row(
-          children: [
-            // Type Filter
-            Row(
-              children: [
-                _buildFilterChip(
-                  context,
-                  label: 'المتاجر',
-                  icon: Iconsax.shop,
-                  isSelected: currentType == OnboardingType.store,
-                  color: Colors.purple,
-                  onTap: () => context.read<OnboardingBloc>().add(
-                        FilterByType(
-                          currentType == OnboardingType.store
-                              ? null
-                              : OnboardingType.store,
-                        ),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      clipBehavior: Clip.none,
+      child: Row(
+        children: [
+          // Type Filter
+          Row(
+            children: [
+              _buildFilterChip(
+                context,
+                label: 'المتاجر',
+                icon: Iconsax.shop,
+                isSelected: currentType == OnboardingType.store,
+                color: Colors.purple,
+                onTap: () => context.read<OnboardingBloc>().add(
+                      FilterByType(
+                        currentType == OnboardingType.store
+                            ? null
+                            : OnboardingType.store,
                       ),
-                ),
-                const SizedBox(width: 8),
-                _buildFilterChip(
-                  context,
-                  label: 'السائقين',
-                  icon: Iconsax.car,
-                  isSelected: currentType == OnboardingType.driver,
-                  color: Colors.teal,
-                  onTap: () => context.read<OnboardingBloc>().add(
-                        FilterByType(
-                          currentType == OnboardingType.driver
-                              ? null
-                              : OnboardingType.driver,
-                        ),
-                      ),
-                ),
-                const SizedBox(width: 16),
-                Container(
-                  width: 1,
-                  height: 24,
-                  color: AppColors.border,
-                ),
-                const SizedBox(width: 16),
-                // Status Chips
-                ...OnboardingStatus.values
-                    .where((status) => status != OnboardingStatus.underReview)
-                    .map((status) {
-                  return Padding(
-                    padding: const EdgeInsets.only(left: 8),
-                    child: _buildFilterChip(
-                      context,
-                      label: status.arabicName,
-                      isSelected: currentStatus == status,
-                      color: _getStatusColor(status),
-                      onTap: () => context.read<OnboardingBloc>().add(
-                            FilterByStatus(
-                              currentStatus == status ? null : status,
-                            ),
-                          ),
                     ),
-                  );
-                }),
-              ],
-            ),
-          ],
-        ),
+              ),
+              const SizedBox(width: 8),
+              _buildFilterChip(
+                context,
+                label: 'السائقين',
+                icon: Iconsax.car,
+                isSelected: currentType == OnboardingType.driver,
+                color: Colors.teal,
+                onTap: () => context.read<OnboardingBloc>().add(
+                      FilterByType(
+                        currentType == OnboardingType.driver
+                            ? null
+                            : OnboardingType.driver,
+                      ),
+                    ),
+              ),
+              const SizedBox(width: 16),
+              Container(
+                width: 1,
+                height: 24,
+                color: AppColors.border,
+              ),
+              const SizedBox(width: 16),
+              // Status Chips
+              ...OnboardingStatus.values
+                  .where((status) => status != OnboardingStatus.underReview)
+                  .map((status) {
+                return Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: _buildFilterChip(
+                    context,
+                    label: status.arabicName,
+                    isSelected: currentStatus == status,
+                    color: _getStatusColor(status),
+                    onTap: () => context.read<OnboardingBloc>().add(
+                          FilterByStatus(
+                            currentStatus == status ? null : status,
+                          ),
+                        ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        ],
       ),
     );
   }

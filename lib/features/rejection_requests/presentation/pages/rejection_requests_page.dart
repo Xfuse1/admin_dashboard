@@ -332,22 +332,24 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
                           if (tab.status == 'pending' &&
                               state is RejectionRequestsLoaded &&
                               state.pendingCount > 0)
-                            Container(
-                              margin: const EdgeInsets.only(right: 8),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 6,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: tab.color,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                '${state.pendingCount}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
+                            Flexible(
+                              child: Container(
+                                margin: const EdgeInsets.only(right: 4),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: tab.color,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  '${state.pendingCount}',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ),
                             ),
@@ -649,7 +651,7 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(AppConstants.radiusSm),
       ),
       child: Text(
@@ -691,7 +693,7 @@ class _RejectionRequestsPageState extends State<RejectionRequestsPage>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(AppConstants.radiusSm),
       ),
       child: Text(

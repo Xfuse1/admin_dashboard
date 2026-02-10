@@ -255,7 +255,7 @@ class _DashboardSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDesktop = ResponsiveLayout.isDesktop(context);
-    final crossAxisCount = isDesktop ? 4 : 2;
+    final crossAxisCount = isDesktop ? 5 : 2;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
