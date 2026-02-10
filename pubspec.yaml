@@ -162,8 +162,8 @@ flutter_launcher_icons:
   ios: true
   web:
     generate: true
-  image_path: "assets/images/logo.svg"
+  image_path: "assets/images/logo.png"
   min_sdk_android: 21
   adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: "assets/images/logo.svg"
+  adaptive_icon_foreground: "assets/images/logo.png"
 

@@ -75,12 +75,16 @@ class StoreOnboardingEntity extends OnboardingRequestEntity {
   final String storeName;
   final String storeType;
   final String address;
+  final String? street;
   final String ownerName;
   final String ownerIdNumber;
   final String commercialRegister;
   final String? logoUrl;
   final String? commercialRegisterUrl;
   final String? ownerIdUrl;
+  final String? taxCardImageUrl;
+  final bool phoneVerified;
+  final DateTime? phoneVerifiedAt;
   final List<String> categories;
   final double? latitude;
   final double? longitude;
@@ -99,12 +103,16 @@ class StoreOnboardingEntity extends OnboardingRequestEntity {
     required this.storeName,
     required this.storeType,
     required this.address,
+    this.street,
     required this.ownerName,
     required this.ownerIdNumber,
     required this.commercialRegister,
     this.logoUrl,
     this.commercialRegisterUrl,
     this.ownerIdUrl,
+    this.taxCardImageUrl,
+    this.phoneVerified = false,
+    this.phoneVerifiedAt,
     this.categories = const [],
     this.latitude,
     this.longitude,
@@ -119,12 +127,16 @@ class StoreOnboardingEntity extends OnboardingRequestEntity {
         storeName,
         storeType,
         address,
+        street,
         ownerName,
         ownerIdNumber,
         commercialRegister,
         logoUrl,
         commercialRegisterUrl,
         ownerIdUrl,
+        taxCardImageUrl,
+        phoneVerified,
+        phoneVerifiedAt,
         categories,
         latitude,
         longitude,

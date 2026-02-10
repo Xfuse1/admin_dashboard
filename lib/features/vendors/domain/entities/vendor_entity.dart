@@ -189,6 +189,7 @@ class VendorEntity extends Equatable {
   final String phone;
   final String? email;
   final String? website;
+  final String? whatsappNumber;
   final String? logoUrl;
   final String? coverImageUrl;
   final double rating;
@@ -197,6 +198,7 @@ class VendorEntity extends Equatable {
   final double totalRevenue;
   final double commissionRate;
   final int productsCount;
+  final String? returnPolicy;
   final List<OperatingHours> operatingHours;
   final List<String> tags;
   final bool isVerified;
@@ -218,6 +220,7 @@ class VendorEntity extends Equatable {
     required this.phone,
     this.email,
     this.website,
+    this.whatsappNumber,
     this.logoUrl,
     this.coverImageUrl,
     this.rating = 0.0,
@@ -226,6 +229,7 @@ class VendorEntity extends Equatable {
     this.totalRevenue = 0.0,
     this.commissionRate = 10.0,
     this.productsCount = 0,
+    this.returnPolicy,
     this.operatingHours = const [],
     this.tags = const [],
     this.isVerified = false,
@@ -249,6 +253,7 @@ class VendorEntity extends Equatable {
         phone,
         email,
         website,
+        whatsappNumber,
         logoUrl,
         coverImageUrl,
         rating,
@@ -257,6 +262,7 @@ class VendorEntity extends Equatable {
         totalRevenue,
         commissionRate,
         productsCount,
+        returnPolicy,
         operatingHours,
         tags,
         isVerified,
@@ -279,6 +285,7 @@ class VendorEntity extends Equatable {
     String? phone,
     String? email,
     String? website,
+    String? whatsappNumber,
     String? logoUrl,
     String? coverImageUrl,
     double? rating,
@@ -287,6 +294,7 @@ class VendorEntity extends Equatable {
     double? totalRevenue,
     double? commissionRate,
     int? productsCount,
+    String? returnPolicy,
     List<OperatingHours>? operatingHours,
     List<String>? tags,
     bool? isVerified,
@@ -308,6 +316,7 @@ class VendorEntity extends Equatable {
       phone: phone ?? this.phone,
       email: email ?? this.email,
       website: website ?? this.website,
+      whatsappNumber: whatsappNumber ?? this.whatsappNumber,
       logoUrl: logoUrl ?? this.logoUrl,
       coverImageUrl: coverImageUrl ?? this.coverImageUrl,
       rating: rating ?? this.rating,
@@ -316,6 +325,7 @@ class VendorEntity extends Equatable {
       totalRevenue: totalRevenue ?? this.totalRevenue,
       commissionRate: commissionRate ?? this.commissionRate,
       productsCount: productsCount ?? this.productsCount,
+      returnPolicy: returnPolicy ?? this.returnPolicy,
       operatingHours: operatingHours ?? this.operatingHours,
       tags: tags ?? this.tags,
       isVerified: isVerified ?? this.isVerified,
@@ -340,6 +350,7 @@ class VendorEntity extends Equatable {
       'phone': phone,
       'email': email,
       'website': website,
+      'whatsappNumber': whatsappNumber,
       'logoUrl': logoUrl,
       'coverImageUrl': coverImageUrl,
       'rating': rating,
@@ -348,6 +359,7 @@ class VendorEntity extends Equatable {
       'totalRevenue': totalRevenue,
       'commissionRate': commissionRate,
       'productsCount': productsCount,
+      'returnPolicy': returnPolicy,
       'operatingHours': operatingHours.map((h) => h.toMap()).toList(),
       'tags': tags,
       'isVerified': isVerified,
@@ -375,6 +387,7 @@ class VendorEntity extends Equatable {
       phone: map['phone'] ?? '',
       email: map['email'],
       website: map['website'],
+      whatsappNumber: map['whatsappNumber'],
       logoUrl: map['logoUrl'],
       coverImageUrl: map['coverImageUrl'],
       rating: (map['rating'] as num?)?.toDouble() ?? 0.0,
@@ -383,6 +396,7 @@ class VendorEntity extends Equatable {
       totalRevenue: (map['totalRevenue'] as num?)?.toDouble() ?? 0.0,
       commissionRate: (map['commissionRate'] as num?)?.toDouble() ?? 10.0,
       productsCount: map['productsCount'] ?? 0,
+      returnPolicy: map['returnPolicy'],
       operatingHours: (map['operatingHours'] as List?)
               ?.map((h) => OperatingHours.fromMap(h))
               .toList() ??

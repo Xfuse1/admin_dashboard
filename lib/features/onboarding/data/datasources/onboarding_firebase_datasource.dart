@@ -163,10 +163,24 @@ class OnboardingFirebaseDataSource implements OnboardingDataSource {
       'storeName': storeData['name'] ?? userData['full_name'] ?? '',
       'storeType': storeData['category'] ?? 'other',
       'ownerName': userData['full_name'] ?? storeData['name'] ?? '',
+      'ownerIdNumber':
+          storeData['owner_id_number'] ?? userData['owner_id_number'] ?? '',
+      'commercialRegister': storeData['commercial_register'] ?? '',
       'address': addressStr,
+      'street': storeData['street'] ?? userData['street'],
       // Pass latitude/longitude from the store map
       'latitude': (storeData['latitude'] as num?)?.toDouble(),
       'longitude': (storeData['longitude'] as num?)?.toDouble(),
+      // Images/Documents
+      'logoUrl': storeData['image_url'],
+      'ownerIdUrl': storeData['id_card_image_url'],
+      'commercialRegisterUrl': storeData['commercial_register_image_url'],
+      'taxCardImageUrl': storeData['tax_card_image_url'],
+      // Phone verification
+      'phoneVerified': userData['phone_verified'] ?? false,
+      'phoneVerifiedAt': _parseTimestamp(userData['phone_verified_at']),
+      // Categories
+      'categories': storeData['categories'] ?? [],
       // Convert timestamps using helper
       'createdAt': _parseTimestamp(storeData['created_at']) ??
           _parseTimestamp(userData['created_at']) ??

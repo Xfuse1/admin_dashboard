@@ -125,6 +125,13 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
     final storeData =
         (userData['store'] as Map<String, dynamic>?) ?? <String, dynamic>{};
 
+    // Convert open_time, close_time, and working_days to operatingHours format
+    final operatingHours = _buildOperatingHours(
+      storeData['open_time'] as String?,
+      storeData['close_time'] as String?,
+      storeData['working_days'] as List<dynamic>?,
+    );
+
     return {
       'id': docId,
       'name': storeData['name'] ?? userData['full_name'] ?? 'Unknown',
@@ -133,10 +140,20 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
       'categoryLabel': storeData['category'],
       'phone': storeData['phone'] ?? userData['phone'] ?? '',
       'email': storeData['support_email'] ?? userData['email'],
+      'website': storeData['website'],
+      'whatsappNumber': storeData['whatsapp_number'],
       'logoUrl': storeData['image_url'],
+      'coverImageUrl': storeData['cover_image'] ?? storeData['banner_image'],
       'rating': storeData['rating'] ?? 0,
       'isApproved': storeData['is_approved'] ?? false,
       'isActive': storeData['is_approved'] ?? false,
+      'isVerified':
+          storeData['isVerified'] ?? storeData['is_verified'] ?? false,
+      'isFeatured':
+          storeData['isFeatured'] ?? storeData['is_featured'] ?? false,
+      'returnPolicy': storeData['return_policy'],
+      'commissionRate':
+          (storeData['commission_rate'] as num?)?.toDouble() ?? 10.0,
       'address': {
         'street': storeData['address'] ?? userData['street'] ?? '',
         'city': userData['city'] ?? '',
@@ -144,16 +161,64 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
         'latitude': storeData['latitude'],
         'longitude': storeData['longitude'],
       },
+      'operatingHours': operatingHours,
+      'tags': storeData['tags'] ?? [],
+      'metadata': storeData['metadata'],
       'createdAt': storeData['created_at'] ?? userData['created_at'],
       'updatedAt': storeData['updated_at'] ?? userData['updated_at'],
       'ownerId': docId,
       'ownerName': userData['full_name'],
-      'whatsappNumber': storeData['whatsapp_number'],
-      'returnPolicy': storeData['return_policy'],
-      'openTime': storeData['open_time'],
-      'closeTime': storeData['close_time'],
-      'workingDays': storeData['working_days'],
     };
+  }
+
+  /// Converts open_time, close_time, and working_days into OperatingHours list.
+  List<Map<String, dynamic>> _buildOperatingHours(
+    String? openTime,
+    String? closeTime,
+    List<dynamic>? workingDays,
+  ) {
+    if (openTime == null || closeTime == null) return [];
+
+    final days = workingDays?.cast<String>() ?? [];
+    final dayMap = {
+      'monday': 'monday',
+      'tuesday': 'tuesday',
+      'wednesday': 'wednesday',
+      'thursday': 'thursday',
+      'friday': 'friday',
+      'saturday': 'saturday',
+      'sunday': 'sunday',
+      'الاثنين': 'monday',
+      'الثلاثاء': 'tuesday',
+      'الأربعاء': 'wednesday',
+      'الخميس': 'thursday',
+      'الجمعة': 'friday',
+      'السبت': 'saturday',
+      'الأحد': 'sunday',
+    };
+
+    final operatingHours = <Map<String, dynamic>>[];
+    final allDays = [
+      'monday',
+      'tuesday',
+      'wednesday',
+      'thursday',
+      'friday',
+      'saturday',
+      'sunday'
+    ];
+
+    for (final day in allDays) {
+      final isWorkingDay = days.any((d) => dayMap[d.toLowerCase()] == day);
+      operatingHours.add({
+        'day': day,
+        'openTime': openTime,
+        'closeTime': closeTime,
+        'isClosed': !isWorkingDay,
+      });
+    }
+
+    return operatingHours;
   }
 
   @override
@@ -325,12 +390,21 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
       'category': vendor.category.name,
       'phone': vendor.phone,
       'support_email': vendor.email,
+      'website': vendor.website,
+      'whatsapp_number': vendor.whatsappNumber,
       'image_url': vendor.logoUrl,
+      'cover_image': vendor.coverImageUrl,
       'is_approved': vendor.status == VendorStatus.active,
+      'isVerified': vendor.isVerified,
+      'isFeatured': vendor.isFeatured,
+      'return_policy': vendor.returnPolicy,
+      'commission_rate': vendor.commissionRate,
       'address': vendor.address.street,
       'latitude': vendor.address.latitude,
       'longitude': vendor.address.longitude,
       'rating': vendor.rating,
+      'tags': vendor.tags,
+      'metadata': vendor.metadata,
       'created_at': FieldValue.serverTimestamp(),
       'updated_at': FieldValue.serverTimestamp(),
     };
@@ -361,11 +435,20 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
       'store.category': vendor.category.name,
       'store.phone': vendor.phone,
       'store.support_email': vendor.email,
+      'store.website': vendor.website,
+      'store.whatsapp_number': vendor.whatsappNumber,
       'store.image_url': vendor.logoUrl,
+      'store.cover_image': vendor.coverImageUrl,
       'store.is_approved': vendor.status == VendorStatus.active,
+      'store.isVerified': vendor.isVerified,
+      'store.isFeatured': vendor.isFeatured,
+      'store.return_policy': vendor.returnPolicy,
+      'store.commission_rate': vendor.commissionRate,
       'store.address': vendor.address.street,
       'store.latitude': vendor.address.latitude,
       'store.longitude': vendor.address.longitude,
+      'store.tags': vendor.tags,
+      'store.metadata': vendor.metadata,
       'store.updated_at': FieldValue.serverTimestamp(),
       'city': vendor.address.city,
       'country': vendor.address.country,

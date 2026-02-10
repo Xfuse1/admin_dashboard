@@ -36,9 +36,16 @@ class VendorDetailsPanel extends StatelessWidget {
               children: [
                 _buildMainInfo(context),
                 const SizedBox(height: AppConstants.spacingLg),
+                _buildImagesSection(context),
+                const SizedBox(height: AppConstants.spacingLg),
                 _buildStatusSection(context),
                 const SizedBox(height: AppConstants.spacingLg),
                 _buildContactInfo(context),
+                if (vendor.returnPolicy != null &&
+                    vendor.returnPolicy!.isNotEmpty) ...[
+                  const SizedBox(height: AppConstants.spacingLg),
+                  _buildReturnPolicySection(context),
+                ],
                 const SizedBox(height: AppConstants.spacingLg),
                 _buildAddressSection(context),
                 const SizedBox(height: AppConstants.spacingLg),
@@ -165,6 +172,142 @@ class VendorDetailsPanel extends StatelessWidget {
           sublabel: '(${vendor.totalRatings} تقييم)',
         ),
       ],
+    );
+  }
+
+  Widget _buildImagesSection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'صور المتجر',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+        ),
+        const SizedBox(height: AppConstants.spacingMd),
+        Row(
+          children: [
+            // Logo/Avatar
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'الشعار',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                  const SizedBox(height: AppConstants.spacingSm),
+                  Container(
+                    width: double.infinity,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      color: AppColors.background,
+                      borderRadius:
+                          BorderRadius.circular(AppConstants.radiusMd),
+                      border: Border.all(
+                        color: AppColors.border.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: vendor.logoUrl != null && vendor.logoUrl!.isNotEmpty
+                        ? ClipRRect(
+                            borderRadius:
+                                BorderRadius.circular(AppConstants.radiusMd),
+                            child: Image.network(
+                              vendor.logoUrl!,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) {
+                                return _buildImagePlaceholder(
+                                  Icons.store,
+                                  'لا يوجد شعار',
+                                );
+                              },
+                            ),
+                          )
+                        : _buildImagePlaceholder(Icons.store, 'لا يوجد شعار'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: AppConstants.spacingMd),
+            // Cover Image
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'صورة الغلاف',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                  const SizedBox(height: AppConstants.spacingSm),
+                  Container(
+                    width: double.infinity,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      color: AppColors.background,
+                      borderRadius:
+                          BorderRadius.circular(AppConstants.radiusMd),
+                      border: Border.all(
+                        color: AppColors.border.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: vendor.coverImageUrl != null &&
+                            vendor.coverImageUrl!.isNotEmpty
+                        ? ClipRRect(
+                            borderRadius:
+                                BorderRadius.circular(AppConstants.radiusMd),
+                            child: Image.network(
+                              vendor.coverImageUrl!,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return _buildImagePlaceholder(
+                                  Icons.image,
+                                  'لا توجد صورة غلاف',
+                                );
+                              },
+                            ),
+                          )
+                        : _buildImagePlaceholder(
+                            Icons.image,
+                            'لا توجد صورة غلاف',
+                          ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildImagePlaceholder(IconData icon, String text) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            icon,
+            size: 32,
+            color: AppColors.textTertiary.withValues(alpha: 0.5),
+          ),
+          const SizedBox(height: AppConstants.spacingXs),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: 10,
+              color: AppColors.textTertiary.withValues(alpha: 0.7),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -304,10 +447,63 @@ class VendorDetailsPanel extends StatelessWidget {
         ),
         const SizedBox(height: AppConstants.spacingMd),
         _ContactRow(icon: Icons.phone, value: vendor.phone),
+        if (vendor.whatsappNumber != null && vendor.whatsappNumber!.isNotEmpty)
+          _ContactRow(
+            icon: Iconsax.whatsapp,
+            value: vendor.whatsappNumber!,
+            label: 'واتساب',
+            color: const Color(0xFF25D366),
+          ),
         if (vendor.email != null)
           _ContactRow(icon: Icons.email, value: vendor.email!),
         if (vendor.website != null)
           _ContactRow(icon: Icons.language, value: vendor.website!),
+      ],
+    );
+  }
+
+  Widget _buildReturnPolicySection(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'سياسة الاسترجاع',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
+              ),
+        ),
+        const SizedBox(height: AppConstants.spacingMd),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(AppConstants.spacingMd),
+          decoration: BoxDecoration(
+            color: AppColors.background,
+            borderRadius: BorderRadius.circular(AppConstants.radiusSm),
+            border: Border.all(
+              color: AppColors.border.withValues(alpha: 0.3),
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.assignment_return,
+                color: AppColors.info,
+                size: 20,
+              ),
+              const SizedBox(width: AppConstants.spacingMd),
+              Expanded(
+                child: Text(
+                  vendor.returnPolicy!,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
     );
   }
@@ -979,8 +1175,15 @@ class _InfoCard extends StatelessWidget {
 class _ContactRow extends StatelessWidget {
   final IconData icon;
   final String value;
+  final String? label;
+  final Color? color;
 
-  const _ContactRow({required this.icon, required this.value});
+  const _ContactRow({
+    required this.icon,
+    required this.value,
+    this.label,
+    this.color,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -988,8 +1191,27 @@ class _ContactRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: AppConstants.spacingXs),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: AppColors.textTertiary),
+          Icon(
+            icon,
+            size: 18,
+            color: color ?? AppColors.textTertiary,
+          ),
           const SizedBox(width: AppConstants.spacingMd),
+          if (label != null) ...[
+            Text(
+              label!,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
+            ),
+            const SizedBox(width: AppConstants.spacingSm),
+            Text(':',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                    )),
+            const SizedBox(width: AppConstants.spacingSm),
+          ],
           Expanded(
             child: Text(
               value,

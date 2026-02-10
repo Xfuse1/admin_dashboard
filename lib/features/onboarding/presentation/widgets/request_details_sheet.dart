@@ -359,6 +359,13 @@ class RequestDetailsSheet extends StatelessWidget {
               label: 'العنوان',
               value: store.address,
             ),
+            if (store.street != null && store.street!.isNotEmpty)
+              _buildInfoTile(
+                context,
+                icon: Iconsax.home,
+                label: 'الشارع',
+                value: store.street!,
+              ),
             _buildInfoTile(
               context,
               icon: Iconsax.user,
@@ -368,7 +375,7 @@ class RequestDetailsSheet extends StatelessWidget {
             _buildInfoTile(
               context,
               icon: Iconsax.card,
-              label: 'رقم الهوية',
+              label: 'رقم هوية المالك',
               value: store.ownerIdNumber,
             ),
             _buildInfoTile(
@@ -376,6 +383,46 @@ class RequestDetailsSheet extends StatelessWidget {
               icon: Iconsax.document,
               label: 'السجل التجاري',
               value: store.commercialRegister,
+            ),
+            if (store.phoneVerified)
+              _buildInfoTile(
+                context,
+                icon: Iconsax.shield_tick,
+                label: 'حالة الهاتف',
+                value: 'تم التحقق منه ✓',
+                valueColor: AppColors.success,
+              ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        _buildSection(
+          context,
+          title: 'الوثائق والمستندات',
+          children: [
+            if (store.logoUrl != null)
+              _buildDocumentSection(
+                context,
+                title: 'شعار المتجر',
+                imageUrl: store.logoUrl,
+              ),
+            if (store.logoUrl != null)
+              const Divider(height: 1, indent: 16, endIndent: 16),
+            _buildDocumentSection(
+              context,
+              title: 'صورة بطاقة هوية المالك',
+              imageUrl: store.ownerIdUrl,
+            ),
+            const Divider(height: 1, indent: 16, endIndent: 16),
+            _buildDocumentSection(
+              context,
+              title: 'صورة السجل التجاري',
+              imageUrl: store.commercialRegisterUrl,
+            ),
+            const Divider(height: 1, indent: 16, endIndent: 16),
+            _buildDocumentSection(
+              context,
+              title: 'صورة البطاقة الضريبية',
+              imageUrl: store.taxCardImageUrl,
             ),
           ],
         ),
