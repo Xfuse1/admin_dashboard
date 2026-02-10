@@ -1,3 +1,4 @@
+import '../../domain/entities/simulator_settings.dart';
 import '../models/delivery_settings_model.dart';
 
 abstract class SettingsDataSource {
@@ -12,4 +13,7 @@ abstract class SettingsDataSource {
     required double rate3Orders,
     required double rate4Orders,
   });
+  Future<SimulatorSettings> getSimulatorSettings();
+  Future<void> toggleSimulator(bool enabled);
+  Future<void> saveSimulatorSettings(SimulatorSettings settings);
 }

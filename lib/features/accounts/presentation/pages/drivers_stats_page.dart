@@ -3,11 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 import '../../../../core/constants/app_colors.dart';
-import '../../../../shared/widgets/common_widgets.dart';
 import '../../../../shared/widgets/responsive_layout.dart';
 import '../../domain/entities/account_entities.dart';
 import '../bloc/accounts_bloc.dart';
-import '../bloc/accounts_event.dart';
 import '../bloc/accounts_state.dart';
 
 /// Drivers statistics page showing comprehensive rejection stats.

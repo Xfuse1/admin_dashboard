@@ -5,7 +5,9 @@ import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 import '../../../../config/di/injection_container.dart';
 import '../../../../core/constants/app_colors.dart';
-import '../bloc/settings_cubit.dart';
+import '../bloc/settings_bloc.dart';
+import '../bloc/settings_event.dart';
+import '../bloc/settings_state.dart';
 
 class DeliverySettingsPage extends StatelessWidget {
   const DeliverySettingsPage({super.key});
@@ -13,7 +15,7 @@ class DeliverySettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => sl<SettingsCubit>()..getDeliveryPrice(),
+      create: (context) => sl<SettingsBloc>()..add(const LoadDeliveryPrice()),
       child: const _DeliverySettingsView(),
     );
   }
@@ -53,7 +55,7 @@ class _DeliverySettingsViewState extends State<_DeliverySettingsView> {
         elevation: 0,
         iconTheme: const IconThemeData(color: AppColors.textPrimary),
       ),
-      body: BlocConsumer<SettingsCubit, SettingsState>(
+      body: BlocConsumer<SettingsBloc, SettingsState>(
         listener: (context, state) {
           if (state is DeliverySettingsLoaded) {
             _priceController.text = state.deliveryPrice.toString();
@@ -65,7 +67,7 @@ class _DeliverySettingsViewState extends State<_DeliverySettingsView> {
               ),
             );
           } else if (state is SettingsError) {
-             ScaffoldMessenger.of(context).showSnackBar(
+            ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(state.message),
                 backgroundColor: Colors.red,
@@ -170,9 +172,11 @@ class _DeliverySettingsViewState extends State<_DeliverySettingsView> {
                             ),
                           ),
                         ),
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
                         inputFormatters: [
-                          FilteringTextInputFormatter.allow(RegExp(r'^\d+\.?\d{0,2}')),
+                          FilteringTextInputFormatter.allow(
+                              RegExp(r'^\d+\.?\d{0,2}')),
                         ],
                         validator: (value) {
                           if (value == null || value.isEmpty) {
@@ -193,10 +197,11 @@ class _DeliverySettingsViewState extends State<_DeliverySettingsView> {
                               ? null
                               : () {
                                   if (_formKey.currentState!.validate()) {
-                                    final price = double.parse(_priceController.text);
+                                    final price =
+                                        double.parse(_priceController.text);
                                     context
-                                        .read<SettingsCubit>()
-                                        .updateDeliveryPrice(price);
+                                        .read<SettingsBloc>()
+                                        .add(UpdateDeliveryPrice(price));
                                   }
                                 },
                           style: ElevatedButton.styleFrom(

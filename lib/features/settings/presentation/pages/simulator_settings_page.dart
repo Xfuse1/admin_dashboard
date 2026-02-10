@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:toastification/toastification.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 
@@ -8,6 +8,10 @@ import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../shared/widgets/glass_card.dart';
 import '../../../../shared/widgets/responsive_layout.dart';
+import '../../domain/entities/simulator_settings.dart';
+import '../bloc/simulator_settings_bloc.dart';
+import '../bloc/simulator_settings_event.dart';
+import '../bloc/simulator_settings_state.dart';
 
 /// صفحة إعدادات المحاكي
 class SimulatorSettingsPage extends StatefulWidget {
@@ -18,12 +22,7 @@ class SimulatorSettingsPage extends StatefulWidget {
 }
 
 class _SimulatorSettingsPageState extends State<SimulatorSettingsPage> {
-  final _firestore = FirebaseFirestore.instance;
   final _formKey = GlobalKey<FormState>();
-
-  bool _isSimulatorEnabled = false;
-  bool _isLoading = true;
-  bool _isSaving = false;
 
   // Controllers for simulator settings
   final _rowsController = TextEditingController();
@@ -37,12 +36,8 @@ class _SimulatorSettingsPageState extends State<SimulatorSettingsPage> {
 
   bool _enableSounds = true;
   bool _enableVibration = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSimulatorStatus();
-  }
+  bool _isSimulatorEnabled = false;
+  bool _controllersInitialized = false;
 
   @override
   void dispose() {
@@ -57,129 +52,40 @@ class _SimulatorSettingsPageState extends State<SimulatorSettingsPage> {
     super.dispose();
   }
 
-  /// تحميل حالة المحاكي من Firebase
-  Future<void> _loadSimulatorStatus() async {
-    try {
-      final doc =
-          await _firestore.collection('settings').doc('simulator').get();
+  /// Populate controllers from loaded settings (only once).
+  void _populateControllers(SimulatorSettings settings) {
+    if (_controllersInitialized) return;
+    _controllersInitialized = true;
 
-      if (doc.exists) {
-        final data = doc.data()!;
-        setState(() {
-          _isSimulatorEnabled = data['enabled'] ?? false;
-          _rowsController.text = (data['rows'] ?? 4).toString();
-          _columnsController.text = (data['columns'] ?? 3).toString();
-          _productsPerRowController.text =
-              (data['productsPerRow'] ?? 5).toString();
-          _productsPerColumnController.text =
-              (data['productsPerColumn'] ?? 4).toString();
-          _maxCartItemsController.text =
-              (data['maxCartItems'] ?? 20).toString();
-          _minOrderAmountController.text =
-              (data['minOrderAmount'] ?? 50).toString();
-          _cartTimeoutController.text = (data['cartTimeout'] ?? 30).toString();
-          _autoScrollSpeedController.text =
-              (data['autoScrollSpeed'] ?? 3).toString();
-          _enableSounds = data['enableSounds'] ?? true;
-          _enableVibration = data['enableVibration'] ?? true;
-          _isLoading = false;
-        });
-      } else {
-        // إنشاء المستند بالقيم الافتراضية
-        await _createDefaultSettings();
-        setState(() => _isLoading = false);
-      }
-    } catch (e) {
-      setState(() => _isLoading = false);
-      _showErrorMessage('فشل تحميل البيانات: $e');
-    }
+    _rowsController.text = settings.rows.toString();
+    _columnsController.text = settings.columns.toString();
+    _productsPerRowController.text = settings.productsPerRow.toString();
+    _productsPerColumnController.text = settings.productsPerColumn.toString();
+    _maxCartItemsController.text = settings.maxCartItems.toString();
+    _minOrderAmountController.text = settings.minOrderAmount.toString();
+    _cartTimeoutController.text = settings.cartTimeout.toString();
+    _autoScrollSpeedController.text = settings.autoScrollSpeed.toString();
+    _enableSounds = settings.enableSounds;
+    _enableVibration = settings.enableVibration;
+    _isSimulatorEnabled = settings.enabled;
   }
 
-  /// إنشاء الإعدادات الافتراضية
-  Future<void> _createDefaultSettings() async {
-    await _firestore.collection('settings').doc('simulator').set({
-      'enabled': false,
-      'rows': 4,
-      'columns': 3,
-      'productsPerRow': 5,
-      'productsPerColumn': 4,
-      'maxCartItems': 20,
-      'minOrderAmount': 50.0,
-      'cartTimeout': 30,
-      'autoScrollSpeed': 3,
-      'enableSounds': true,
-      'enableVibration': true,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
-
-    // تعيين القيم الافتراضية في الـ controllers
-    _rowsController.text = '4';
-    _columnsController.text = '3';
-    _productsPerRowController.text = '5';
-    _productsPerColumnController.text = '4';
-    _maxCartItemsController.text = '20';
-    _minOrderAmountController.text = '50';
-    _cartTimeoutController.text = '30';
-    _autoScrollSpeedController.text = '3';
-    _enableSounds = true;
-    _enableVibration = true;
-  }
-
-  /// حفظ حالة المحاكي في Firebase
-  Future<void> _toggleSimulator(bool value) async {
-    setState(() => _isSaving = true);
-
-    try {
-      await _firestore.collection('settings').doc('simulator').set({
-        'enabled': value,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-
-      setState(() {
-        _isSimulatorEnabled = value;
-        _isSaving = false;
-      });
-
-      // عرض رسالة النجاح
-      if (value) {
-        _showSuccessMessage('تم تفعيل المحاكي بنجاح الآن يظهر في الموقع');
-      } else {
-        _showSuccessMessage('تم إيقاف ظهور المحاكي في الموقع');
-      }
-    } catch (e) {
-      setState(() => _isSaving = false);
-      _showErrorMessage('فشل حفظ الإعدادات: $e');
-    }
-  }
-
-  /// حفظ جميع إعدادات المحاكي
-  Future<void> _saveAllSettings() async {
-    if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isSaving = true);
-
-    try {
-      await _firestore.collection('settings').doc('simulator').set({
-        'enabled': _isSimulatorEnabled,
-        'rows': int.parse(_rowsController.text),
-        'columns': int.parse(_columnsController.text),
-        'productsPerRow': int.parse(_productsPerRowController.text),
-        'productsPerColumn': int.parse(_productsPerColumnController.text),
-        'maxCartItems': int.parse(_maxCartItemsController.text),
-        'minOrderAmount': double.parse(_minOrderAmountController.text),
-        'cartTimeout': int.parse(_cartTimeoutController.text),
-        'autoScrollSpeed': int.parse(_autoScrollSpeedController.text),
-        'enableSounds': _enableSounds,
-        'enableVibration': _enableVibration,
-        'updatedAt': FieldValue.serverTimestamp(),
-      }, SetOptions(merge: true));
-
-      setState(() => _isSaving = false);
-      _showSuccessMessage('تم حفظ جميع الإعدادات بنجاح');
-    } catch (e) {
-      setState(() => _isSaving = false);
-      _showErrorMessage('فشل حفظ الإعدادات: $e');
-    }
+  /// Build a [SimulatorSettings] from current form values.
+  SimulatorSettings _buildSettingsFromForm() {
+    return SimulatorSettings(
+      enabled: _isSimulatorEnabled,
+      rows: int.tryParse(_rowsController.text) ?? 4,
+      columns: int.tryParse(_columnsController.text) ?? 3,
+      productsPerRow: int.tryParse(_productsPerRowController.text) ?? 5,
+      productsPerColumn: int.tryParse(_productsPerColumnController.text) ?? 4,
+      maxCartItems: int.tryParse(_maxCartItemsController.text) ?? 20,
+      minOrderAmount:
+          double.tryParse(_minOrderAmountController.text) ?? 50.0,
+      cartTimeout: int.tryParse(_cartTimeoutController.text) ?? 30,
+      autoScrollSpeed: int.tryParse(_autoScrollSpeedController.text) ?? 3,
+      enableSounds: _enableSounds,
+      enableVibration: _enableVibration,
+    );
   }
 
   void _showSuccessMessage(String message) {
@@ -214,171 +120,201 @@ class _SimulatorSettingsPageState extends State<SimulatorSettingsPage> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: EdgeInsets.all(
-                  isDesktop ? AppConstants.spacingLg : AppConstants.spacingMd),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // العنوان
-                    Text(
-                      'إعدادات المحاكي',
-                      style:
-                          Theme.of(context).textTheme.headlineMedium?.copyWith(
-                                color: AppColors.textPrimary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                    ),
-                    const SizedBox(height: AppConstants.spacingMd),
+      body: BlocConsumer<SimulatorSettingsBloc, SimulatorSettingsState>(
+        listener: (context, state) {
+          if (state is SimulatorSettingsLoaded) {
+            _populateControllers(state.settings);
+            // Update local toggle state
+            setState(() {
+              _isSimulatorEnabled = state.settings.enabled;
+              _enableSounds = state.settings.enableSounds;
+              _enableVibration = state.settings.enableVibration;
+            });
+          } else if (state is SimulatorSettingsError) {
+            _showErrorMessage(state.message);
+          }
+        },
+        builder: (context, state) {
+          if (state is SimulatorSettingsLoading ||
+              state is SimulatorSettingsInitial) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-                    // بطاقة تفعيل المحاكي
-                    _buildEnableCard(),
-                    const SizedBox(height: AppConstants.spacingMd),
+          final isSaving = state is SimulatorSettingsActionInProgress;
 
-                    // عنوان إعدادات الشبكة
-                    _buildSectionTitle('إعدادات الشبكة'),
-                    const SizedBox(height: AppConstants.spacingSm),
+          return SingleChildScrollView(
+            padding: EdgeInsets.all(
+                isDesktop ? AppConstants.spacingLg : AppConstants.spacingMd),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // العنوان
+                  Text(
+                    'إعدادات المحاكي',
+                    style:
+                        Theme.of(context).textTheme.headlineMedium?.copyWith(
+                              color: AppColors.textPrimary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                  ),
+                  const SizedBox(height: AppConstants.spacingMd),
 
-                    // Grid للإعدادات
-                    GridView.count(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: crossAxisCount,
-                      crossAxisSpacing: AppConstants.spacingMd,
-                      mainAxisSpacing: AppConstants.spacingMd,
-                      childAspectRatio: isDesktop ? 3.0 : 2.5,
-                      children: [
-                        _buildNumberField(
-                          controller: _rowsController,
-                          label: 'عدد الصفوف',
-                          icon: Iconsax.row_horizontal,
-                          hint: 'مثال: 4',
-                        ),
-                        _buildNumberField(
-                          controller: _columnsController,
-                          label: 'عدد الأعمدة',
-                          icon: Iconsax.menu,
-                          hint: 'مثال: 3',
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppConstants.spacingMd),
+                  // بطاقة تفعيل المحاكي
+                  _buildEnableCard(isSaving),
+                  const SizedBox(height: AppConstants.spacingMd),
 
-                    // عنوان إعدادات المنتجات
-                    _buildSectionTitle('إعدادات المنتجات'),
-                    const SizedBox(height: AppConstants.spacingSm),
+                  // عنوان إعدادات الشبكة
+                  _buildSectionTitle('إعدادات الشبكة'),
+                  const SizedBox(height: AppConstants.spacingSm),
 
-                    GridView.count(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: crossAxisCount,
-                      crossAxisSpacing: AppConstants.spacingMd,
-                      mainAxisSpacing: AppConstants.spacingMd,
-                      childAspectRatio: isDesktop ? 3.0 : 2.5,
-                      children: [
-                        _buildNumberField(
-                          controller: _productsPerRowController,
-                          label: 'عدد المنتجات في كل صف',
-                          icon: Iconsax.grid_1,
-                          hint: 'مثال: 5',
-                        ),
-                        _buildNumberField(
-                          controller: _productsPerColumnController,
-                          label: 'عدد المنتجات في كل عمود',
-                          icon: Iconsax.grid_2,
-                          hint: 'مثال: 4',
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppConstants.spacingMd),
-
-                    // عنوان إعدادات السلة والطلبات
-                    _buildSectionTitle('إعدادات السلة والطلبات'),
-                    const SizedBox(height: AppConstants.spacingSm),
-
-                    GridView.count(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      crossAxisCount: crossAxisCount,
-                      crossAxisSpacing: AppConstants.spacingMd,
-                      mainAxisSpacing: AppConstants.spacingMd,
-                      childAspectRatio: isDesktop ? 3.0 : 2.5,
-                      children: [
-                        _buildNumberField(
-                          controller: _maxCartItemsController,
-                          label: 'الحد الأقصى للسلة',
-                          icon: Iconsax.shopping_cart,
-                          hint: 'مثال: 20',
-                        ),
-                        _buildNumberField(
-                          controller: _minOrderAmountController,
-                          label: 'الحد الأدنى للطلب (ج.م)',
-                          icon: Iconsax.money_4,
-                          hint: 'مثال: 50',
-                          isDecimal: true,
-                        ),
-                        _buildNumberField(
-                          controller: _cartTimeoutController,
-                          label: 'وقت انتهاء السلة (دقيقة)',
-                          icon: Iconsax.timer_1,
-                          hint: 'مثال: 30',
-                        ),
-                        _buildNumberField(
-                          controller: _autoScrollSpeedController,
-                          label: 'سرعة التحريك التلقائي',
-                          icon: Iconsax.flash_1,
-                          hint: 'مثال: 3',
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppConstants.spacingMd),
-
-                    // عنوان التجربة التفاعلية
-                    _buildSectionTitle('التجربة التفاعلية'),
-                    const SizedBox(height: AppConstants.spacingSm),
-
-                    // بطاقة الأصوات والاهتزاز
-                    _buildInteractiveCard(),
-                    const SizedBox(height: AppConstants.spacingLg),
-
-                    // زر الحفظ
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: ElevatedButton(
-                        onPressed: _isSaving ? null : _saveAllSettings,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: _isSaving
-                            ? const CircularProgressIndicator(
-                                color: Colors.white)
-                            : const Text(
-                                'حفظ جميع الإعدادات',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
+                  GridView.count(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisCount: crossAxisCount,
+                    crossAxisSpacing: AppConstants.spacingMd,
+                    mainAxisSpacing: AppConstants.spacingMd,
+                    childAspectRatio: isDesktop ? 3.0 : 2.5,
+                    children: [
+                      _buildNumberField(
+                        controller: _rowsController,
+                        label: 'عدد الصفوف',
+                        icon: Iconsax.row_horizontal,
+                        hint: 'مثال: 4',
                       ),
+                      _buildNumberField(
+                        controller: _columnsController,
+                        label: 'عدد الأعمدة',
+                        icon: Iconsax.menu,
+                        hint: 'مثال: 3',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppConstants.spacingMd),
+
+                  // عنوان إعدادات المنتجات
+                  _buildSectionTitle('إعدادات المنتجات'),
+                  const SizedBox(height: AppConstants.spacingSm),
+
+                  GridView.count(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisCount: crossAxisCount,
+                    crossAxisSpacing: AppConstants.spacingMd,
+                    mainAxisSpacing: AppConstants.spacingMd,
+                    childAspectRatio: isDesktop ? 3.0 : 2.5,
+                    children: [
+                      _buildNumberField(
+                        controller: _productsPerRowController,
+                        label: 'عدد المنتجات في كل صف',
+                        icon: Iconsax.grid_1,
+                        hint: 'مثال: 5',
+                      ),
+                      _buildNumberField(
+                        controller: _productsPerColumnController,
+                        label: 'عدد المنتجات في كل عمود',
+                        icon: Iconsax.grid_2,
+                        hint: 'مثال: 4',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppConstants.spacingMd),
+
+                  // عنوان إعدادات السلة والطلبات
+                  _buildSectionTitle('إعدادات السلة والطلبات'),
+                  const SizedBox(height: AppConstants.spacingSm),
+
+                  GridView.count(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisCount: crossAxisCount,
+                    crossAxisSpacing: AppConstants.spacingMd,
+                    mainAxisSpacing: AppConstants.spacingMd,
+                    childAspectRatio: isDesktop ? 3.0 : 2.5,
+                    children: [
+                      _buildNumberField(
+                        controller: _maxCartItemsController,
+                        label: 'الحد الأقصى للسلة',
+                        icon: Iconsax.shopping_cart,
+                        hint: 'مثال: 20',
+                      ),
+                      _buildNumberField(
+                        controller: _minOrderAmountController,
+                        label: 'الحد الأدنى للطلب (ج.م)',
+                        icon: Iconsax.money_4,
+                        hint: 'مثال: 50',
+                        isDecimal: true,
+                      ),
+                      _buildNumberField(
+                        controller: _cartTimeoutController,
+                        label: 'وقت انتهاء السلة (دقيقة)',
+                        icon: Iconsax.timer_1,
+                        hint: 'مثال: 30',
+                      ),
+                      _buildNumberField(
+                        controller: _autoScrollSpeedController,
+                        label: 'سرعة التحريك التلقائي',
+                        icon: Iconsax.flash_1,
+                        hint: 'مثال: 3',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppConstants.spacingMd),
+
+                  // عنوان التجربة التفاعلية
+                  _buildSectionTitle('التجربة التفاعلية'),
+                  const SizedBox(height: AppConstants.spacingSm),
+
+                  // بطاقة الأصوات والاهتزاز
+                  _buildInteractiveCard(),
+                  const SizedBox(height: AppConstants.spacingLg),
+
+                  // زر الحفظ
+                  SizedBox(
+                    width: double.infinity,
+                    height: 56,
+                    child: ElevatedButton(
+                      onPressed: isSaving
+                          ? null
+                          : () {
+                              if (!_formKey.currentState!.validate()) return;
+                              final settings = _buildSettingsFromForm();
+                              context.read<SimulatorSettingsBloc>().add(
+                                    SaveSimulatorSettingsEvent(settings),
+                                  );
+                              _showSuccessMessage('تم حفظ جميع الإعدادات بنجاح');
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: isSaving
+                          ? const CircularProgressIndicator(
+                              color: Colors.white)
+                          : const Text(
+                              'حفظ جميع الإعدادات',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
+          );
+        },
+      ),
     );
   }
 
-  Widget _buildEnableCard() {
+  Widget _buildEnableCard(bool isSaving) {
     return GlassCard(
       child: Padding(
         padding: const EdgeInsets.all(AppConstants.spacingMd),
@@ -425,7 +361,21 @@ class _SimulatorSettingsPageState extends State<SimulatorSettingsPage> {
             ),
             Switch(
               value: _isSimulatorEnabled,
-              onChanged: _toggleSimulator,
+              onChanged: isSaving
+                  ? null
+                  : (value) {
+                      setState(() => _isSimulatorEnabled = value);
+                      context
+                          .read<SimulatorSettingsBloc>()
+                          .add(ToggleSimulatorEvent(value));
+                      if (value) {
+                        _showSuccessMessage(
+                            'تم تفعيل المحاكي بنجاح الآن يظهر في الموقع');
+                      } else {
+                        _showSuccessMessage(
+                            'تم إيقاف ظهور المحاكي في الموقع');
+                      }
+                    },
               activeColor: AppColors.success,
             ),
           ],
@@ -477,7 +427,8 @@ class _SimulatorSettingsPageState extends State<SimulatorSettingsPage> {
             const SizedBox(height: 8),
             TextFormField(
               controller: controller,
-              keyboardType: TextInputType.numberWithOptions(decimal: isDecimal),
+              keyboardType:
+                  TextInputType.numberWithOptions(decimal: isDecimal),
               inputFormatters: [
                 FilteringTextInputFormatter.allow(
                   isDecimal ? RegExp(r'^\d+\.?\d{0,2}') : RegExp(r'^\d+'),
@@ -513,8 +464,9 @@ class _SimulatorSettingsPageState extends State<SimulatorSettingsPage> {
                 if (value == null || value.isEmpty) {
                   return 'مطلوب';
                 }
-                final number =
-                    isDecimal ? double.tryParse(value) : int.tryParse(value);
+                final number = isDecimal
+                    ? double.tryParse(value)
+                    : int.tryParse(value);
                 if (number == null) {
                   return 'رقم غير صحيح';
                 }
@@ -543,12 +495,14 @@ class _SimulatorSettingsPageState extends State<SimulatorSettingsPage> {
               },
               title: Row(
                 children: [
-                  Icon(Iconsax.volume_high, color: AppColors.primary, size: 20),
+                  Icon(Iconsax.volume_high,
+                      color: AppColors.primary, size: 20),
                   const SizedBox(width: 8),
                   const Flexible(child: Text('تفعيل الأصوات')),
                 ],
               ),
-              subtitle: const Text('تشغيل الأصوات التفاعلية في المحاكي'),
+              subtitle:
+                  const Text('تشغيل الأصوات التفاعلية في المحاكي'),
               activeColor: AppColors.primary,
               contentPadding: EdgeInsets.zero,
             ),
@@ -560,12 +514,14 @@ class _SimulatorSettingsPageState extends State<SimulatorSettingsPage> {
               },
               title: Row(
                 children: [
-                  Icon(Iconsax.mobile, color: AppColors.primary, size: 20),
+                  Icon(Iconsax.mobile,
+                      color: AppColors.primary, size: 20),
                   const SizedBox(width: 8),
                   const Flexible(child: Text('تفعيل الاهتزاز')),
                 ],
               ),
-              subtitle: const Text('تشغيل الاهتزاز عند التفاعل مع المحاكي'),
+              subtitle: const Text(
+                  'تشغيل الاهتزاز عند التفاعل مع المحاكي'),
               activeColor: AppColors.primary,
               contentPadding: EdgeInsets.zero,
             ),

@@ -1,38 +1,37 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter/foundation.dart';
 
-/// Provider that automatically sets offline status for drivers
+/// Background service that periodically sets offline status for drivers
 /// who haven't been active for more than 12 hours.
-class DriverCleanupProvider {
+///
+/// Lifecycle managed via [start] / [dispose] — no BuildContext dependency.
+class DriverCleanupService {
   final FirebaseFirestore _firestore;
+  Timer? _timer;
 
-  DriverCleanupProvider({FirebaseFirestore? firestore})
+  DriverCleanupService({FirebaseFirestore? firestore})
       : _firestore = firestore ?? FirebaseFirestore.instance;
 
-  /// Starts periodic cleanup job (runs every hour)
-  void startCleanupJob(BuildContext context) {
-    // Run initial cleanup
-    _runCleanup();
-
-    // Schedule periodic cleanup every hour
-    Future.doWhile(() async {
-      await Future.delayed(const Duration(hours: 1));
-      if (context.mounted) {
-        _runCleanup();
-        return true; // Continue loop
-      }
-      return false; // Stop loop if context is disposed
-    });
+  /// Start the periodic cleanup (runs immediately, then every hour).
+  void start() {
+    if (_timer != null) return; // already running
+    _runCleanup(); // initial run
+    _timer = Timer.periodic(const Duration(hours: 1), (_) => _runCleanup());
   }
 
-  /// Runs the cleanup job to set offline status for stale drivers
+  /// Stop the periodic cleanup.
+  void dispose() {
+    _timer?.cancel();
+    _timer = null;
+  }
+
+  /// Runs the cleanup — sets drivers offline if inactive for 12+ hours.
   Future<void> _runCleanup() async {
     try {
-      final now = DateTime.now();
-      final twelveHoursAgo = now.subtract(const Duration(hours: 12));
+      final twelveHoursAgo = DateTime.now().subtract(const Duration(hours: 12));
 
-      // Query drivers who are online but haven't been active for 12+ hours
       final snapshot = await _firestore
           .collection('users')
           .where('role', isEqualTo: 'delivery')
@@ -45,7 +44,6 @@ class DriverCleanupProvider {
         return;
       }
 
-      // Batch update stale drivers
       final batch = _firestore.batch();
       for (final doc in snapshot.docs) {
         batch.update(doc.reference, {
@@ -63,11 +61,10 @@ class DriverCleanupProvider {
     }
   }
 
-  /// Manual cleanup trigger (for admin button if needed)
+  /// Manual cleanup trigger (for admin button if needed).
   Future<int> runManualCleanup() async {
     try {
-      final now = DateTime.now();
-      final twelveHoursAgo = now.subtract(const Duration(hours: 12));
+      final twelveHoursAgo = DateTime.now().subtract(const Duration(hours: 12));
 
       final snapshot = await _firestore
           .collection('users')
@@ -76,9 +73,7 @@ class DriverCleanupProvider {
           .where('lastActiveAt', isLessThan: Timestamp.fromDate(twelveHoursAgo))
           .get();
 
-      if (snapshot.docs.isEmpty) {
-        return 0;
-      }
+      if (snapshot.docs.isEmpty) return 0;
 
       final batch = _firestore.batch();
       for (final doc in snapshot.docs) {

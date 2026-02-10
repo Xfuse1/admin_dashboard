@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../../../config/di/injection_container.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/services/firestore_lookup_service.dart';
 import '../../domain/entities/account_entities.dart';
 import '../bloc/accounts_bloc.dart';
 import '../bloc/accounts_event.dart';
@@ -263,7 +264,7 @@ class DriverDetailsPanel extends StatelessWidget {
               ),
               Switch(
                 value: driver.isActive,
-                activeColor: AppColors.success,
+                activeThumbColor: AppColors.success,
                 onChanged: (value) {
                   context.read<AccountsBloc>().add(
                         ToggleDriverStatusEvent(
@@ -334,15 +335,8 @@ class DriverDetailsPanel extends StatelessWidget {
         const SizedBox(height: 16),
         FutureBuilder<List<dynamic>>(
           future: Future.wait([
-            FirebaseFirestore.instance
-                .collection('orders')
-                .where('rejected_by_drivers', arrayContains: driver.id)
-                .count()
-                .get(),
-            FirebaseFirestore.instance
-                .collection('rejection_requests')
-                .where('driverId', isEqualTo: driver.id)
-                .get(),
+            sl<FirestoreLookupService>().getRejectedOrdersCount(driver.id),
+            sl<FirestoreLookupService>().getRejectionRequests(driver.id),
           ]),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -354,21 +348,21 @@ class DriverDetailsPanel extends StatelessWidget {
               );
             }
 
-            final actualRejections =
-                (snapshot.data?[0] as AggregateQuerySnapshot?)?.count ?? 0;
-            final requestsSnapshot = snapshot.data?[1] as QuerySnapshot?;
+            final actualRejections = (snapshot.data?[0] as int?) ?? 0;
+            final requestsList =
+                snapshot.data?[1] as List<Map<String, dynamic>>?;
 
-            final totalRequests = requestsSnapshot?.docs.length ?? 0;
-            final approvedCount = requestsSnapshot?.docs
-                    .where((doc) => doc['adminDecision'] == 'approved')
+            final totalRequests = requestsList?.length ?? 0;
+            final approvedCount = requestsList
+                    ?.where((doc) => doc['adminDecision'] == 'approved')
                     .length ??
                 0;
-            final rejectedCount = requestsSnapshot?.docs
-                    .where((doc) => doc['adminDecision'] == 'rejected')
+            final rejectedCount = requestsList
+                    ?.where((doc) => doc['adminDecision'] == 'rejected')
                     .length ??
                 0;
-            final pendingCount = requestsSnapshot?.docs
-                    .where((doc) => doc['adminDecision'] == 'pending')
+            final pendingCount = requestsList
+                    ?.where((doc) => doc['adminDecision'] == 'pending')
                     .length ??
                 0;
 
@@ -514,24 +508,14 @@ class DriverDetailsPanel extends StatelessWidget {
 
             return FutureBuilder<List<dynamic>>(
               future: Future.wait([
-                FirebaseFirestore.instance
-                    .collection('orders')
-                    .where('deliveryId', isEqualTo: driver.id)
-                    .where('deliveryStatus', isEqualTo: 'delivered')
-                    .count()
-                    .get(),
-                FirebaseFirestore.instance
-                    .collection('orders')
-                    .where('rejected_by_drivers', arrayContains: driver.id)
-                    .count()
-                    .get(),
+                sl<FirestoreLookupService>()
+                    .getDeliveredOrdersCountByDeliveryStatus(driver.id),
+                sl<FirestoreLookupService>().getRejectedOrdersCount(driver.id),
               ]),
               builder: (context, snapshot) {
                 final deliveredCount =
-                    (snapshot.data?[0] as AggregateQuerySnapshot?)?.count ??
-                        driver.totalDeliveries;
-                final rejections =
-                    (snapshot.data?[1] as AggregateQuerySnapshot?)?.count ?? 0;
+                    (snapshot.data?[0] as int?) ?? driver.totalDeliveries;
+                final rejections = (snapshot.data?[1] as int?) ?? 0;
 
                 debugPrint('🔍 deliveredCount: $deliveredCount');
 

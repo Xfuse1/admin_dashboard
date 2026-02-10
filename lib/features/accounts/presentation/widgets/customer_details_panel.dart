@@ -184,7 +184,7 @@ class CustomerDetailsPanel extends StatelessWidget {
               ),
               Switch(
                 value: customer.isActive,
-                activeColor: AppColors.success,
+                activeThumbColor: AppColors.success,
                 onChanged: (value) {
                   context.read<AccountsBloc>().add(
                         ToggleCustomerStatusEvent(
@@ -400,7 +400,8 @@ class _InfoCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: (iconColor ?? AppColors.textSecondary).withValues(alpha: 0.1),
+              color:
+                  (iconColor ?? AppColors.textSecondary).withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(

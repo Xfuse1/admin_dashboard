@@ -184,48 +184,59 @@ class _ProductsViewState extends State<_ProductsView> {
           ),
           const SizedBox(height: AppConstants.spacingMd),
           // Search bar
-          TextField(
-            controller: _searchController,
-            onChanged: (value) {
-              if (value.isEmpty) {
-                context.read<ProductsBloc>().add(const LoadProducts());
-              } else {
-                context.read<ProductsBloc>().add(SearchProducts(value));
-              }
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _searchController,
+            builder: (context, value, _) {
+              return TextField(
+                controller: _searchController,
+                onChanged: (value) {
+                  if (value.isEmpty) {
+                    context
+                        .read<ProductsBloc>()
+                        .add(const ClearProductsFilters());
+                  } else {
+                    context.read<ProductsBloc>().add(SearchProducts(value));
+                  }
+                },
+                decoration: InputDecoration(
+                  hintText: 'بحث عن منتج، متجر أو فئة...',
+                  prefixIcon:
+                      const Icon(Icons.search, color: AppColors.textMuted),
+                  suffixIcon: value.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear,
+                              color: AppColors.textMuted),
+                          onPressed: () {
+                            _searchController.clear();
+                            context
+                                .read<ProductsBloc>()
+                                .add(const ClearProductsFilters());
+                          },
+                        )
+                      : null,
+                  filled: true,
+                  fillColor: AppColors.background,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+                    borderSide: BorderSide(
+                      color: AppColors.border.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+                    borderSide: BorderSide(
+                      color: AppColors.border.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppConstants.radiusMd),
+                    borderSide: const BorderSide(
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ),
+              );
             },
-            decoration: InputDecoration(
-              hintText: 'بحث عن منتج، متجر أو فئة...',
-              prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear, color: AppColors.textMuted),
-                      onPressed: () {
-                        _searchController.clear();
-                        context.read<ProductsBloc>().add(const LoadProducts());
-                      },
-                    )
-                  : null,
-              filled: true,
-              fillColor: AppColors.background,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                borderSide: BorderSide(
-                  color: AppColors.border.withValues(alpha: 0.3),
-                ),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                borderSide: BorderSide(
-                  color: AppColors.border.withValues(alpha: 0.3),
-                ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppConstants.radiusMd),
-                borderSide: const BorderSide(
-                  color: AppColors.primary,
-                ),
-              ),
-            ),
           ),
         ],
       ),

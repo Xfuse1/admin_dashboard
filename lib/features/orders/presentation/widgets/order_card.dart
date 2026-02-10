@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
+
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 import '../../../../core/constants/app_colors.dart';
@@ -288,13 +288,7 @@ class OrderCard extends StatelessWidget {
                 color: color,
                 shape: BoxShape.circle,
               ),
-            )
-                .animate(onPlay: (c) => c.repeat())
-                .fadeIn()
-                .then()
-                .fadeOut()
-                .then()
-                .fadeIn(),
+            ),
             const SizedBox(width: 6),
             Text(
               order.status.arabicName,

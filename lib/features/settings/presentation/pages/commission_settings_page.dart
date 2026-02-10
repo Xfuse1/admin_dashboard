@@ -6,7 +6,9 @@ import 'package:iconsax_flutter/iconsax_flutter.dart';
 import '../../../../config/di/injection_container.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../shared/widgets/responsive_layout.dart';
-import '../bloc/settings_cubit.dart';
+import '../bloc/settings_bloc.dart';
+import '../bloc/settings_event.dart';
+import '../bloc/settings_state.dart';
 
 class CommissionSettingsPage extends StatelessWidget {
   const CommissionSettingsPage({super.key});
@@ -14,7 +16,8 @@ class CommissionSettingsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => sl<SettingsCubit>()..getAllDriverCommissions(),
+      create: (context) =>
+          sl<SettingsBloc>()..add(const LoadAllDriverCommissions()),
       child: const _CommissionSettingsView(),
     );
   }
@@ -62,7 +65,7 @@ class _CommissionSettingsViewState extends State<_CommissionSettingsView> {
           ),
         ),
       ),
-      body: BlocConsumer<SettingsCubit, SettingsState>(
+      body: BlocConsumer<SettingsBloc, SettingsState>(
         listener: (context, state) {
           if (state is AllDriverCommissionsLoaded) {
             _rate1OrderController.text = state.rate1Order.toString();
@@ -421,13 +424,13 @@ class _CommissionSettingsViewState extends State<_CommissionSettingsView> {
                                     final rate4Orders = double.parse(
                                         _rate4OrdersController.text);
                                     context
-                                        .read<SettingsCubit>()
-                                        .updateAllDriverCommissions(
+                                        .read<SettingsBloc>()
+                                        .add(UpdateAllDriverCommissions(
                                           rate1Order: rate1Order,
                                           rate2Orders: rate2Orders,
                                           rate3Orders: rate3Orders,
                                           rate4Orders: rate4Orders,
-                                        );
+                                        ));
                                   }
                                 },
                           style: ElevatedButton.styleFrom(

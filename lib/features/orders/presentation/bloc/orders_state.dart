@@ -72,7 +72,10 @@ class OrdersLoaded extends OrdersState {
   }
 
   /// Get orders filtered by search query and order type.
+  /// Returns the original list when no filters are active (avoids allocation).
   List<OrderEntity> get filteredOrders {
+    // Fast path: no filtering needed
+    if (orderTypeFilter == null && searchQuery.isEmpty) return orders;
     var result = orders;
 
     // Filter by order type

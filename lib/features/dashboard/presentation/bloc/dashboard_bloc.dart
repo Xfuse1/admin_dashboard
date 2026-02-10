@@ -1,5 +1,7 @@
+import 'package:dartz/dartz.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../../../core/errors/failures.dart';
 import '../../domain/entities/dashboard_entities.dart';
 import '../../domain/usecases/dashboard_usecases.dart';
 import 'dashboard_event.dart';
@@ -42,53 +44,42 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
   }
 
   Future<void> _loadDashboardData(Emitter<DashboardState> emit) async {
-    // Fetch all data in parallel
-    final results = await Future.wait([
-      _getStatsUseCase(),
-      _getRecentOrdersUseCase(limit: 10),
-      _getRevenueDataUseCase(
-        startDate: DateTime.now().subtract(const Duration(days: 7)),
-        endDate: DateTime.now(),
-      ),
-      _getOrdersDistributionUseCase(),
-    ]);
-
-    final statsResult = results[0] as dynamic;
-    final ordersResult = results[1] as dynamic;
-    final revenueResult = results[2] as dynamic;
-    final distributionResult = results[3] as dynamic;
-
-    // Check for errors
-    String? errorMessage;
-
-    statsResult.fold(
-      (failure) => errorMessage = failure.message,
-      (_) {},
+    // Fetch all data in parallel with proper types
+    final statsFuture = _getStatsUseCase();
+    final ordersFuture = _getRecentOrdersUseCase(limit: 10);
+    final revenueFuture = _getRevenueDataUseCase(
+      startDate: DateTime.now().subtract(const Duration(days: 7)),
+      endDate: DateTime.now(),
     );
+    final distributionFuture = _getOrdersDistributionUseCase();
 
-    if (errorMessage != null) {
-      emit(DashboardError(errorMessage!));
+    final Either<Failure, DashboardStats> statsResult = await statsFuture;
+    final Either<Failure, List<RecentOrder>> ordersResult = await ordersFuture;
+    final Either<Failure, List<RevenueDataPoint>> revenueResult =
+        await revenueFuture;
+    final Either<Failure, OrdersDistribution> distributionResult =
+        await distributionFuture;
+
+    // Check ALL results for errors
+    final errors = <String>[];
+    statsResult.fold((f) => errors.add(f.message), (_) {});
+    ordersResult.fold((f) => errors.add(f.message), (_) {});
+    revenueResult.fold((f) => errors.add(f.message), (_) {});
+    distributionResult.fold((f) => errors.add(f.message), (_) {});
+
+    if (errors.isNotEmpty) {
+      emit(DashboardError(errors.first));
       return;
     }
 
-    // Extract data
-    final stats = statsResult.fold(
-      (_) => null,
-      (data) => data as DashboardStats,
+    // Extract data safely — errors already handled above
+    final stats = statsResult.getOrElse(
+      () => throw StateError('Unreachable'),
     );
-
-    final recentOrders = ordersResult.fold(
-      (_) => <RecentOrder>[],
-      (data) => data as List<RecentOrder>,
-    );
-
-    final revenueData = revenueResult.fold(
-      (_) => <RevenueDataPoint>[],
-      (data) => data as List<RevenueDataPoint>,
-    );
-
-    final distribution = distributionResult.fold(
-      (_) => const OrdersDistribution(
+    final recentOrders = ordersResult.getOrElse(() => []);
+    final revenueData = revenueResult.getOrElse(() => []);
+    final distribution = distributionResult.getOrElse(
+      () => const OrdersDistribution(
         pending: 0,
         confirmed: 0,
         preparing: 0,
@@ -97,18 +88,13 @@ class DashboardBloc extends Bloc<DashboardEvent, DashboardState> {
         delivered: 0,
         cancelled: 0,
       ),
-      (data) => data as OrdersDistribution,
     );
 
-    if (stats != null) {
-      emit(DashboardLoaded(
-        stats: stats,
-        recentOrders: recentOrders,
-        revenueData: revenueData,
-        ordersDistribution: distribution,
-      ));
-    } else {
-      emit(const DashboardError('فشل تحميل البيانات'));
-    }
+    emit(DashboardLoaded(
+      stats: stats,
+      recentOrders: recentOrders,
+      revenueData: revenueData,
+      ordersDistribution: distribution,
+    ));
   }
 }

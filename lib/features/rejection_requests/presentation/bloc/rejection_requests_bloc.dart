@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print
+
 import 'dart:async';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -174,6 +176,7 @@ class RejectionRequestsBloc
   }
 
   /// معالجة بيانات طلبات الرفض مع الـ async operations
+  // ignore: unused_element
   Future<void> _handleRejectionRequestsData({
     required List<RejectionRequestEntity> requests,
     required String? adminDecision,

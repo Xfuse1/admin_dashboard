@@ -26,6 +26,11 @@
   <meta name="apple-mobile-web-app-title" content="لوحة التحكم">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
+  <!-- Google Fonts - Cairo (preloaded once instead of runtime fetching) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
@@ -70,16 +75,30 @@
     <div class="loading-text">جاري التحميل...</div>
   </div>
 
-  <!-- Firebase SDK - Required for Flutter Web Firebase -->
-  <!-- Using modular SDK (v9+) with compat layer -->
+  <!-- Firebase SDK - Core + Auth loaded immediately, others deferred -->
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-storage-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-messaging-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js" defer></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-storage-compat.js" defer></script>
+  <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-messaging-compat.js" defer></script>
 
-  <!-- Google Maps JavaScript API - Must load before Flutter -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCEfbHqt7hB4ohznOo1hO_s_5N-LLFhsBc&loading=async&callback=Function.prototype"></script>
+  <!-- Google Maps JavaScript API - Loaded on demand when needed -->
+  <!-- Moved to lazy loading: Maps SDK will be loaded by Flutter when a map widget is first used -->
+  <script>
+    // Lazy load Google Maps API only when needed
+    window._loadGoogleMaps = function() {
+      if (window._googleMapsLoaded) return Promise.resolve();
+      return new Promise(function(resolve) {
+        var script = document.createElement('script');
+        script.src = 'https://maps.googleapis.com/maps/api/js?key=AIzaSyCEfbHqt7hB4ohznOo1hO_s_5N-LLFhsBc&loading=async&callback=Function.prototype';
+        script.onload = function() {
+          window._googleMapsLoaded = true;
+          resolve();
+        };
+        document.head.appendChild(script);
+      });
+    };
+  </script>
 
   <script>
     // Hide loading indicator when Flutter app loads

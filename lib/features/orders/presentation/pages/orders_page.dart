@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../../../config/di/injection_container.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/services/firestore_lookup_service.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../shared/widgets/common_widgets.dart';
 import '../../../../shared/widgets/glass_card.dart';
 import '../../../../shared/widgets/responsive_layout.dart';
 import '../../domain/entities/order_entities.dart';
-import '../../../accounts/domain/entities/account_entities.dart';
 import '../bloc/orders_bloc.dart';
 import '../bloc/orders_event.dart';
 import '../bloc/orders_state.dart';
@@ -19,7 +19,6 @@ import '../widgets/order_card.dart';
 import '../widgets/order_details_sheet.dart';
 import '../widgets/order_filters.dart';
 import '../widgets/order_stats_cards.dart';
-import '../../../accounts/data/models/account_models.dart';
 
 /// Orders management page.
 class OrdersPage extends StatefulWidget {
@@ -51,8 +50,7 @@ class _OrdersPageState extends State<OrdersPage>
     _tabController = TabController(length: _tabs.length, vsync: this);
     _tabController.addListener(_onTabChanged);
 
-    // Load initial orders
-    context.read<OrdersBloc>().add(const LoadOrders());
+    // Note: Initial LoadOrders is dispatched in app_router.dart BlocProvider.create
 
     // Setup scroll listener for pagination
     _scrollController.addListener(_onScroll);
@@ -255,7 +253,7 @@ class _OrdersPageState extends State<OrdersPage>
           ),
         ],
       ),
-    ).animate().fadeIn(duration: 300.ms).slideY(begin: -0.1, end: 0);
+    );
   }
 
   Widget _buildTabBar() {
@@ -314,15 +312,12 @@ class _OrdersPageState extends State<OrdersPage>
       padding: const EdgeInsets.all(AppConstants.spacingLg),
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      itemCount: 6,
+      itemCount: 4,
       itemBuilder: (context, index) {
         return GlassCard(
           margin: const EdgeInsets.only(bottom: AppConstants.spacingMd),
           child: const SizedBox(height: 120),
-        ).animate(onPlay: (c) => c.repeat()).shimmer(
-              duration: 1500.ms,
-              color: AppColors.primary.withValues(alpha: 0.1),
-            );
+        );
       },
     );
   }
@@ -353,7 +348,7 @@ class _OrdersPageState extends State<OrdersPage>
           ),
         ],
       ),
-    ).animate().fadeIn(duration: 300.ms).scale(begin: const Offset(0.9, 0.9));
+    ).animate().fadeIn(duration: 200.ms);
   }
 
   Widget _buildErrorState(String message) {
@@ -387,10 +382,7 @@ class _OrdersPageState extends State<OrdersPage>
           order: order,
           onTap: () => _onOrderTap(order),
           onStatusChange: (status) => _onOrderStatusChange(order.id, status),
-        ).animate().fadeIn(
-              delay: Duration(milliseconds: index * 50),
-              duration: 300.ms,
-            );
+        );
       },
     );
   }
@@ -604,11 +596,17 @@ class OrderDetailsPanel extends StatelessWidget {
   }
 
   Widget _buildStoreSection(BuildContext context) {
-    return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance
-          .collection('users')
-          .doc(order.storeId)
-          .get(),
+    if (order.storeId == null || order.storeId!.isEmpty) {
+      return _buildInfoSection(
+        context,
+        'المتجر',
+        Iconsax.shop,
+        [order.storeName ?? 'متجر غير معروف'],
+      );
+    }
+
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: sl<FirestoreLookupService>().getUserById(order.storeId!),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Column(
@@ -638,7 +636,7 @@ class OrderDetailsPanel extends StatelessWidget {
           );
         }
 
-        if (!snapshot.hasData || !snapshot.data!.exists) {
+        if (!snapshot.hasData || snapshot.data == null) {
           return _buildInfoSection(
             context,
             'المتجر',
@@ -647,7 +645,8 @@ class OrderDetailsPanel extends StatelessWidget {
           );
         }
 
-        final userData = snapshot.data!.data() as Map<String, dynamic>?;
+        final userData = snapshot.data!;
+        // ignore: unnecessary_null_comparison
         if (userData == null) {
           return _buildInfoSection(
             context,
@@ -863,23 +862,11 @@ class OrderDetailsPanel extends StatelessWidget {
         ? calculatedSubtotal
         : order.subtotal!;
 
-    return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance
-          .collection('settings')
-          .doc('driverCommission')
-          .get(),
+    return FutureBuilder<double>(
+      future: sl<FirestoreLookupService>().getDriverCommissionRate(),
       builder: (context, snapshot) {
         // Get delivery fee from settings/driverCommission/rate
-        double deliveryFee = 0.0;
-
-        if (snapshot.hasData &&
-            snapshot.data != null &&
-            snapshot.data!.exists) {
-          final settingsData = snapshot.data!.data() as Map<String, dynamic>?;
-          if (settingsData != null && settingsData.containsKey('rate')) {
-            deliveryFee = (settingsData['rate'] as num?)?.toDouble() ?? 0.0;
-          }
-        }
+        double deliveryFee = snapshot.data ?? 0.0;
 
         final calculatedTotal = displaySubtotal + deliveryFee;
         // Always use calculated total to ensure delivery fee is included

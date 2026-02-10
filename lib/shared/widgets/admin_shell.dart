@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../config/di/injection_container.dart';
@@ -7,7 +6,7 @@ import '../../config/routes/app_router.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/app_strings.dart';
-import '../../features/accounts/presentation/providers/driver_cleanup_provider.dart';
+import '../../core/services/driver_cleanup_service.dart';
 import '../../features/notifications/presentation/bloc/notifications_bloc.dart';
 import '../../features/notifications/presentation/bloc/notifications_event.dart';
 import '../../features/notifications/presentation/widgets/notifications_bell.dart';
@@ -30,8 +29,8 @@ class _AdminShellState extends State<AdminShell> {
   @override
   void initState() {
     super.initState();
-    // Start driver cleanup job when dashboard opens
-    sl<DriverCleanupProvider>().startCleanupJob(context);
+    // Start driver cleanup service when dashboard opens
+    sl<DriverCleanupService>().start();
   }
 
   @override
@@ -50,49 +49,48 @@ class _AdminShellState extends State<AdminShell> {
       body: Row(
         children: [
           // Desktop sidebar
-          if (isDesktop)
-            const Sidebar()
-                .animate()
-                .fadeIn(duration: AppConstants.animationMedium)
-                .slideX(begin: 0.1, end: 0),
+          if (isDesktop) const RepaintBoundary(child: Sidebar()),
 
           // Main content
           Expanded(
-            child: Stack(
-              children: [
-                // Page content
-                Column(
-                  children: [
-                    // Mobile/Tablet app bar
-                    if (!isDesktop) _buildMobileAppBar(context),
+            child: RepaintBoundary(
+              child: Stack(
+                children: [
+                  // Page content
+                  Column(
+                    children: [
+                      // Mobile/Tablet app bar
+                      if (!isDesktop) _buildMobileAppBar(context),
 
-                    // Page content
-                    Expanded(child: widget.child),
-                  ],
-                ),
-
-                // Mobile drawer overlay
-                if (!isDesktop && _isDrawerOpen) ...[
-                  // Backdrop
-                  GestureDetector(
-                    onTap: _closeDrawer,
-                    child: Container(color: Colors.black54),
-                  ).animate().fadeIn(duration: AppConstants.animationFast),
-
-                  // Drawer
-                  Positioned(
-                    right: 0,
-                    top: 0,
-                    bottom: 0,
-                    child: const Sidebar().animate().slideX(
-                          begin: 1,
-                          end: 0,
-                          duration: AppConstants.animationMedium,
-                          curve: Curves.easeOutCubic,
-                        ),
+                      // Page content
+                      Expanded(child: widget.child),
+                    ],
                   ),
+
+                  // Mobile drawer overlay
+                  if (!isDesktop && _isDrawerOpen) ...[
+                    // Backdrop
+                    GestureDetector(
+                      onTap: _closeDrawer,
+                      child: AnimatedOpacity(
+                        opacity: _isDrawerOpen ? 1.0 : 0.0,
+                        duration: const Duration(milliseconds: 200),
+                        child: Container(color: Colors.black54),
+                      ),
+                    ),
+
+                    // Drawer
+                    AnimatedPositioned(
+                      duration: const Duration(milliseconds: 250),
+                      curve: Curves.easeOutCubic,
+                      right: 0,
+                      top: 0,
+                      bottom: 0,
+                      child: const Sidebar(),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ],

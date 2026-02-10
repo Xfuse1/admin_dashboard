@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../domain/entities/simulator_settings.dart';
 import '../models/delivery_settings_model.dart';
 import 'settings_datasource.dart';
 
@@ -86,6 +87,37 @@ class SettingsFirebaseDataSource implements SettingsDataSource {
         'rate3Orders': rate3Orders,
         'rate4Orders': rate4Orders,
       },
+      SetOptions(merge: true),
+    );
+  }
+
+  @override
+  Future<SimulatorSettings> getSimulatorSettings() async {
+    final doc = await _firestore.collection('settings').doc('simulator').get();
+
+    if (doc.exists && doc.data() != null) {
+      return SimulatorSettings.fromMap(doc.data()!);
+    } else {
+      // Create default settings
+      const defaults = SimulatorSettings();
+      await _firestore.collection('settings').doc('simulator').set(
+          {...defaults.toMap(), 'updatedAt': FieldValue.serverTimestamp()});
+      return defaults;
+    }
+  }
+
+  @override
+  Future<void> toggleSimulator(bool enabled) async {
+    await _firestore.collection('settings').doc('simulator').set(
+      {'enabled': enabled, 'updatedAt': FieldValue.serverTimestamp()},
+      SetOptions(merge: true),
+    );
+  }
+
+  @override
+  Future<void> saveSimulatorSettings(SimulatorSettings settings) async {
+    await _firestore.collection('settings').doc('simulator').set(
+      {...settings.toMap(), 'updatedAt': FieldValue.serverTimestamp()},
       SetOptions(merge: true),
     );
   }

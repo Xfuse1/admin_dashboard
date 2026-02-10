@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/constants/app_colors.dart';
@@ -18,19 +17,8 @@ import '../widgets/recent_orders_list.dart';
 import '../widgets/revenue_chart.dart';
 
 /// Dashboard page widget.
-class DashboardPage extends StatefulWidget {
+class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
-
-  @override
-  State<DashboardPage> createState() => _DashboardPageState();
-}
-
-class _DashboardPageState extends State<DashboardPage> {
-  @override
-  void initState() {
-    super.initState();
-    context.read<DashboardBloc>().add(const DashboardLoadRequested());
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -93,9 +81,7 @@ class _DashboardContent extends StatelessWidget {
         // Recent orders
         SizedBox(
           height: 400,
-          child: RecentOrdersList(orders: state.recentOrders)
-              .animate()
-              .fadeIn(duration: AppConstants.animationMedium),
+          child: RecentOrdersList(orders: state.recentOrders),
         ),
       ],
     );
@@ -133,7 +119,7 @@ class _DashboardContent extends StatelessWidget {
           color: AppColors.textSecondary,
         ),
       ],
-    ).animate().fadeIn(duration: AppConstants.animationMedium);
+    );
   }
 
   Widget _buildStatsGrid(BuildContext context, bool isDesktop, bool isTablet) {
@@ -198,10 +184,7 @@ class _DashboardContent extends StatelessWidget {
           iconColor: card.iconColor,
           percentChange: card.percentChange,
           subtitle: card.subtitle,
-        )
-            .animate(delay: Duration(milliseconds: 100 * index))
-            .fadeIn(duration: AppConstants.animationMedium)
-            .slideY(begin: 0.1, end: 0);
+        );
       },
     );
   }
@@ -215,16 +198,14 @@ class _DashboardContent extends StatelessWidget {
             // Revenue chart
             Expanded(
               flex: 2,
-              child: RevenueChart(data: state.revenueData)
-                  .animate()
-                  .fadeIn(duration: AppConstants.animationMedium),
+              child: RevenueChart(data: state.revenueData),
             ),
             const SizedBox(width: AppConstants.spacingMd),
             // Orders distribution
             Expanded(
               child: OrdersDistributionChart(
                 distribution: state.ordersDistribution,
-              ).animate().fadeIn(duration: AppConstants.animationMedium),
+              ),
             ),
           ],
         ),
@@ -236,16 +217,14 @@ class _DashboardContent extends StatelessWidget {
       children: [
         SizedBox(
           height: 300,
-          child: RevenueChart(data: state.revenueData)
-              .animate()
-              .fadeIn(duration: AppConstants.animationMedium),
+          child: RevenueChart(data: state.revenueData),
         ),
         const SizedBox(height: AppConstants.spacingMd),
         SizedBox(
           height: 300,
           child: OrdersDistributionChart(
             distribution: state.ordersDistribution,
-          ).animate().fadeIn(duration: AppConstants.animationMedium),
+          ),
         ),
       ],
     );

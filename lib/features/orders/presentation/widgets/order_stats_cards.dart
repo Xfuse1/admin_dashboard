@@ -127,9 +127,6 @@ class _StatCard extends StatelessWidget {
           ),
         ],
       ),
-    ).animate().fadeIn(
-          delay: Duration(milliseconds: index * 100),
-          duration: 300.ms,
-        );
+    ).animate().fadeIn(duration: 200.ms);
   }
 }

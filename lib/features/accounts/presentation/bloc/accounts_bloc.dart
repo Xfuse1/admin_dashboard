@@ -86,22 +86,21 @@ class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
     LoadAccountStats event,
     Emitter<AccountsState> emit,
   ) async {
-    final currentState = state;
-    AccountsLoaded loadedState;
-
-    if (currentState is AccountsLoaded) {
-      loadedState = currentState;
-    } else {
+    if (state is! AccountsLoaded) {
       emit(const AccountsLoading());
-      loadedState = const AccountsLoaded();
     }
 
     final result = await _getAccountStats();
 
+    // Re-read state after await to get latest data from other concurrent handlers
+    final freshState = state is AccountsLoaded
+        ? state as AccountsLoaded
+        : const AccountsLoaded();
+
     result.fold(
       (failure) =>
-          emit(AccountsError(failure.message, previousState: loadedState)),
-      (stats) => emit(loadedState.copyWith(stats: stats)),
+          emit(AccountsError(failure.message, previousState: freshState)),
+      (stats) => emit(freshState.copyWith(stats: stats)),
     );
   }
 
@@ -113,14 +112,8 @@ class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
     LoadCustomers event,
     Emitter<AccountsState> emit,
   ) async {
-    final currentState = state;
-    AccountsLoaded loadedState;
-
-    if (currentState is AccountsLoaded) {
-      loadedState = currentState;
-    } else {
+    if (state is! AccountsLoaded) {
       emit(const AccountsLoading());
-      loadedState = const AccountsLoaded();
     }
 
     final result = await _getCustomers(
@@ -129,10 +122,15 @@ class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
       limit: _pageSize,
     );
 
+    // Re-read state after await to get latest data from other concurrent handlers
+    final freshState = state is AccountsLoaded
+        ? state as AccountsLoaded
+        : const AccountsLoaded();
+
     result.fold(
       (failure) =>
-          emit(AccountsError(failure.message, previousState: loadedState)),
-      (customers) => emit(loadedState.copyWith(
+          emit(AccountsError(failure.message, previousState: freshState)),
+      (customers) => emit(freshState.copyWith(
         customers: customers,
         hasMoreCustomers: customers.length >= _pageSize,
         customersSearchQuery: event.searchQuery,
@@ -279,14 +277,8 @@ class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
     LoadStores event,
     Emitter<AccountsState> emit,
   ) async {
-    final currentState = state;
-    AccountsLoaded loadedState;
-
-    if (currentState is AccountsLoaded) {
-      loadedState = currentState;
-    } else {
+    if (state is! AccountsLoaded) {
       emit(const AccountsLoading());
-      loadedState = const AccountsLoaded();
     }
 
     final result = await _getStores(
@@ -297,10 +289,15 @@ class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
       limit: _pageSize,
     );
 
+    // Re-read state after await to get latest data from other concurrent handlers
+    final freshState = state is AccountsLoaded
+        ? state as AccountsLoaded
+        : const AccountsLoaded();
+
     result.fold(
       (failure) =>
-          emit(AccountsError(failure.message, previousState: loadedState)),
-      (stores) => emit(loadedState.copyWith(
+          emit(AccountsError(failure.message, previousState: freshState)),
+      (stores) => emit(freshState.copyWith(
         stores: stores,
         hasMoreStores: stores.length >= _pageSize,
         storesSearchQuery: event.searchQuery,
@@ -510,14 +507,8 @@ class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
     LoadDrivers event,
     Emitter<AccountsState> emit,
   ) async {
-    final currentState = state;
-    AccountsLoaded loadedState;
-
-    if (currentState is AccountsLoaded) {
-      loadedState = currentState;
-    } else {
+    if (state is! AccountsLoaded) {
       emit(const AccountsLoading());
-      loadedState = const AccountsLoaded();
     }
 
     final result = await _getDrivers(
@@ -528,10 +519,15 @@ class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
       limit: _pageSize,
     );
 
+    // Re-read state after await to get latest data from other concurrent handlers
+    final freshState = state is AccountsLoaded
+        ? state as AccountsLoaded
+        : const AccountsLoaded();
+
     result.fold(
       (failure) =>
-          emit(AccountsError(failure.message, previousState: loadedState)),
-      (drivers) => emit(loadedState.copyWith(
+          emit(AccountsError(failure.message, previousState: freshState)),
+      (drivers) => emit(freshState.copyWith(
         drivers: drivers,
         hasMoreDrivers: drivers.length >= _pageSize,
         driversSearchQuery: event.searchQuery,

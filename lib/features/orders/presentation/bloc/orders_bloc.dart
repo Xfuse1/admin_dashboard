@@ -55,13 +55,17 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
   ) async {
     emit(const OrdersLoading());
 
-    final result = await _getOrders(status: event.status);
+    // Start both requests in parallel instead of sequentially
+    final ordersFuture = _getOrders(status: event.status);
+    final statsFuture = _getOrderStats();
+
+    final result = await ordersFuture;
 
     await result.fold(
       (failure) async => emit(OrdersError(message: failure.message)),
       (orders) async {
-        // Also load stats
-        final statsResult = await _getOrderStats();
+        // Stats future was already started, just await result
+        final statsResult = await statsFuture;
         statsResult.fold(
           (failure) => emit(OrdersLoaded(
             orders: orders,
@@ -210,18 +214,9 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
         previousOrders: currentState.orders,
       )),
       (_) {
-        // Update the order in the list
-        final updatedOrders = currentState.orders.map((order) {
-          if (order.id == event.orderId) {
-            // Create updated order (simplified for now)
-            return order;
-          }
-          return order;
-        }).toList();
-
         emit(OrderActionSuccess(
           successMessage: 'تم تحديث حالة الطلب بنجاح',
-          orders: updatedOrders,
+          orders: currentState.orders,
           currentFilter: currentState.currentFilter,
           orderTypeFilter: currentState.orderTypeFilter,
           hasMore: currentState.hasMore,
@@ -231,7 +226,7 @@ class OrdersBloc extends Bloc<OrdersEvent, OrdersState> {
           searchQuery: currentState.searchQuery,
         ));
 
-        // Reload orders to get updated data
+        // Reload orders to get fresh data from server
         add(LoadOrders(status: currentState.currentFilter, refresh: true));
       },
     );

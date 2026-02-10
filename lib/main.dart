@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:toastification/toastification.dart';
 
 import 'config/di/injection_container.dart';
@@ -13,12 +14,13 @@ import 'core/theme/app_theme.dart';
 import 'core/utils/app_logger.dart';
 import 'features/auth/presentation/bloc/auth_bloc.dart';
 import 'features/auth/presentation/bloc/auth_event.dart';
-
-import 'features/dashboard/presentation/bloc/dashboard_bloc.dart';
 import 'core/utils/seeding.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Prevent Google Fonts from downloading fonts at runtime (saves ~100+ requests)
+  GoogleFonts.config.allowRuntimeFetching = false;
 
   // Setup global error handling
   _setupErrorHandling();
@@ -34,7 +36,7 @@ void main() async {
 
   // Temporary: fix data consistency
   await SeedingService().fixDataConsistency();
-  
+
   // Temporary: Seed stores
   // await SeedingService().seedStores(); // Uncomment to seed once
 
@@ -90,9 +92,6 @@ class _AdminDashboardAppState extends State<AdminDashboardApp> {
     return MultiBlocProvider(
       providers: [
         BlocProvider<AuthBloc>.value(value: _authBloc),
-        BlocProvider<DashboardBloc>(
-          create: (_) => sl<DashboardBloc>(),
-        ),
       ],
       child: ToastificationWrapper(
         child: MaterialApp.router(

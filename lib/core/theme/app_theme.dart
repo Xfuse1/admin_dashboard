@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import '../constants/app_colors.dart';
 import '../constants/app_constants.dart';
@@ -7,7 +6,11 @@ import '../constants/app_constants.dart';
 /// Application theme configuration.
 ///
 /// Provides both dark and light themes with consistent styling.
+/// Cairo font is loaded via CSS in index.html for optimal performance.
 abstract final class AppTheme {
+  // Font family constant - loaded via CSS link in index.html
+  static const String _fontFamily = 'Cairo';
+
   // ============================================
   // 🌙 DARK THEME (DEFAULT)
   // ============================================
@@ -16,6 +19,7 @@ abstract final class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
+      fontFamily: _fontFamily,
       colorScheme: const ColorScheme.dark(
         primary: AppColors.primary,
         secondary: AppColors.secondary,
@@ -228,6 +232,7 @@ abstract final class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.light,
+      fontFamily: _fontFamily,
       colorScheme: const ColorScheme.light(
         primary: AppColors.primary,
         secondary: AppColors.secondary,
@@ -311,78 +316,93 @@ abstract final class AppTheme {
   // ============================================
 
   static TextTheme get _textTheme {
-    return GoogleFonts.cairoTextTheme().copyWith(
-      displayLarge: GoogleFonts.cairo(
+    return const TextTheme(
+      displayLarge: TextStyle(
+        fontFamily: _fontFamily,
         fontSize: 57,
         fontWeight: FontWeight.w400,
         color: AppColors.textPrimary,
       ),
-      displayMedium: GoogleFonts.cairo(
+      displayMedium: TextStyle(
+        fontFamily: _fontFamily,
         fontSize: 45,
         fontWeight: FontWeight.w400,
         color: AppColors.textPrimary,
       ),
-      displaySmall: GoogleFonts.cairo(
+      displaySmall: TextStyle(
+        fontFamily: _fontFamily,
         fontSize: 36,
         fontWeight: FontWeight.w400,
         color: AppColors.textPrimary,
       ),
-      headlineLarge: GoogleFonts.cairo(
+      headlineLarge: TextStyle(
+        fontFamily: _fontFamily,
         fontSize: 32,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
       ),
-      headlineMedium: GoogleFonts.cairo(
+      headlineMedium: TextStyle(
+        fontFamily: _fontFamily,
         fontSize: 28,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
       ),
-      headlineSmall: GoogleFonts.cairo(
+      headlineSmall: TextStyle(
+        fontFamily: _fontFamily,
         fontSize: 24,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
       ),
-      titleLarge: GoogleFonts.cairo(
+      titleLarge: TextStyle(
+        fontFamily: _fontFamily,
         fontSize: 22,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
       ),
-      titleMedium: GoogleFonts.cairo(
+      titleMedium: TextStyle(
+        fontFamily: _fontFamily,
         fontSize: 16,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
       ),
-      titleSmall: GoogleFonts.cairo(
+      titleSmall: TextStyle(
+        fontFamily: _fontFamily,
         fontSize: 14,
         fontWeight: FontWeight.w600,
         color: AppColors.textPrimary,
       ),
-      bodyLarge: GoogleFonts.cairo(
+      bodyLarge: TextStyle(
+        fontFamily: _fontFamily,
         fontSize: 16,
         fontWeight: FontWeight.w400,
         color: AppColors.textSecondary,
       ),
-      bodyMedium: GoogleFonts.cairo(
+      bodyMedium: TextStyle(
+        fontFamily: _fontFamily,
         fontSize: 14,
         fontWeight: FontWeight.w400,
         color: AppColors.textSecondary,
       ),
-      bodySmall: GoogleFonts.cairo(
+      bodySmall: TextStyle(
+        fontFamily: _fontFamily,
         fontSize: 12,
         fontWeight: FontWeight.w400,
         color: AppColors.textTertiary,
       ),
-      labelLarge: GoogleFonts.cairo(
+      labelLarge: TextStyle(
+        fontFamily: _fontFamily,
         fontSize: 14,
         fontWeight: FontWeight.w500,
         color: AppColors.textPrimary,
       ),
-      labelMedium: GoogleFonts.cairo(
+      labelMedium: TextStyle(
+        fontFamily: _fontFamily,
         fontSize: 12,
         fontWeight: FontWeight.w500,
         color: AppColors.textSecondary,
       ),
-      labelSmall: GoogleFonts.cairo(
+      labelSmall: TextStyle(
+        fontFamily: _fontFamily,
         fontSize: 11,
         fontWeight: FontWeight.w500,
         color: AppColors.textTertiary,

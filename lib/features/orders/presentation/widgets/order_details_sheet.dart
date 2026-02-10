@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter/services.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+
+import '../../../../config/di/injection_container.dart';
+import '../../../../core/services/firestore_lookup_service.dart';
 import '../../../../core/firebase/firebase_service.dart';
 
 import '../../../../core/constants/app_colors.dart';
@@ -223,11 +225,20 @@ class OrderDetailsSheet extends StatelessWidget {
   }
 
   Widget _buildStoreSection(BuildContext context) {
-    return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance
-          .collection('users')
-          .doc(order.storeId)
-          .get(),
+    if (order.storeId == null || order.storeId!.isEmpty) {
+      return _buildSection(
+        context,
+        'المتجر',
+        Iconsax.shop,
+        [
+          _buildInfoRow(
+              context, 'اسم المتجر', order.storeName ?? 'متجر غير معروف')
+        ],
+      );
+    }
+
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: sl<FirestoreLookupService>().getUserById(order.storeId!),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return GlassCard(
@@ -256,7 +267,7 @@ class OrderDetailsSheet extends StatelessWidget {
           );
         }
 
-        if (!snapshot.hasData || !snapshot.data!.exists) {
+        if (!snapshot.hasData || snapshot.data == null) {
           return _buildSection(
             context,
             'المتجر',
@@ -268,7 +279,8 @@ class OrderDetailsSheet extends StatelessWidget {
           );
         }
 
-        final userData = snapshot.data!.data() as Map<String, dynamic>?;
+        final userData = snapshot.data!;
+        // ignore: unnecessary_null_comparison
         if (userData == null) {
           return _buildSection(
             context,
@@ -788,23 +800,11 @@ class OrderDetailsSheet extends StatelessWidget {
         ? calculatedSubtotal
         : order.subtotal!;
 
-    return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance
-          .collection('settings')
-          .doc('driverCommission')
-          .get(),
+    return FutureBuilder<double>(
+      future: sl<FirestoreLookupService>().getDriverCommissionRate(),
       builder: (context, snapshot) {
         // Get delivery fee from settings/driverCommission/rate
-        double deliveryFee = 0.0;
-
-        if (snapshot.hasData &&
-            snapshot.data != null &&
-            snapshot.data!.exists) {
-          final settingsData = snapshot.data!.data() as Map<String, dynamic>?;
-          if (settingsData != null && settingsData.containsKey('rate')) {
-            deliveryFee = (settingsData['rate'] as num?)?.toDouble() ?? 0.0;
-          }
-        }
+        double deliveryFee = snapshot.data ?? 0.0;
 
         final calculatedTotal = displaySubtotal + deliveryFee;
         // Always use calculated total to ensure delivery fee is included

@@ -32,8 +32,7 @@ class RecentOrdersList extends StatelessWidget {
                     ),
               ),
               TextButton(
-                onPressed: () {
-                  // TODO: Navigate to orders page
+                onPressed: () { 
                 },
                 child: const Text('عرض الكل'),
               ),

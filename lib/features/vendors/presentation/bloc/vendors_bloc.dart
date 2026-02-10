@@ -1,3 +1,5 @@
+// ignore_for_file: unnecessary_overrides
+
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:bloc_concurrency/bloc_concurrency.dart';
 
@@ -18,6 +20,8 @@ class VendorsBloc extends Bloc<VendorsEvent, VendorsState> {
   final WatchVendors watchVendors;
   final UpdateVendorRating updateVendorRating;
   final GetVendorProducts getVendorProducts;
+  final ToggleFeaturedStatus toggleFeaturedStatus;
+  final VerifyVendor verifyVendor;
 
   VendorsBloc({
     required this.getVendors,
@@ -30,6 +34,8 @@ class VendorsBloc extends Bloc<VendorsEvent, VendorsState> {
     required this.watchVendors,
     required this.updateVendorRating,
     required this.getVendorProducts,
+    required this.toggleFeaturedStatus,
+    required this.verifyVendor,
   }) : super(const VendorsInitial()) {
     on<LoadVendors>(_onLoadVendors);
     on<LoadVendorProductsEvent>(_onLoadVendorProducts);
@@ -149,12 +155,7 @@ class VendorsBloc extends Bloc<VendorsEvent, VendorsState> {
   ) async {
     final currentState = state;
     if (currentState is VendorsLoaded) {
-      // Restart watch with new status filter
-      add(WatchVendorsEvent(
-        status: event.status,
-        category: currentState.currentCategoryFilter,
-      ));
-      // Also load immediately for faster feedback
+      // Load with new filter, then restart watch for real-time updates
       add(LoadVendors(
         status: event.status,
         category: currentState.currentCategoryFilter,
@@ -169,12 +170,7 @@ class VendorsBloc extends Bloc<VendorsEvent, VendorsState> {
   ) async {
     final currentState = state;
     if (currentState is VendorsLoaded) {
-      // Restart watch with new category filter
-      add(WatchVendorsEvent(
-        status: currentState.currentStatusFilter,
-        category: event.category,
-      ));
-      // Also load immediately for faster feedback
+      // Load with new filter, then restart watch for real-time updates
       add(LoadVendors(
         status: currentState.currentStatusFilter,
         category: event.category,
@@ -327,14 +323,7 @@ class VendorsBloc extends Bloc<VendorsEvent, VendorsState> {
     final currentState = state;
     if (currentState is! VendorsLoaded) return;
 
-    // This would need a use case for toggleFeaturedStatus
-    // For now, we'll update the vendor directly
-    final vendorToUpdate =
-        currentState.vendors.where((v) => v.id == event.vendorId).firstOrNull;
-    if (vendorToUpdate == null) return;
-    final updatedVendor = vendorToUpdate.copyWith(isFeatured: event.isFeatured);
-
-    final result = await updateVendor(updatedVendor);
+    final result = await toggleFeaturedStatus(event.vendorId, event.isFeatured);
 
     result.fold(
       (failure) => emit(VendorsError(failure.message)),
@@ -366,14 +355,7 @@ class VendorsBloc extends Bloc<VendorsEvent, VendorsState> {
     final currentState = state;
     if (currentState is! VendorsLoaded) return;
 
-    // This would need a use case for verifyVendor
-    // For now, we'll update the vendor directly
-    final vendorToUpdate =
-        currentState.vendors.where((v) => v.id == event.vendorId).firstOrNull;
-    if (vendorToUpdate == null) return;
-    final updatedVendor = vendorToUpdate.copyWith(isVerified: true);
-
-    final result = await updateVendor(updatedVendor);
+    final result = await verifyVendor(event.vendorId);
 
     result.fold(
       (failure) => emit(VendorsError(failure.message)),
@@ -400,14 +382,14 @@ class VendorsBloc extends Bloc<VendorsEvent, VendorsState> {
     Emitter<VendorsState> emit,
   ) async {
     final currentState = state;
-    
+
     // Load stats once if not loaded yet
     Map<String, dynamic>? stats;
     if (currentState is! VendorsLoaded || currentState.stats == null) {
       final statsResult = await getVendorStats();
       statsResult.fold(
         (failure) => stats = null,
-        (s) => stats = s as Map<String, dynamic>,
+        (s) => stats = s,
       );
     } else {
       stats = currentState.stats;
@@ -430,7 +412,7 @@ class VendorsBloc extends Bloc<VendorsEvent, VendorsState> {
           },
           (vendors) {
             final state = this.state;
-            
+
             if (state is VendorsLoaded) {
               return state.copyWith(
                 vendors: vendors,

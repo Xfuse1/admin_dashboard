@@ -347,7 +347,6 @@ class _AddVendorDialogState extends State<_AddVendorDialog> {
   final _commissionController = TextEditingController(text: '10');
 
   VendorCategory _selectedCategory = VendorCategory.food;
-  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -505,7 +504,7 @@ class _AddVendorDialogState extends State<_AddVendorDialog> {
                   ),
                   const SizedBox(width: AppConstants.spacingMd),
                   ElevatedButton(
-                    onPressed: _isLoading ? null : _submitForm,
+                    onPressed: _submitForm,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
@@ -514,16 +513,7 @@ class _AddVendorDialogState extends State<_AddVendorDialog> {
                         vertical: AppConstants.spacingMd,
                       ),
                     ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Text('إضافة'),
+                    child: const Text('إضافة'),
                   ),
                 ],
               ),
@@ -619,8 +609,6 @@ class _AddVendorDialogState extends State<_AddVendorDialog> {
 
   void _submitForm() {
     if (!_formKey.currentState!.validate()) return;
-
-    setState(() => _isLoading = true);
 
     final vendor = VendorEntity(
       id: '',

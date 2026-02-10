@@ -133,10 +133,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ],
             ),
-          )
-              .animate()
-              .fadeIn(duration: AppConstants.animationMedium)
-              .slideX(begin: -0.1, end: 0),
+          ).animate().fadeIn(duration: const Duration(milliseconds: 200)),
         ),
         // Right side - Login form
         Expanded(
@@ -146,10 +143,7 @@ class _LoginPageState extends State<LoginPage> {
               padding: const EdgeInsets.all(AppConstants.spacingXl),
               child: _buildLoginForm(),
             ),
-          )
-              .animate()
-              .fadeIn(duration: AppConstants.animationMedium)
-              .slideX(begin: 0.1, end: 0),
+          ).animate().fadeIn(duration: const Duration(milliseconds: 200)),
         ),
       ],
     );
@@ -286,9 +280,6 @@ class _LoginPageState extends State<LoginPage> {
           ],
         ),
       ),
-    ).animate().fadeIn(duration: AppConstants.animationMedium).scale(
-          begin: const Offset(0.95, 0.95),
-          end: const Offset(1, 1),
-        );
+    ).animate().fadeIn(duration: const Duration(milliseconds: 200));
   }
 }

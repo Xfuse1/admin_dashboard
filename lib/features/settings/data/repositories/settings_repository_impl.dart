@@ -1,4 +1,5 @@
 import '../../domain/entities/delivery_settings.dart';
+import '../../domain/entities/simulator_settings.dart';
 import '../../domain/repositories/settings_repository.dart';
 import '../datasources/settings_datasource.dart';
 
@@ -45,5 +46,20 @@ class SettingsRepositoryImpl implements SettingsRepository {
       rate3Orders: rate3Orders,
       rate4Orders: rate4Orders,
     );
+  }
+
+  @override
+  Future<SimulatorSettings> getSimulatorSettings() async {
+    return await dataSource.getSimulatorSettings();
+  }
+
+  @override
+  Future<void> toggleSimulator(bool enabled) async {
+    await dataSource.toggleSimulator(enabled);
+  }
+
+  @override
+  Future<void> saveSimulatorSettings(SimulatorSettings settings) async {
+    await dataSource.saveSimulatorSettings(settings);
   }
 }

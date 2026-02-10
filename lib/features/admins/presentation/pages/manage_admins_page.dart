@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:toastification/toastification.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
@@ -11,33 +9,33 @@ import '../../../../shared/widgets/glass_card.dart';
 import '../../../../shared/widgets/responsive_layout.dart';
 import '../../../auth/presentation/bloc/auth_bloc.dart';
 import '../../../auth/presentation/bloc/auth_state.dart';
+import '../../domain/entities/admin_entity.dart';
+import '../bloc/admins_bloc.dart';
+import '../bloc/admins_event.dart';
+import '../bloc/admins_state.dart';
 
 /// صفحة إدارة المسؤولين
-class ManageAdminsPage extends StatefulWidget {
+class ManageAdminsPage extends StatelessWidget {
   const ManageAdminsPage({super.key});
 
   @override
-  State<ManageAdminsPage> createState() => _ManageAdminsPageState();
+  Widget build(BuildContext context) {
+    return const _ManageAdminsView();
+  }
 }
 
-class _ManageAdminsPageState extends State<ManageAdminsPage> {
-  final _firestore = FirebaseFirestore.instance;
-  final _auth = FirebaseAuth.instance;
-  final _formKey = GlobalKey<FormState>();
+class _ManageAdminsView extends StatefulWidget {
+  const _ManageAdminsView();
 
+  @override
+  State<_ManageAdminsView> createState() => _ManageAdminsViewState();
+}
+
+class _ManageAdminsViewState extends State<_ManageAdminsView> {
+  final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-
-  bool _isLoading = false;
-  bool _isSaving = false;
-  List<Map<String, dynamic>> _admins = [];
-
-  @override
-  void initState() {
-    super.initState();
-    _loadAdmins();
-  }
 
   @override
   void dispose() {
@@ -45,45 +43,6 @@ class _ManageAdminsPageState extends State<ManageAdminsPage> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
-  }
-
-  /// تحميل قائمة المسؤولين
-  Future<void> _loadAdmins() async {
-    if (!mounted) return;
-    setState(() => _isLoading = true);
-    try {
-      // جلب جميع المستخدمين من نوع admin و superAdmin
-      final snapshot = await _firestore
-          .collection('users')
-          .where('role', whereIn: ['admin', 'superAdmin']).get();
-
-      if (!mounted) return;
-
-      // ترتيب البيانات بعد جلبها
-      final adminsList = snapshot.docs
-          .map((doc) => {
-                'id': doc.id,
-                ...doc.data(),
-              })
-          .toList();
-
-      // ترتيب حسب تاريخ الإنشاء (الأحدث أولاً)
-      adminsList.sort((a, b) {
-        final aTime = a['createdAt'] as Timestamp?;
-        final bTime = b['createdAt'] as Timestamp?;
-        if (aTime == null || bTime == null) return 0;
-        return bTime.compareTo(aTime); // descending
-      });
-
-      setState(() {
-        _admins = adminsList;
-        _isLoading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-      _showErrorMessage('فشل تحميل البيانات: $e');
-    }
   }
 
   /// التحقق من أن المستخدم الحالي هو super admin
@@ -95,93 +54,14 @@ class _ManageAdminsPageState extends State<ManageAdminsPage> {
     return false;
   }
 
-  /// إضافة مسؤول جديد
-  Future<void> _addAdmin(BuildContext dialogContext) async {
-    if (!_formKey.currentState!.validate()) return;
-
-    // التحقق من الصلاحيات
-    if (!_isSuperAdmin(context)) {
-      _showErrorMessage('غير مسموح: يجب أن تكون Super Admin لإضافة مسؤولين');
-      return;
-    }
-
-    if (!mounted) return;
-    setState(() => _isSaving = true);
-
-    try {
-      // إنشاء حساب في Firebase Auth
-      final userCredential = await _auth.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
-
-      // حفظ بيانات المسؤول في Firestore
-      await _firestore.collection('users').doc(userCredential.user!.uid).set({
-        'name': _nameController.text.trim(),
-        'email': _emailController.text.trim(),
-        'role': 'admin',
-        'isActive': true,
-        'createdAt': FieldValue.serverTimestamp(),
-        'createdBy': _auth.currentUser?.uid,
-      });
-
-      if (!mounted) return;
-
-      // مسح الحقول
-      _nameController.clear();
-      _emailController.clear();
-      _passwordController.clear();
-
-      setState(() => _isSaving = false);
-
-      // إغلاق الـ dialog باستخدام context الخاص بالـ Dialog
-      if (dialogContext.mounted) {
-        Navigator.of(dialogContext).pop();
-      }
-
-      // الانتظار قليلاً لضمان اكتمال إغلاق الـ Dialog
-      await Future.delayed(const Duration(milliseconds: 300));
-
-      if (!mounted) return;
-
-      // عرض رسالة النجاح بعد إغلاق الـ Dialog
-      _showSuccessMessage('تم إضافة المسؤول بنجاح');
-
-      // إعادة تحميل القائمة
-      await _loadAdmins();
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _isSaving = false);
-      String errorMessage = 'فشل إضافة المسؤول';
-
-      if (e is FirebaseAuthException) {
-        switch (e.code) {
-          case 'email-already-in-use':
-            errorMessage = 'البريد الإلكتروني مستخدم بالفعل';
-            break;
-          case 'weak-password':
-            errorMessage = 'كلمة المرور ضعيفة جداً';
-            break;
-          case 'invalid-email':
-            errorMessage = 'البريد الإلكتروني غير صالح';
-            break;
-          default:
-            errorMessage = 'خطأ: ${e.message}';
-        }
-      }
-
-      _showErrorMessage(errorMessage);
-    }
+  void _showAddAdminDialog() {
+    showDialog(
+      context: context,
+      builder: (dialogContext) => _buildAddAdminDialog(dialogContext),
+    );
   }
 
-  /// حذف مسؤول
-  Future<void> _deleteAdmin(String adminId, String email) async {
-    // التحقق من الصلاحيات
-    if (!_isSuperAdmin(context)) {
-      _showErrorMessage('غير مسموح: يجب أن تكون Super Admin لحذف مسؤولين');
-      return;
-    }
-
+  void _confirmDeleteAdmin(String adminId, String email) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -203,16 +83,8 @@ class _ManageAdminsPageState extends State<ManageAdminsPage> {
       ),
     );
 
-    if (confirmed != true) return;
-
-    try {
-      // حذف من Firestore
-      await _firestore.collection('users').doc(adminId).delete();
-
-      _showSuccessMessage('تم حذف المسؤول بنجاح');
-      _loadAdmins();
-    } catch (e) {
-      _showErrorMessage('فشل حذف المسؤول: $e');
+    if (confirmed == true && mounted) {
+      context.read<AdminsBloc>().add(DeleteAdminRequested(adminId));
     }
   }
 
@@ -242,118 +114,139 @@ class _ManageAdminsPageState extends State<ManageAdminsPage> {
     );
   }
 
-  void _showAddAdminDialog() {
-    showDialog(
-      context: context,
-      builder: (dialogContext) => _buildAddAdminDialog(dialogContext),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final deviceType = ResponsiveLayout.getDeviceType(context);
     final isDesktop = deviceType == DeviceType.desktop;
     final isSuperAdmin = _isSuperAdmin(context);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Padding(
-        padding: EdgeInsets.all(
-            isDesktop ? AppConstants.spacingLg : AppConstants.spacingMd),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // العنوان وزر الإضافة
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return BlocConsumer<AdminsBloc, AdminsState>(
+      listener: (context, state) {
+        if (state is AdminActionSuccess) {
+          _showSuccessMessage(state.message);
+        } else if (state is AdminsError) {
+          _showErrorMessage(state.message);
+        }
+      },
+      builder: (context, state) {
+        final admins = _getAdminsFromState(state);
+        final isLoading = state is AdminsLoading;
+        final isActionInProgress = state is AdminActionInProgress;
+
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          body: Padding(
+            padding: EdgeInsets.all(
+                isDesktop ? AppConstants.spacingLg : AppConstants.spacingMd),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                // العنوان وزر الإضافة
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'إدارة المسؤولين',
-                      style:
-                          Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'إدارة المسؤولين',
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineMedium
+                              ?.copyWith(
                                 color: AppColors.textPrimary,
                                 fontWeight: FontWeight.bold,
                               ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'إضافة وإدارة حسابات المسؤولين',
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    color: AppColors.textSecondary,
+                                  ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'إضافة وإدارة حسابات المسؤولين',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.textSecondary,
-                          ),
-                    ),
-                  ],
-                ),
-                if (!isDesktop) const SizedBox(width: 8),
-                ElevatedButton.icon(
-                  onPressed: isSuperAdmin ? _showAddAdminDialog : null,
-                  icon: const Icon(Iconsax.add, size: 20),
-                  label: Text(isDesktop ? 'إضافة مسؤول' : 'إضافة'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
-                    disabledBackgroundColor:
-                        AppColors.textSecondary.withValues(alpha: 0.3),
-                    disabledForegroundColor: AppColors.textSecondary,
-                    padding: EdgeInsets.symmetric(
-                      horizontal: isDesktop ? 24 : 16,
-                      vertical: 16,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            if (!isSuperAdmin) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.warning.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: AppColors.warning.withValues(alpha: 0.3),
-                  ),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Iconsax.info_circle,
-                      color: AppColors.warning,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'يمكن فقط لـ Super Admin إضافة أو حذف المسؤولين',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: AppColors.warning,
-                            ),
+                    if (!isDesktop) const SizedBox(width: 8),
+                    ElevatedButton.icon(
+                      onPressed: isSuperAdmin && !isActionInProgress
+                          ? _showAddAdminDialog
+                          : null,
+                      icon: const Icon(Iconsax.add, size: 20),
+                      label: Text(isDesktop ? 'إضافة مسؤول' : 'إضافة'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor:
+                            AppColors.textSecondary.withValues(alpha: 0.3),
+                        disabledForegroundColor: AppColors.textSecondary,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isDesktop ? 24 : 16,
+                          vertical: 16,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
-            const SizedBox(height: AppConstants.spacingLg),
+                if (!isSuperAdmin) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: AppColors.warning.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: AppColors.warning.withValues(alpha: 0.3),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Iconsax.info_circle,
+                          color: AppColors.warning,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'يمكن فقط لـ Super Admin إضافة أو حذف المسؤولين',
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: AppColors.warning,
+                                    ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+                const SizedBox(height: AppConstants.spacingLg),
 
-            // قائمة المسؤولين
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _admins.isEmpty
-                      ? _buildEmptyState()
-                      : _buildAdminsList(isDesktop, isSuperAdmin),
+                // قائمة المسؤولين
+                Expanded(
+                  child: isLoading
+                      ? const Center(child: CircularProgressIndicator())
+                      : admins.isEmpty
+                          ? _buildEmptyState()
+                          : _buildAdminsList(admins, isDesktop, isSuperAdmin),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
+  }
+
+  List<AdminEntity> _getAdminsFromState(AdminsState state) {
+    if (state is AdminsLoaded) return state.admins;
+    if (state is AdminActionInProgress) return state.admins;
+    if (state is AdminActionSuccess) return state.admins;
+    return [];
   }
 
   Widget _buildEmptyState() {
@@ -385,22 +278,25 @@ class _ManageAdminsPageState extends State<ManageAdminsPage> {
     );
   }
 
-  Widget _buildAdminsList(bool isDesktop, bool isSuperAdmin) {
+  Widget _buildAdminsList(
+      List<AdminEntity> admins, bool isDesktop, bool isSuperAdmin) {
     return ListView.separated(
-      itemCount: _admins.length,
+      itemCount: admins.length,
       separatorBuilder: (context, index) =>
           const SizedBox(height: AppConstants.spacingMd),
       itemBuilder: (context, index) {
-        final admin = _admins[index];
+        final admin = admins[index];
         return _buildAdminCard(admin, isDesktop, isSuperAdmin);
       },
     );
   }
 
-  Widget _buildAdminCard(
-      Map<String, dynamic> admin, bool isDesktop, bool isSuperAdmin) {
-    final isCurrentUser = admin['id'] == _auth.currentUser?.uid;
-    final createdAt = admin['createdAt'] as Timestamp?;
+  Widget _buildAdminCard(AdminEntity admin, bool isDesktop, bool isSuperAdmin) {
+    // Get current user ID from AuthBloc
+    final authState = context.read<AuthBloc>().state;
+    final currentUserId =
+        authState is AuthAuthenticated ? authState.user.id : '';
+    final isCurrentUser = admin.id == currentUserId;
 
     return GlassCard(
       child: Padding(
@@ -408,9 +304,9 @@ class _ManageAdminsPageState extends State<ManageAdminsPage> {
         child: isDesktop
             ? Row(
                 children: [
-                  _buildAdminAvatar(admin['name'] ?? ''),
+                  _buildAdminAvatar(admin.name),
                   const SizedBox(width: AppConstants.spacingMd),
-                  Expanded(child: _buildAdminInfo(admin, createdAt)),
+                  Expanded(child: _buildAdminInfo(admin, isCurrentUser)),
                   if (!isCurrentUser && isSuperAdmin) _buildDeleteButton(admin),
                 ],
               )
@@ -419,9 +315,9 @@ class _ManageAdminsPageState extends State<ManageAdminsPage> {
                 children: [
                   Row(
                     children: [
-                      _buildAdminAvatar(admin['name'] ?? ''),
+                      _buildAdminAvatar(admin.name),
                       const SizedBox(width: AppConstants.spacingMd),
-                      Expanded(child: _buildAdminInfo(admin, createdAt)),
+                      Expanded(child: _buildAdminInfo(admin, isCurrentUser)),
                     ],
                   ),
                   if (!isCurrentUser && isSuperAdmin) ...[
@@ -455,10 +351,7 @@ class _ManageAdminsPageState extends State<ManageAdminsPage> {
     );
   }
 
-  Widget _buildAdminInfo(Map<String, dynamic> admin, Timestamp? createdAt) {
-    final isCurrentUser = admin['id'] == _auth.currentUser?.uid;
-    final isSuperAdmin = admin['role'] == 'superAdmin';
-
+  Widget _buildAdminInfo(AdminEntity admin, bool isCurrentUser) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -466,7 +359,7 @@ class _ManageAdminsPageState extends State<ManageAdminsPage> {
           children: [
             Flexible(
               child: Text(
-                admin['name'] ?? 'غير محدد',
+                admin.name.isNotEmpty ? admin.name : 'غير محدد',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
                       color: AppColors.textPrimary,
                       fontWeight: FontWeight.bold,
@@ -475,7 +368,7 @@ class _ManageAdminsPageState extends State<ManageAdminsPage> {
               ),
             ),
             const SizedBox(width: 8),
-            if (isSuperAdmin) ...[
+            if (admin.isSuperAdmin) ...[
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
@@ -517,7 +410,7 @@ class _ManageAdminsPageState extends State<ManageAdminsPage> {
             const SizedBox(width: 4),
             Flexible(
               child: Text(
-                admin['email'] ?? '',
+                admin.email,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.textSecondary,
                     ),
@@ -526,14 +419,14 @@ class _ManageAdminsPageState extends State<ManageAdminsPage> {
             ),
           ],
         ),
-        if (createdAt != null) ...[
+        if (admin.createdAt != null) ...[
           const SizedBox(height: 4),
           Row(
             children: [
               Icon(Iconsax.calendar, size: 14, color: AppColors.textSecondary),
               const SizedBox(width: 4),
               Text(
-                'تم الإنشاء: ${_formatDate(createdAt.toDate())}',
+                'تم الإنشاء: ${_formatDate(admin.createdAt!)}',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: AppColors.textSecondary,
                     ),
@@ -545,9 +438,9 @@ class _ManageAdminsPageState extends State<ManageAdminsPage> {
     );
   }
 
-  Widget _buildDeleteButton(Map<String, dynamic> admin) {
+  Widget _buildDeleteButton(AdminEntity admin) {
     return IconButton(
-      onPressed: () => _deleteAdmin(admin['id'], admin['email'] ?? ''),
+      onPressed: () => _confirmDeleteAdmin(admin.id, admin.email),
       icon: const Icon(Iconsax.trash, color: AppColors.error),
       tooltip: 'حذف المسؤول',
     );
@@ -629,22 +522,52 @@ class _ManageAdminsPageState extends State<ManageAdminsPage> {
           onPressed: () => Navigator.of(dialogContext).pop(),
           child: const Text('إلغاء'),
         ),
-        ElevatedButton(
-          onPressed: _isSaving ? null : () => _addAdmin(dialogContext),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-          ),
-          child: _isSaving
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white,
-                  ),
-                )
-              : const Text('إضافة'),
+        BlocConsumer<AdminsBloc, AdminsState>(
+          listener: (context, state) {
+            if (state is AdminActionSuccess) {
+              _nameController.clear();
+              _emailController.clear();
+              _passwordController.clear();
+              if (dialogContext.mounted) {
+                Navigator.of(dialogContext).pop();
+              }
+            }
+          },
+          builder: (context, state) {
+            final isProcessing = state is AdminActionInProgress;
+            return ElevatedButton(
+              onPressed: isProcessing
+                  ? null
+                  : () {
+                      if (_formKey.currentState!.validate()) {
+                        if (!_isSuperAdmin(context)) {
+                          _showErrorMessage(
+                              'غير مسموح: يجب أن تكون Super Admin لإضافة مسؤولين');
+                          return;
+                        }
+                        context.read<AdminsBloc>().add(AddAdminRequested(
+                              name: _nameController.text.trim(),
+                              email: _emailController.text.trim(),
+                              password: _passwordController.text,
+                            ));
+                      }
+                    },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
+              child: isProcessing
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: Colors.white,
+                      ),
+                    )
+                  : const Text('إضافة'),
+            );
+          },
         ),
       ],
     );

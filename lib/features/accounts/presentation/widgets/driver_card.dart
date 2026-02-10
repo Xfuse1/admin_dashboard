@@ -1,9 +1,10 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../../../config/di/injection_container.dart';
 import '../../../../core/constants/app_colors.dart';
+import '../../../../core/services/firestore_lookup_service.dart';
 import '../../domain/entities/account_entities.dart';
 
 /// Card widget for displaying driver information.
@@ -138,16 +139,12 @@ class DriverCard extends StatelessWidget {
                     Row(
                       children: [
                         Flexible(
-                          child: FutureBuilder<AggregateQuerySnapshot>(
-                            future: FirebaseFirestore.instance
-                                .collection('orders')
-                                .where('deliveryId', isEqualTo: driver.id)
-                                .where('status', isEqualTo: 'delivered')
-                                .count()
-                                .get(),
+                          child: FutureBuilder<int>(
+                            future: sl<FirestoreLookupService>()
+                                .getDeliveredOrdersCount(driver.id),
                             builder: (context, snapshot) {
-                              final count = snapshot.data?.count ??
-                                  driver.totalDeliveries;
+                              final count =
+                                  snapshot.data ?? driver.totalDeliveries;
                               return _buildStatChip(
                                 context,
                                 icon: Iconsax.truck,
@@ -156,18 +153,13 @@ class DriverCard extends StatelessWidget {
                             },
                           ),
                         ),
-
                         const SizedBox(width: 12),
                         Flexible(
-                          child: FutureBuilder<AggregateQuerySnapshot>(
-                            future: FirebaseFirestore.instance
-                                .collection('orders')
-                                .where('rejected_by_drivers',
-                                    arrayContains: driver.id)
-                                .count()
-                                .get(),
+                          child: FutureBuilder<int>(
+                            future: sl<FirestoreLookupService>()
+                                .getRejectedOrdersCount(driver.id),
                             builder: (context, snapshot) {
-                              final rejections = snapshot.data?.count ?? 0;
+                              final rejections = snapshot.data ?? 0;
                               if (rejections == 0) {
                                 return const SizedBox.shrink();
                               }

@@ -1,17 +1,25 @@
-part of 'settings_cubit.dart';
+import 'package:equatable/equatable.dart';
 
-abstract class SettingsState extends Equatable {
+/// Settings states using sealed class.
+sealed class SettingsState extends Equatable {
   const SettingsState();
 
   @override
   List<Object> get props => [];
 }
 
-class SettingsInitial extends SettingsState {}
+/// Initial state.
+final class SettingsInitial extends SettingsState {
+  const SettingsInitial();
+}
 
-class SettingsLoading extends SettingsState {}
+/// Loading state.
+final class SettingsLoading extends SettingsState {
+  const SettingsLoading();
+}
 
-class DeliverySettingsLoaded extends SettingsState {
+/// Delivery settings loaded.
+final class DeliverySettingsLoaded extends SettingsState {
   final double deliveryPrice;
 
   const DeliverySettingsLoaded(this.deliveryPrice);
@@ -20,7 +28,8 @@ class DeliverySettingsLoaded extends SettingsState {
   List<Object> get props => [deliveryPrice];
 }
 
-class DriverCommissionLoaded extends SettingsState {
+/// Driver commission loaded.
+final class DriverCommissionLoaded extends SettingsState {
   final double commissionRate;
 
   const DriverCommissionLoaded(this.commissionRate);
@@ -29,7 +38,8 @@ class DriverCommissionLoaded extends SettingsState {
   List<Object> get props => [commissionRate];
 }
 
-class AllDriverCommissionsLoaded extends SettingsState {
+/// All driver commissions loaded.
+final class AllDriverCommissionsLoaded extends SettingsState {
   final double rate1Order;
   final double rate2Orders;
   final double rate3Orders;
@@ -46,7 +56,8 @@ class AllDriverCommissionsLoaded extends SettingsState {
   List<Object> get props => [rate1Order, rate2Orders, rate3Orders, rate4Orders];
 }
 
-class SettingsError extends SettingsState {
+/// Error state.
+final class SettingsError extends SettingsState {
   final String message;
 
   const SettingsError(this.message);
@@ -55,7 +66,8 @@ class SettingsError extends SettingsState {
   List<Object> get props => [message];
 }
 
-class SettingsSuccess extends SettingsState {
+/// Success state.
+final class SettingsSuccess extends SettingsState {
   final String message;
 
   const SettingsSuccess(this.message);

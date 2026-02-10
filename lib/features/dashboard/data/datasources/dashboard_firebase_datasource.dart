@@ -1,3 +1,5 @@
+// ignore_for_file: curly_braces_in_flow_control_structures
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../../../core/firebase/firebase_service.dart';
 import '../../domain/entities/dashboard_entities.dart';
@@ -6,17 +8,41 @@ import 'dashboard_datasource.dart';
 
 /// Firebase implementation of dashboard data source.
 ///
-/// Integrates with Deliverzler's Firestore structure:
-/// - Status field: 'deliveryStatus' (not 'status')
-/// - Date field: 'date' as Unix timestamp (not 'createdAt' as Timestamp)
-/// - Drivers collection: 'users' (not 'drivers')
-/// - Legacy status mapping: 'upcoming'→'confirmed', 'onTheWay'→'on_the_way'
+/// Performance-optimized:
+/// - Uses a shared orders snapshot (fetched once, used by all methods)
+/// - Uses Firestore count() aggregation for user counts
+/// - Caches results for 3 minutes
+/// - Recent orders use proper limit() instead of fetching all
+/// - Batch store name resolution instead of N+1 queries
 class DashboardFirebaseDataSource implements DashboardDataSource {
   final FirebaseFirestore _firestore;
 
   DashboardFirebaseDataSource({FirebaseFirestore? firestore})
       : _firestore = firestore ?? FirebaseFirestore.instance;
 
+  // ─── Cache ────────────────────────────────────────────────
+  static const _cacheDuration = Duration(minutes: 3);
+
+  /// Cached orders docs — shared across stats, revenue, distribution
+  List<QueryDocumentSnapshot<Map<String, dynamic>>>? _cachedOrderDocs;
+  DateTime? _ordersCacheTime;
+
+  /// Cached stats result
+  DashboardStatsModel? _cachedStats;
+  DateTime? _statsCacheTime;
+
+  /// Cached distribution
+  OrdersDistributionModel? _cachedDistribution;
+  DateTime? _distributionCacheTime;
+
+  /// Store name cache to avoid N+1 lookups
+  final Map<String, String> _storeNameCache = {};
+
+  bool _isCacheValid(DateTime? cacheTime) =>
+      cacheTime != null &&
+      DateTime.now().difference(cacheTime) < _cacheDuration;
+
+  // ─── Collection refs ──────────────────────────────────────
   CollectionReference<Map<String, dynamic>> get _ordersCollection =>
       _firestore.collection(FirestoreCollections.orders);
 
@@ -32,6 +58,22 @@ class DashboardFirebaseDataSource implements DashboardDataSource {
   /// Query for sellers (users with stores)
   Query<Map<String, dynamic>> get _sellersQuery =>
       _storesCollection.where('role', isEqualTo: 'seller');
+
+  // ─── Shared orders snapshot ───────────────────────────────
+
+  /// Fetches orders once and caches. All dashboard methods share this.
+  Future<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
+      _getOrderDocs() async {
+    if (_cachedOrderDocs != null && _isCacheValid(_ordersCacheTime)) {
+      return _cachedOrderDocs!;
+    }
+    final snapshot = await _ordersCollection.get();
+    _cachedOrderDocs = snapshot.docs;
+    _ordersCacheTime = DateTime.now();
+    return _cachedOrderDocs!;
+  }
+
+  // ─── Status normalization ─────────────────────────────────
 
   /// Normalize legacy status values from Deliverzler to OrderStatus enum
   OrderStatus _normalizeStatus(String? status) {
@@ -62,60 +104,68 @@ class DashboardFirebaseDataSource implements DashboardDataSource {
     }
   }
 
+  /// Parses a date field (int millis or ISO string) to milliseconds
+  int? _parseDateToMillis(dynamic field) {
+    if (field == null) return null;
+    if (field is int) return field;
+    if (field is String) {
+      return DateTime.tryParse(field)?.millisecondsSinceEpoch;
+    }
+    return null;
+  }
+
   @override
   Future<DashboardStatsModel> getStats() async {
+    // Return cached stats if valid
+    if (_cachedStats != null && _isCacheValid(_statsCacheTime)) {
+      return _cachedStats!;
+    }
+
     try {
-      // Get stats from aggregated document if available
+      // Check for aggregated stats document first (fast path)
       final statsDoc =
           await _firestore.collection('stats').doc('dashboard').get();
 
       if (statsDoc.exists && statsDoc.data() != null) {
-        return DashboardStatsModel.fromJson(statsDoc.data()!);
+        _cachedStats = DashboardStatsModel.fromJson(statsDoc.data()!);
+        _statsCacheTime = DateTime.now();
+        return _cachedStats!;
       }
 
-      // Calculate stats from collections in parallel for performance
+      // Use aggregation count() for user collections (1 read each, not N)
+      // and shared orders snapshot for order stats
       final results = await Future.wait([
-        _ordersCollection.get(),
-        _driversCollection.get(),
-        _customersCollection.get(),
-        _sellersQuery.get(),
+        _getOrderDocs(), // shared snapshot
+        _driversCollection.count().get(), // 1 aggregation read
+        _customersCollection.count().get(), // 1 aggregation read
+        _sellersQuery.get(), // need full docs for isApproved check
       ]);
 
-      final ordersSnapshot = results[0];
-      final driversSnapshot = results[1];
-      final customersSnapshot = results[2];
-      final storesSnapshot = results[3];
+      final orderDocs =
+          results[0] as List<QueryDocumentSnapshot<Map<String, dynamic>>>;
+      final driversCount = (results[1] as AggregateQuerySnapshot).count ?? 0;
+      final customersCount = (results[2] as AggregateQuerySnapshot).count ?? 0;
+      final sellersSnapshot = results[3] as QuerySnapshot<Map<String, dynamic>>;
 
-      final orders = ordersSnapshot.docs;
-      final drivers = driversSnapshot.docs;
-      final customers = customersSnapshot.docs;
-      final stores = storesSnapshot.docs;
-
-      // Calculate 24h boundaries (Rolling window)
+      // Calculate 24h boundaries
       final now = DateTime.now();
-      final last24HoursStart = now.subtract(const Duration(hours: 24));
-      final last24HoursTimestamp = last24HoursStart.millisecondsSinceEpoch;
-
-      // Calculate previous 24h boundaries for growth comparison
-      final previous24HorusStart =
-          last24HoursStart.subtract(const Duration(hours: 24));
-      final previous24HoursEndTimestamp =
-          last24HoursTimestamp; // Same as last24HoursStart
+      final last24HoursTimestamp =
+          now.subtract(const Duration(hours: 24)).millisecondsSinceEpoch;
       final previous24HoursStartTimestamp =
-          previous24HorusStart.millisecondsSinceEpoch;
+          now.subtract(const Duration(hours: 48)).millisecondsSinceEpoch;
 
-      // Count orders by status
+      // Count orders by status (single pass)
       int pendingOrders = 0;
       int completedOrders = 0;
       int cancelledOrders = 0;
       int multiStoreOrders = 0;
       double totalRevenue = 0.0;
-      double todayRevenue = 0.0; // Represents Last 24h revenue
+      double todayRevenue = 0.0;
       int todayOrdersCount = 0;
-      double yesterdayRevenue = 0.0; // Represents Previous 24h revenue
+      double yesterdayRevenue = 0.0;
       int yesterdayOrdersCount = 0;
 
-      for (final doc in orders) {
+      for (final doc in orderDocs) {
         final data = doc.data();
         final rawStatus =
             (data[OrderFields.deliveryStatus] ?? data['status']) as String?;
@@ -126,79 +176,48 @@ class DashboardFirebaseDataSource implements DashboardDataSource {
             (data['total_price'] as num?)?.toDouble() ??
             0.0;
 
-        // Check if multi-store order
-        final orderType = data['order_type'] as String?;
-        if (orderType == 'multi_store') {
-          multiStoreOrders++;
-        }
+        if (data['order_type'] == 'multi_store') multiStoreOrders++;
 
-        // Handle date field - can be 'created_at' (ISO string) or 'date' (int milliseconds)
-        int? orderDate;
-        final createdAtField = data['created_at'] ?? data[OrderFields.date];
+        final orderDate =
+            _parseDateToMillis(data['created_at'] ?? data[OrderFields.date]);
 
-        if (createdAtField != null) {
-          if (createdAtField is int) {
-            orderDate = createdAtField;
-          } else if (createdAtField is String) {
-            try {
-              final dateTime = DateTime.parse(createdAtField);
-              orderDate = dateTime.millisecondsSinceEpoch;
-            } catch (e) {
-              // Invalid date format, skip
-            }
-          }
-        }
-
-        // Count by status
         switch (status) {
           case OrderStatus.pending:
             pendingOrders++;
-          case OrderStatus.confirmed:
-          case OrderStatus.preparing:
-          case OrderStatus.ready:
-          case OrderStatus.pickedUp:
-            break; // These are counted as active but we don't track active separately
           case OrderStatus.delivered:
             completedOrders++;
+            totalRevenue += orderTotal;
           case OrderStatus.cancelled:
             cancelledOrders++;
+          default:
+            break;
         }
 
-        // Calculate revenue
-        if (status == OrderStatus.delivered) {
-          totalRevenue += orderTotal;
-        }
-
-        // Last 24h revenue and count
+        // Last 24h
         if (orderDate != null && orderDate >= last24HoursTimestamp) {
-          if (status == OrderStatus.delivered) {
-            todayRevenue += orderTotal;
-          }
           todayOrdersCount++;
+          if (status == OrderStatus.delivered) todayRevenue += orderTotal;
         }
 
-        // Previous 24h revenue and count for growth calculation
+        // Previous 24h (for growth)
         if (orderDate != null &&
             orderDate >= previous24HoursStartTimestamp &&
-            orderDate < previous24HoursEndTimestamp) {
-          if (status == OrderStatus.delivered) {
-            yesterdayRevenue += orderTotal;
-          }
+            orderDate < last24HoursTimestamp) {
           yesterdayOrdersCount++;
+          if (status == OrderStatus.delivered) yesterdayRevenue += orderTotal;
         }
       }
 
-      // Calculate growth percentages
+      // Growth calculations
       double revenueGrowth = 0.0;
-      double ordersGrowth = 0.0;
-
       if (yesterdayRevenue > 0) {
         revenueGrowth =
             ((todayRevenue - yesterdayRevenue) / yesterdayRevenue) * 100;
       } else if (todayRevenue > 0) {
-        revenueGrowth = 100.0; // 100% growth from zero
+        revenueGrowth = 100.0;
       }
 
+      double ordersGrowth = 0.0;
       if (yesterdayOrdersCount > 0) {
         ordersGrowth =
             ((todayOrdersCount - yesterdayOrdersCount) / yesterdayOrdersCount) *
@@ -207,45 +226,44 @@ class DashboardFirebaseDataSource implements DashboardDataSource {
         ordersGrowth = 100.0;
       }
 
-      // Count active vendors (sellers with approved stores)
+      // Count active vendors from sellers snapshot
       int activeVendors = 0;
-      for (final store in stores) {
-        final data = store.data();
-        final storeData = data['store'] as Map<String, dynamic>?;
-        if (storeData != null) {
-          final isApproved = storeData['is_approved'] as bool? ?? false;
-          if (isApproved) {
-            activeVendors++;
-          }
+      for (final store in sellersSnapshot.docs) {
+        final storeData = store.data()['store'] as Map<String, dynamic>?;
+        if (storeData != null && (storeData['is_approved'] as bool? ?? false)) {
+          activeVendors++;
         }
       }
 
-      // Count active drivers
+      // For active drivers, use a filtered count query
       int activeDrivers = 0;
-      for (final driver in drivers) {
-        final data = driver.data();
-        final isActive = data['isActive'] as bool? ?? false;
-        if (isActive) {
-          activeDrivers++;
-        }
-      }
+      try {
+        final activeDriversResult = await _driversCollection
+            .where('isActive', isEqualTo: true)
+            .count()
+            .get();
+        activeDrivers = activeDriversResult.count ?? 0;
+      } catch (_) {}
 
-      return DashboardStatsModel(
-        totalOrders: orders.length,
+      _cachedStats = DashboardStatsModel(
+        totalOrders: orderDocs.length,
         pendingOrders: pendingOrders,
         completedOrders: completedOrders,
         cancelledOrders: cancelledOrders,
         multiStoreOrders: multiStoreOrders,
-        totalVendors: stores.length,
+        totalVendors: sellersSnapshot.docs.length,
         activeVendors: activeVendors,
-        totalDrivers: drivers.length,
+        totalDrivers: driversCount,
         activeDrivers: activeDrivers,
-        totalCustomers: customers.length,
+        totalCustomers: customersCount,
         totalRevenue: totalRevenue,
         todayRevenue: todayRevenue,
         revenueGrowth: revenueGrowth.isFinite ? revenueGrowth : 0.0,
         ordersGrowth: ordersGrowth.isFinite ? ordersGrowth : 0.0,
       );
+      _statsCacheTime = DateTime.now();
+
+      return _cachedStats!;
     } catch (e) {
       // Return empty stats on error to prevent crash
       return const DashboardStatsModel(
@@ -269,117 +287,134 @@ class DashboardFirebaseDataSource implements DashboardDataSource {
   @override
   Future<List<RecentOrderModel>> getRecentOrders({int limit = 10}) async {
     try {
-      // Deliverzler uses mixed date formats, so we fetch and sort in memory
-      final snapshot = await _ordersCollection.get();
-      final allDocs = snapshot.docs;
-
-      // Sort by date descending
-      allDocs.sort((a, b) {
-        final dataA = a.data();
-        final dataB = b.data();
-
-        int? dateA;
-        final createdA = dataA['created_at'] ?? dataA[OrderFields.date];
-        if (createdA is int)
-          dateA = createdA;
-        else if (createdA is String)
-          dateA = DateTime.tryParse(createdA)?.millisecondsSinceEpoch;
-
-        int? dateB;
-        final createdB = dataB['created_at'] ?? dataB[OrderFields.date];
-        if (createdB is int)
-          dateB = createdB;
-        else if (createdB is String)
-          dateB = DateTime.tryParse(createdB)?.millisecondsSinceEpoch;
-
-        // Handle nulls (put nulls last)
-        if (dateA == null && dateB == null) return 0;
-        if (dateA == null) return 1;
-        if (dateB == null) return -1;
-
-        return dateB.compareTo(dateA); // Descending
-      });
-
-      final recentDocs = allDocs.take(limit).toList();
-
-      final orders = <RecentOrderModel>[];
-
-      for (final doc in recentDocs) {
-        final data = doc.data();
-
-        try {
-          // Detect multi-store order
-          final orderType = data['order_type'] as String?;
-          final isMultiStore = orderType == 'multi_store';
-          final pickupStops = data['pickup_stops'] as List<dynamic>?;
-          final storeCount = isMultiStore ? (pickupStops?.length ?? 0) : 1;
-
-          // Get vendor name from storeId (now in users collection)
-          String vendorName = 'غير محدد';
-          if (isMultiStore && pickupStops != null && pickupStops.isNotEmpty) {
-            // For multi-store: join store names from pickup_stops
-            final storeNames = pickupStops
-                .map((s) =>
-                    (s as Map<String, dynamic>)['store_name'] as String? ?? '')
-                .where((name) => name.isNotEmpty)
-                .toList();
-            vendorName = storeNames.isNotEmpty
-                ? storeNames.join(' • ')
-                : 'متعدد المتاجر';
-          } else {
-            final storeId = data['storeId'] as String?;
-            if (storeId != null) {
-              try {
-                final storeDoc = await _storesCollection.doc(storeId).get();
-                if (storeDoc.exists && storeDoc.data() != null) {
-                  final userData = storeDoc.data()!;
-                  final storeData = userData['store'] as Map<String, dynamic>?;
-                  vendorName = storeData?['name'] as String? ??
-                      userData['full_name'] as String? ??
-                      'غير محدد';
-                }
-              } catch (_) {
-                // Use default if store fetch fails
-              }
-            }
-          }
-
-          int dateTimestamp = DateTime.now().millisecondsSinceEpoch;
-          final createdField = data['created_at'] ?? data[OrderFields.date];
-          if (createdField is int)
-            dateTimestamp = createdField;
-          else if (createdField is String) {
-            dateTimestamp =
-                DateTime.tryParse(createdField)?.millisecondsSinceEpoch ??
-                    dateTimestamp;
-          }
-
-          final order = RecentOrderModel(
-            id: doc.id,
-            orderNumber: doc.id.substring(0, 8).toUpperCase(),
-            customerName: data[OrderFields.userName] as String? ?? 'Unknown',
-            vendorName: vendorName,
-            amount: (data['total'] as num?)?.toDouble() ??
-                (data['totalAmount'] as num?)?.toDouble() ??
-                (data['total_price'] as num?)?.toDouble() ??
-                0.0,
-            status: _normalizeStatus((data[OrderFields.deliveryStatus] ??
-                data['status']) as String?),
-            createdAt: DateTime.fromMillisecondsSinceEpoch(dateTimestamp),
-            isMultiStore: isMultiStore,
-            storeCount: storeCount,
-          );
-          orders.add(order);
-        } catch (e) {
-          // Skip invalid orders
-          continue;
-        }
+      // Use proper Firestore ordering + limit instead of fetching ALL orders
+      QuerySnapshot<Map<String, dynamic>> snapshot;
+      try {
+        snapshot = await _ordersCollection
+            .orderBy('created_at', descending: true)
+            .limit(limit + 5) // fetch a few extra in case some are invalid
+            .get();
+      } catch (_) {
+        // If index doesn't exist, use shared snapshot sorted in memory
+        final allDocs = await _getOrderDocs();
+        final sorted =
+            List<QueryDocumentSnapshot<Map<String, dynamic>>>.from(allDocs);
+        sorted.sort((a, b) {
+          final dateA = _parseDateToMillis(
+              a.data()['created_at'] ?? a.data()[OrderFields.date]);
+          final dateB = _parseDateToMillis(
+              b.data()['created_at'] ?? b.data()[OrderFields.date]);
+          if (dateA == null && dateB == null) return 0;
+          if (dateA == null) return 1;
+          if (dateB == null) return -1;
+          return dateB.compareTo(dateA);
+        });
+        return _buildRecentOrders(sorted.take(limit).toList());
       }
 
-      return orders;
+      return _buildRecentOrders(snapshot.docs.take(limit).toList());
     } catch (e) {
-      // Return empty list on error
       return [];
+    }
+  }
+
+  /// Builds RecentOrderModel list from docs with batch store name resolution.
+  Future<List<RecentOrderModel>> _buildRecentOrders(
+    List<QueryDocumentSnapshot<Map<String, dynamic>>> docs,
+  ) async {
+    if (docs.isEmpty) return [];
+
+    // Collect all unique store IDs that need resolution
+    final storeIdsToResolve = <String>{};
+    for (final doc in docs) {
+      final data = doc.data();
+      final orderType = data['order_type'] as String?;
+      if (orderType != 'multi_store') {
+        final storeId = data['storeId'] as String?;
+        if (storeId != null && !_storeNameCache.containsKey(storeId)) {
+          storeIdsToResolve.add(storeId);
+        }
+      }
+    }
+
+    // Batch resolve store names (max 10 per whereIn query)
+    await _batchResolveStoreNames(storeIdsToResolve.toList());
+
+    // Build order models
+    final orders = <RecentOrderModel>[];
+    for (final doc in docs) {
+      final data = doc.data();
+      try {
+        final orderType = data['order_type'] as String?;
+        final isMultiStore = orderType == 'multi_store';
+        final pickupStops = data['pickup_stops'] as List<dynamic>?;
+        final storeCount = isMultiStore ? (pickupStops?.length ?? 0) : 1;
+
+        // Get vendor name from cache (already resolved in batch)
+        String vendorName = 'غير محدد';
+        if (isMultiStore && pickupStops != null && pickupStops.isNotEmpty) {
+          final storeNames = pickupStops
+              .map((s) =>
+                  (s as Map<String, dynamic>)['store_name'] as String? ?? '')
+              .where((name) => name.isNotEmpty)
+              .toList();
+          vendorName =
+              storeNames.isNotEmpty ? storeNames.join(' • ') : 'متعدد المتاجر';
+        } else {
+          final storeId = data['storeId'] as String?;
+          if (storeId != null) {
+            vendorName = _storeNameCache[storeId] ?? 'غير محدد';
+          }
+        }
+
+        final dateTimestamp =
+            _parseDateToMillis(data['created_at'] ?? data[OrderFields.date]) ??
+                DateTime.now().millisecondsSinceEpoch;
+
+        orders.add(RecentOrderModel(
+          id: doc.id,
+          orderNumber: doc.id.substring(0, 8).toUpperCase(),
+          customerName: data[OrderFields.userName] as String? ?? 'Unknown',
+          vendorName: vendorName,
+          amount: (data['total'] as num?)?.toDouble() ??
+              (data['totalAmount'] as num?)?.toDouble() ??
+              (data['total_price'] as num?)?.toDouble() ??
+              0.0,
+          status: _normalizeStatus(
+              (data[OrderFields.deliveryStatus] ?? data['status']) as String?),
+          createdAt: DateTime.fromMillisecondsSinceEpoch(dateTimestamp),
+          isMultiStore: isMultiStore,
+          storeCount: storeCount,
+        ));
+      } catch (e) {
+        continue;
+      }
+    }
+
+    return orders;
+  }
+
+  /// Batch resolves store names using whereIn (max 10 per query).
+  Future<void> _batchResolveStoreNames(List<String> storeIds) async {
+    if (storeIds.isEmpty) return;
+
+    for (var i = 0; i < storeIds.length; i += 10) {
+      final chunk = storeIds.sublist(
+          i, i + 10 > storeIds.length ? storeIds.length : i + 10);
+      try {
+        final snapshot = await _storesCollection
+            .where(FieldPath.documentId, whereIn: chunk)
+            .get();
+        for (final doc in snapshot.docs) {
+          final userData = doc.data();
+          final storeData = userData['store'] as Map<String, dynamic>?;
+          final name =
+              storeData?['name'] as String? ?? userData['full_name'] as String?;
+          if (name != null && name.isNotEmpty) {
+            _storeNameCache[doc.id] = name;
+          }
+        }
+      } catch (_) {}
     }
   }
 
@@ -395,14 +430,13 @@ class DashboardFirebaseDataSource implements DashboardDataSource {
       final normalizedEndDate =
           DateTime(endDate.year, endDate.month, endDate.day, 23, 59, 59);
 
-      // Deliverzler uses mixed date formats, so we fetch all and filter in memory
-      // Ideally we should fix the database schema, but for now this works
-      final snapshot = await _ordersCollection.get();
+      // Use shared orders snapshot instead of fetching again
+      final orderDocs = await _getOrderDocs();
 
       // Group by date and only count delivered orders
       final revenueByDate = <DateTime, double>{};
 
-      for (final doc in snapshot.docs) {
+      for (final doc in orderDocs) {
         final data = doc.data();
         final rawStatus =
             (data[OrderFields.deliveryStatus] ?? data['status']) as String?;
@@ -412,21 +446,8 @@ class DashboardFirebaseDataSource implements DashboardDataSource {
         if (status != OrderStatus.delivered) continue;
 
         // Handle date field
-        int? dateTimestamp;
-        final createdAtField = data['created_at'] ?? data[OrderFields.date];
-
-        if (createdAtField != null) {
-          if (createdAtField is int) {
-            dateTimestamp = createdAtField;
-          } else if (createdAtField is String) {
-            try {
-              final dateTime = DateTime.parse(createdAtField);
-              dateTimestamp = dateTime.millisecondsSinceEpoch;
-            } catch (e) {
-              // Invalid date format
-            }
-          }
-        }
+        final dateTimestamp =
+            _parseDateToMillis(data['created_at'] ?? data[OrderFields.date]);
 
         if (dateTimestamp == null) continue;
 
@@ -470,8 +491,14 @@ class DashboardFirebaseDataSource implements DashboardDataSource {
 
   @override
   Future<OrdersDistributionModel> getOrdersDistribution() async {
+    // Return cached if valid
+    if (_cachedDistribution != null && _isCacheValid(_distributionCacheTime)) {
+      return _cachedDistribution!;
+    }
+
     try {
-      final snapshot = await _ordersCollection.get();
+      // Use shared orders snapshot instead of fetching again
+      final orderDocs = await _getOrderDocs();
 
       int pending = 0,
           confirmed = 0,
@@ -481,11 +508,9 @@ class DashboardFirebaseDataSource implements DashboardDataSource {
           delivered = 0,
           cancelled = 0;
 
-      for (final doc in snapshot.docs) {
+      for (final doc in orderDocs) {
         final data = doc.data();
 
-        // Deliverzler uses 'deliveryStatus' field
-        // Deliverzler uses 'deliveryStatus' field
         final rawStatus =
             (data[OrderFields.deliveryStatus] ?? data['status']) as String?;
         final status = _normalizeStatus(rawStatus);
@@ -508,7 +533,7 @@ class DashboardFirebaseDataSource implements DashboardDataSource {
         }
       }
 
-      return OrdersDistributionModel(
+      _cachedDistribution = OrdersDistributionModel(
         pending: pending,
         confirmed: confirmed,
         preparing: preparing,
@@ -517,6 +542,9 @@ class DashboardFirebaseDataSource implements DashboardDataSource {
         delivered: delivered,
         cancelled: cancelled,
       );
+      _distributionCacheTime = DateTime.now();
+
+      return _cachedDistribution!;
     } catch (e) {
       // Return empty distribution on error
       return const OrdersDistributionModel(

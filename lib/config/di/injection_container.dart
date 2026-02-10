@@ -3,6 +3,7 @@ import 'package:get_it/get_it.dart';
 
 // Core
 import '../../core/utils/app_logger.dart';
+import '../../core/services/firestore_lookup_service.dart';
 
 // Auth Feature
 import '../../features/auth/data/datasources/datasources.dart';
@@ -34,7 +35,7 @@ import '../../features/accounts/data/driver_applications_repository.dart';
 import '../../features/accounts/domain/repositories/accounts_repository.dart';
 import '../../features/accounts/domain/usecases/accounts_usecases.dart';
 import '../../features/accounts/presentation/bloc/accounts_bloc.dart';
-import '../../features/accounts/presentation/providers/driver_cleanup_provider.dart';
+import '../../core/services/driver_cleanup_service.dart';
 
 // Onboarding Feature
 import '../../features/onboarding/data/datasources/onboarding_datasource.dart';
@@ -70,7 +71,17 @@ import '../../features/settings/data/repositories/settings_repository_impl.dart'
 import '../../features/settings/domain/repositories/settings_repository.dart';
 import '../../features/settings/domain/usecases/get_delivery_settings_usecase.dart';
 import '../../features/settings/domain/usecases/update_delivery_price_usecase.dart';
-import '../../features/settings/presentation/bloc/settings_cubit.dart';
+import '../../features/settings/domain/usecases/simulator_usecases.dart';
+import '../../features/settings/presentation/bloc/settings_bloc.dart';
+import '../../features/settings/presentation/bloc/simulator_settings_bloc.dart';
+// Admins Feature
+import '../../features/admins/data/datasources/admins_datasource.dart';
+import '../../features/admins/data/datasources/admins_firebase_datasource.dart';
+import '../../features/admins/data/repositories/admins_repository_impl.dart';
+import '../../features/admins/domain/repositories/admins_repository.dart';
+import '../../features/admins/domain/usecases/admins_usecases.dart';
+import '../../features/admins/presentation/bloc/admins_bloc.dart';
+
 // Vendors Feature
 import '../../features/vendors/data/datasources/vendors_datasource.dart';
 import '../../features/vendors/data/datasources/vendors_firebase_datasource.dart';
@@ -90,6 +101,11 @@ Future<void> initDependencies() async {
   // � CORE SERVICES
   // ============================================
   logger.info('Initializing dependencies');
+
+  // Firestore Lookup Service
+  sl.registerLazySingleton<FirestoreLookupService>(
+    () => FirestoreLookupService(),
+  );
 
   // ============================================
   // �🔥 FIREBASE (initialized in main.dart)
@@ -144,6 +160,11 @@ Future<void> initDependencies() async {
   // ⚙️ SETTINGS FEATURE
   // ============================================
   await _initSettingsDependencies();
+
+  // ============================================
+  // 👤 ADMINS FEATURE
+  // ============================================
+  await _initAdminsDependencies();
 }
 
 /// Initializes Auth feature dependencies.
@@ -254,9 +275,9 @@ Future<void> _initAccountsDependencies() async {
     () => DriverApplicationsRepository(),
   );
 
-  // Driver Cleanup Provider
-  sl.registerLazySingleton<DriverCleanupProvider>(
-    () => DriverCleanupProvider(),
+  // Driver Cleanup Service
+  sl.registerLazySingleton<DriverCleanupService>(
+    () => DriverCleanupService(),
   );
 
   // Use Cases
@@ -346,6 +367,8 @@ Future<void> _initVendorsDependencies() async {
   sl.registerLazySingleton(() => WatchVendors(sl()));
   sl.registerLazySingleton(() => UpdateVendorRating(sl()));
   sl.registerLazySingleton(() => GetVendorProducts(sl()));
+  sl.registerLazySingleton(() => ToggleFeaturedStatus(sl()));
+  sl.registerLazySingleton(() => VerifyVendor(sl()));
 
   // BLoC
   sl.registerFactory(
@@ -360,6 +383,8 @@ Future<void> _initVendorsDependencies() async {
       watchVendors: sl(),
       updateVendorRating: sl(),
       getVendorProducts: sl(),
+      toggleFeaturedStatus: sl(),
+      verifyVendor: sl(),
     ),
   );
 }
@@ -455,12 +480,53 @@ Future<void> _initSettingsDependencies() async {
   sl.registerLazySingleton(() => GetDeliverySettingsUseCase(sl()));
   sl.registerLazySingleton(() => UpdateDeliveryPriceUseCase(sl()));
 
-  // Cubit
+  // Simulator Use Cases
+  sl.registerLazySingleton(() => GetSimulatorSettings(sl()));
+  sl.registerLazySingleton(() => ToggleSimulator(sl()));
+  sl.registerLazySingleton(() => SaveSimulatorSettings(sl()));
+
+  // BLoC
   sl.registerFactory(
-    () => SettingsCubit(
+    () => SettingsBloc(
       getDeliverySettingsUseCase: sl(),
       updateDeliveryPriceUseCase: sl(),
       repository: sl(),
+    ),
+  );
+
+  // Simulator BLoC
+  sl.registerFactory(
+    () => SimulatorSettingsBloc(
+      getSimulatorSettings: sl(),
+      toggleSimulator: sl(),
+      saveSimulatorSettings: sl(),
+    ),
+  );
+}
+
+/// Initializes Admins feature dependencies.
+Future<void> _initAdminsDependencies() async {
+  // Data Sources
+  sl.registerLazySingleton<AdminsDataSource>(
+    () => AdminsFirebaseDataSource(),
+  );
+
+  // Repository
+  sl.registerLazySingleton<AdminsRepository>(
+    () => AdminsRepositoryImpl(sl()),
+  );
+
+  // Use Cases
+  sl.registerLazySingleton(() => GetAdmins(sl()));
+  sl.registerLazySingleton(() => AddAdmin(sl()));
+  sl.registerLazySingleton(() => DeleteAdmin(sl()));
+
+  // BLoC
+  sl.registerFactory(
+    () => AdminsBloc(
+      getAdmins: sl(),
+      addAdmin: sl(),
+      deleteAdmin: sl(),
     ),
   );
 }

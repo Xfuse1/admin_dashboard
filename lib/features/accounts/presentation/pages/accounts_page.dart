@@ -1,3 +1,5 @@
+// ignore_for_file: curly_braces_in_flow_control_structures
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -6,9 +8,6 @@ import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 import '../../../../core/constants/app_colors.dart';
 import '../../../../shared/widgets/responsive_layout.dart';
-import '../../../../shared/widgets/common_widgets.dart';
-import '../../../auth/presentation/bloc/auth_bloc.dart';
-import '../../../auth/presentation/bloc/auth_state.dart';
 import '../../domain/entities/account_entities.dart';
 import '../bloc/accounts_bloc.dart';
 import '../bloc/accounts_event.dart';
@@ -39,12 +38,8 @@ class _AccountsPageState extends State<AccountsPage>
     _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(_onTabChanged);
 
-    // Load all tabs data in parallel for instant tab switching
-    context.read<AccountsBloc>()
-      ..add(const LoadAccountStats())
-      ..add(const LoadCustomers())
-      ..add(const LoadStores())
-      ..add(const LoadDrivers());
+    // Note: All data (stats, customers, stores, drivers) is loaded
+    // in app_router.dart BlocProvider.create for instant tab switching
   }
 
   @override
@@ -180,12 +175,13 @@ class _AccountsPageState extends State<AccountsPage>
 
   void _showCustomerDetailsSheet(
       BuildContext context, CustomerEntity customer) {
+    final bloc = context.read<AccountsBloc>();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => BlocProvider.value(
-        value: context.read<AccountsBloc>(),
+        value: bloc,
         child: DraggableScrollableSheet(
           initialChildSize: 0.9,
           minChildSize: 0.5,
@@ -199,24 +195,27 @@ class _AccountsPageState extends State<AccountsPage>
               customer: customer,
               onClose: () {
                 Navigator.pop(ctx);
-                context.read<AccountsBloc>().add(const SelectCustomer(null));
+                bloc.add(const SelectCustomer(null));
               },
             ),
           ),
         ),
       ),
     ).whenComplete(() {
-      context.read<AccountsBloc>().add(const SelectCustomer(null));
+      if (mounted) {
+        bloc.add(const SelectCustomer(null));
+      }
     });
   }
 
   void _showDriverDetailsSheet(BuildContext context, DriverEntity driver) {
+    final bloc = context.read<AccountsBloc>();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => BlocProvider.value(
-        value: context.read<AccountsBloc>(),
+        value: bloc,
         child: DraggableScrollableSheet(
           initialChildSize: 0.9,
           minChildSize: 0.5,
@@ -230,14 +229,16 @@ class _AccountsPageState extends State<AccountsPage>
               driver: driver,
               onClose: () {
                 Navigator.pop(ctx);
-                context.read<AccountsBloc>().add(const SelectDriver(null));
+                bloc.add(const SelectDriver(null));
               },
             ),
           ),
         ),
       ),
     ).whenComplete(() {
-      context.read<AccountsBloc>().add(const SelectDriver(null));
+      if (mounted) {
+        bloc.add(const SelectDriver(null));
+      }
     });
   }
 

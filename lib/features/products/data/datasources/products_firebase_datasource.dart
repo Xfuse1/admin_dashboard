@@ -2,95 +2,183 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../domain/entities/product_entity.dart';
 
-/// Firebase datasource for products
+/// Firebase datasource for products with in-memory caching
 class ProductsFirebaseDatasource {
   final FirebaseFirestore _firestore;
 
   ProductsFirebaseDatasource(this._firestore);
 
-  /// Get all products with store information
-  Future<List<ProductEntity>> getProducts() async {
+  /// Cache duration - 5 minutes
+  static const _cacheDuration = Duration(minutes: 5);
+
+  /// In-memory cache
+  List<ProductEntity>? _cachedProducts;
+  DateTime? _lastFetchTime;
+
+  /// Cached stores map to avoid redundant seller queries
+  Map<String, Map<String, dynamic>>? _cachedStoresMap;
+
+  /// Check if cache is still valid
+  bool get _isCacheValid =>
+      _cachedProducts != null &&
+      _lastFetchTime != null &&
+      DateTime.now().difference(_lastFetchTime!) < _cacheDuration;
+
+  /// Invalidate cache manually (e.g. after add/update/delete)
+  void invalidateCache() {
+    _cachedProducts = null;
+    _lastFetchTime = null;
+    _cachedStoresMap = null;
+  }
+
+  /// Get stores map (cached)
+  Future<Map<String, Map<String, dynamic>>> _getStoresMap() async {
+    if (_cachedStoresMap != null && _isCacheValid) {
+      return _cachedStoresMap!;
+    }
+
+    final sellersSnapshot = await _firestore
+        .collection('users')
+        .where('role', isEqualTo: 'seller')
+        .get();
+
+    final storesMap = <String, Map<String, dynamic>>{};
+    for (var doc in sellersSnapshot.docs) {
+      final userData = doc.data();
+      final storeData = userData['store'] as Map<String, dynamic>?;
+      if (storeData != null) {
+        storesMap[doc.id] = storeData;
+      }
+    }
+
+    _cachedStoresMap = storesMap;
+    return storesMap;
+  }
+
+  /// Parse a single product document with store data
+  ProductEntity? _parseProduct(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+    Map<String, Map<String, dynamic>> storesMap,
+  ) {
+    final data = doc.data();
+    if (data == null) return null;
+
+    final storeId = data['store_id'] as String?;
+    if (storeId == null || !storesMap.containsKey(storeId)) return null;
+
+    final storeData = storesMap[storeId]!;
+    return ProductEntity(
+      id: doc.id,
+      name: data['name'] as String? ?? 'غير محدد',
+      description: data['description'] as String?,
+      price: (data['price'] as num?)?.toDouble() ?? 0.0,
+      imageUrl: _getImageUrl(data),
+      storeId: storeId,
+      storeName: storeData['name'] as String? ?? 'غير محدد',
+      category: data['category'] as String? ?? 'غير مصنف',
+      isAvailable: data['is_available'] as bool? ?? true,
+      createdAt: _parseDate(data['created_at']),
+    );
+  }
+
+  /// Get all products with store information (uses cache)
+  Future<List<ProductEntity>> getProducts({bool forceRefresh = false}) async {
+    if (!forceRefresh && _isCacheValid) {
+      return _cachedProducts!;
+    }
+
     try {
-      // Get all products
+      final storesMap = await _getStoresMap();
       final productsSnapshot = await _firestore.collection('products').get();
 
-      // Get all seller users for store lookup (stores are now embedded in users)
-      final sellersSnapshot = await _firestore
-          .collection('users')
-          .where('role', isEqualTo: 'seller')
-          .get();
-      final storesMap = <String, Map<String, dynamic>>{};
-      for (var doc in sellersSnapshot.docs) {
-        final userData = doc.data();
-        final storeData = userData['store'] as Map<String, dynamic>?;
-        if (storeData != null) {
-          storesMap[doc.id] = storeData;
-        }
-      }
-
       final products = <ProductEntity>[];
-
       for (var doc in productsSnapshot.docs) {
-        final data = doc.data();
-        final storeId = data['store_id'] as String?;
-
-        if (storeId != null && storesMap.containsKey(storeId)) {
-          final storeData = storesMap[storeId]!;
-
-          products.add(ProductEntity(
-            id: doc.id,
-            name: data['name'] as String? ?? 'غير محدد',
-            description: data['description'] as String?,
-            price: (data['price'] as num?)?.toDouble() ?? 0.0,
-            imageUrl: _getImageUrl(data),
-            storeId: storeId,
-            storeName: storeData['name'] as String? ?? 'غير محدد',
-            category: data['category'] as String? ?? 'غير مصنف',
-            isAvailable: data['is_available'] as bool? ?? true,
-            createdAt: _parseDate(data['created_at']),
-          ));
+        final product = _parseProduct(doc, storesMap);
+        if (product != null) {
+          products.add(product);
         }
       }
+
+      // Update cache
+      _cachedProducts = products;
+      _lastFetchTime = DateTime.now();
 
       return products;
     } catch (e) {
+      // Return stale cache on error if available
+      if (_cachedProducts != null) return _cachedProducts!;
       throw Exception('فشل في جلب المنتجات: $e');
     }
   }
 
-  /// Search products by name
+  /// Search products locally from cache (no extra Firestore calls)
   Future<List<ProductEntity>> searchProducts(String query) async {
     try {
       final allProducts = await getProducts();
 
       if (query.isEmpty) return allProducts;
 
+      final lowerQuery = query.toLowerCase();
       return allProducts
           .where((product) =>
-              product.name.toLowerCase().contains(query.toLowerCase()) ||
-              product.storeName.toLowerCase().contains(query.toLowerCase()) ||
-              product.category.toLowerCase().contains(query.toLowerCase()))
+              product.name.toLowerCase().contains(lowerQuery) ||
+              product.storeName.toLowerCase().contains(lowerQuery) ||
+              product.category.toLowerCase().contains(lowerQuery))
           .toList();
     } catch (e) {
       throw Exception('فشل في البحث عن المنتجات: $e');
     }
   }
 
-  /// Get products by store ID
+  /// Get products by store ID using Firestore query (optimized)
   Future<List<ProductEntity>> getProductsByStore(String storeId) async {
     try {
-      final allProducts = await getProducts();
-      return allProducts.where((p) => p.storeId == storeId).toList();
+      // If cache is valid, filter locally (faster)
+      if (_isCacheValid) {
+        return _cachedProducts!.where((p) => p.storeId == storeId).toList();
+      }
+
+      // Otherwise, use targeted Firestore query
+      final storesMap = await _getStoresMap();
+      if (!storesMap.containsKey(storeId)) return [];
+
+      final snapshot = await _firestore
+          .collection('products')
+          .where('store_id', isEqualTo: storeId)
+          .get();
+
+      final products = <ProductEntity>[];
+      for (var doc in snapshot.docs) {
+        final product = _parseProduct(doc, storesMap);
+        if (product != null) products.add(product);
+      }
+      return products;
     } catch (e) {
       throw Exception('فشل في جلب منتجات المتجر: $e');
     }
   }
 
-  /// Get products by category
+  /// Get products by category using Firestore query (optimized)
   Future<List<ProductEntity>> getProductsByCategory(String category) async {
     try {
-      final allProducts = await getProducts();
-      return allProducts.where((p) => p.category == category).toList();
+      // If cache is valid, filter locally (faster)
+      if (_isCacheValid) {
+        return _cachedProducts!.where((p) => p.category == category).toList();
+      }
+
+      // Otherwise, use targeted Firestore query
+      final storesMap = await _getStoresMap();
+      final snapshot = await _firestore
+          .collection('products')
+          .where('category', isEqualTo: category)
+          .get();
+
+      final products = <ProductEntity>[];
+      for (var doc in snapshot.docs) {
+        final product = _parseProduct(doc, storesMap);
+        if (product != null) products.add(product);
+      }
+      return products;
     } catch (e) {
       throw Exception('فشل في جلب منتجات الفئة: $e');
     }

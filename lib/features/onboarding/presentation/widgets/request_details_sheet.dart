@@ -496,7 +496,7 @@ class RequestDetailsSheet extends StatelessWidget {
           ],
         ),
       ],
-    ).animate().fadeIn(duration: 400.ms);
+    ).animate().fadeIn(duration: 200.ms);
   }
 
   Widget _buildDocumentSection(
@@ -627,7 +627,7 @@ class RequestDetailsSheet extends StatelessWidget {
                           color: Colors.white, size: 24),
                     ),
                   ),
-                ).animate().scale(delay: 200.ms, duration: 300.ms),
+                ),
               ),
 
               // Title Overlay
@@ -673,7 +673,7 @@ class RequestDetailsSheet extends StatelessWidget {
                       ],
                     ),
                   ),
-                ).animate().slideY(begin: 1.0, end: 0, delay: 100.ms),
+                ),
               ),
             ],
           ),

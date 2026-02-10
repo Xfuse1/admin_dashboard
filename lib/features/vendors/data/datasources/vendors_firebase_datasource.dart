@@ -1,3 +1,5 @@
+// ignore_for_file: avoid_print, avoid_types_as_parameter_names
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../domain/entities/product_entity.dart';
@@ -91,6 +93,27 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
 
   CollectionReference<Map<String, dynamic>> get _vendorsRef =>
       _firestore.collection(_collection);
+
+  /// Batch fetches product counts for multiple vendor IDs in 1 query.
+  /// Instead of N individual count() queries, fetches all products once
+  /// and groups by store_id.
+  Future<Map<String, int>> _batchGetProductCounts(
+      List<String> vendorIds) async {
+    if (vendorIds.isEmpty) return {};
+    try {
+      final snapshot = await _firestore.collection('products').get();
+      final counts = <String, int>{};
+      for (final doc in snapshot.docs) {
+        final storeId = doc.data()['store_id'] as String?;
+        if (storeId != null && vendorIds.contains(storeId)) {
+          counts[storeId] = (counts[storeId] ?? 0) + 1;
+        }
+      }
+      return counts;
+    } catch (_) {
+      return {};
+    }
+  }
 
   /// Base query that filters only seller users (who have stores).
   Query<Map<String, dynamic>> get _sellersQuery =>
@@ -192,31 +215,18 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
         // Pre-fetch all orders once (cached)
         final orderDocs = await _getOrderDocs();
 
-        final countFutures = vendors.map((vendor) async {
-          int productsCount = vendor.productsCount;
+        // Batch fetch product counts — 1 query instead of N
+        final vendorIds = vendors.map((v) => v.id).toList();
+        final productCountsByStore = await _batchGetProductCounts(vendorIds);
 
-          try {
-            final productCountSnapshot = await _firestore
-                .collection('products')
-                .where('store_id', isEqualTo: vendor.id)
-                .count()
-                .get();
-            productsCount = productCountSnapshot.count ?? 0;
-          } catch (e) {
-            // Keep default/existing value on error
-          }
-
-          // Calculate orders & revenue using the efficient helper
+        vendors = vendors.map((vendor) {
           final stats = _calculateVendorOrderStats(vendor.id, orderDocs);
-
           return vendor.copyWith(
-            productsCount: productsCount,
+            productsCount: productCountsByStore[vendor.id] ?? 0,
             totalOrders: stats.totalOrders,
             totalRevenue: stats.totalRevenue,
           );
-        });
-
-        vendors = await Future.wait(countFutures);
+        }).toList();
       }
 
       // Client-side category filtering

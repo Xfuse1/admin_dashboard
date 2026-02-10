@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/utils/app_logger.dart';
-
 import '../../config/di/injection_container.dart';
 import '../../core/utils/go_router_refresh_stream.dart';
 import '../../features/auth/presentation/bloc/auth_bloc.dart';
 import '../../features/auth/presentation/bloc/auth_state.dart'
     as auth_bloc_state;
 import '../../features/auth/presentation/pages/login_page.dart';
+import '../../features/dashboard/presentation/bloc/dashboard_bloc.dart';
+import '../../features/dashboard/presentation/bloc/dashboard_event.dart';
 import '../../features/dashboard/presentation/pages/dashboard_page.dart';
 import '../../features/orders/presentation/bloc/orders_bloc.dart';
 import '../../features/orders/presentation/bloc/orders_event.dart';
@@ -22,12 +22,15 @@ import '../../features/accounts/presentation/bloc/accounts_bloc.dart';
 import '../../features/accounts/presentation/bloc/accounts_event.dart';
 import '../../features/accounts/presentation/pages/accounts_page.dart';
 import '../../features/onboarding/presentation/bloc/onboarding_bloc.dart';
-import '../../features/onboarding/presentation/bloc/onboarding_event.dart';
 import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/vendors/presentation/pages/vendors_page.dart';
 import '../../features/products/presentation/pages/products_page.dart';
 import '../../features/settings/presentation/pages/commission_settings_page.dart';
 import '../../features/settings/presentation/pages/simulator_settings_page.dart';
+import '../../features/settings/presentation/bloc/simulator_settings_bloc.dart';
+import '../../features/settings/presentation/bloc/simulator_settings_event.dart';
+import '../../features/admins/presentation/bloc/admins_bloc.dart';
+import '../../features/admins/presentation/bloc/admins_event.dart';
 import '../../features/admins/presentation/pages/manage_admins_page.dart';
 import '../../shared/widgets/admin_shell.dart';
 
@@ -111,7 +114,11 @@ final class AppRouter {
               path: AppRoutes.dashboard,
               pageBuilder: (context, state) => CustomTransitionPage(
                 key: state.pageKey,
-                child: const DashboardPage(),
+                child: BlocProvider(
+                  create: (_) =>
+                      sl<DashboardBloc>()..add(const DashboardLoadRequested()),
+                  child: const DashboardPage(),
+                ),
                 transitionsBuilder: _fadeTransition,
               ),
             ),
@@ -219,7 +226,11 @@ final class AppRouter {
               pageBuilder: (context, state) => CustomTransitionPage(
                 key: state.pageKey,
                 child: BlocProvider(
-                  create: (_) => sl<AccountsBloc>()..add(const LoadCustomers()),
+                  create: (_) => sl<AccountsBloc>()
+                    ..add(const LoadAccountStats())
+                    ..add(const LoadCustomers())
+                    ..add(const LoadStores())
+                    ..add(const LoadDrivers()),
                   child: const AccountsPage(),
                 ),
                 transitionsBuilder: _fadeTransition,
@@ -241,7 +252,11 @@ final class AppRouter {
               path: AppRoutes.simulatorSettings,
               pageBuilder: (context, state) => CustomTransitionPage(
                 key: state.pageKey,
-                child: const SimulatorSettingsPage(),
+                child: BlocProvider(
+                  create: (_) => sl<SimulatorSettingsBloc>()
+                    ..add(const LoadSimulatorSettings()),
+                  child: const SimulatorSettingsPage(),
+                ),
                 transitionsBuilder: _fadeTransition,
               ),
             ),
@@ -251,7 +266,10 @@ final class AppRouter {
               path: AppRoutes.manageAdmins,
               pageBuilder: (context, state) => CustomTransitionPage(
                 key: state.pageKey,
-                child: const ManageAdminsPage(),
+                child: BlocProvider(
+                  create: (_) => sl<AdminsBloc>()..add(const LoadAdmins()),
+                  child: const ManageAdminsPage(),
+                ),
                 transitionsBuilder: _fadeTransition,
               ),
             ),
