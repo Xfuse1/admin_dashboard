@@ -1,3 +1,5 @@
+// ignore_for_file: prefer_conditional_assignment
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -84,19 +86,22 @@ class AuthFirebaseDataSource implements AuthDataSource {
   @override
   Future<AdminUserModel?> checkAuthStatus() async {
     try {
-      // Give Firebase Auth a bit of time to initialize persistence on Web
+      // On web, idTokenChanges is more reliable for session restoration
+      // It emits when the ID token changes, including after persistence restore
       User? user = _auth.currentUser;
+      
       if (user == null) {
-        // We wait for the first emission from authStateChanges.
-        // On web, this is more reliable for session recovery.
-        user = await _auth.authStateChanges().first.timeout(
-              const Duration(seconds: 2),
-              onTimeout: () => null,
+        // Wait for auth state to be restored from persistence
+        // idTokenChanges emits immediately if user is signed in
+        user = await _auth.idTokenChanges().first.timeout(
+              const Duration(seconds: 3),
+              onTimeout: () => _auth.currentUser,
             );
       }
 
       if (user == null) return null;
 
+      // Fetch user data from Firestore
       final doc = await _firestore.collection('users').doc(user.uid).get();
 
       if (!doc.exists) {

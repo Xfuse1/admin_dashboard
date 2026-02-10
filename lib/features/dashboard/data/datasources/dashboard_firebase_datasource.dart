@@ -50,7 +50,7 @@ class DashboardFirebaseDataSource implements DashboardDataSource {
       _firestore.collection(FirestoreCollections.drivers);
 
   CollectionReference<Map<String, dynamic>> get _customersCollection =>
-      _firestore.collection('profiles');
+      _firestore.collection('users');
 
   CollectionReference<Map<String, dynamic>> get _storesCollection =>
       _firestore.collection('users');

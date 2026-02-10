@@ -78,8 +78,16 @@ class _AdminDashboardAppState extends State<AdminDashboardApp> {
   @override
   void initState() {
     super.initState();
-    _authBloc = sl<AuthBloc>()..add(const AuthCheckStatus());
+    _authBloc = sl<AuthBloc>();
     _router = AppRouter.createRouter(authBloc: _authBloc);
+    
+    // Give Firebase Auth a moment to restore session from IndexedDB on web
+    // This prevents flashing the login page before auth state is restored
+    Future.delayed(const Duration(milliseconds: 100), () {
+      if (mounted) {
+        _authBloc.add(const AuthCheckStatus());
+      }
+    });
   }
 
   @override

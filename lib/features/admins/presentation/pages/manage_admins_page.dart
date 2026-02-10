@@ -45,15 +45,6 @@ class _ManageAdminsViewState extends State<_ManageAdminsView> {
     super.dispose();
   }
 
-  /// التحقق من أن المستخدم الحالي هو super admin
-  bool _isSuperAdmin(BuildContext context) {
-    final authState = context.read<AuthBloc>().state;
-    if (authState is AuthAuthenticated) {
-      return authState.user.role == 'superAdmin';
-    }
-    return false;
-  }
-
   void _showAddAdminDialog() {
     final adminsBloc = context.read<AdminsBloc>();
     showDialog(
@@ -122,7 +113,6 @@ class _ManageAdminsViewState extends State<_ManageAdminsView> {
   Widget build(BuildContext context) {
     final deviceType = ResponsiveLayout.getDeviceType(context);
     final isDesktop = deviceType == DeviceType.desktop;
-    final isSuperAdmin = _isSuperAdmin(context);
 
     return BlocConsumer<AdminsBloc, AdminsState>(
       listener: (context, state) {
@@ -137,17 +127,23 @@ class _ManageAdminsViewState extends State<_ManageAdminsView> {
         final isLoading = state is AdminsLoading;
         final isActionInProgress = state is AdminActionInProgress;
 
-        return Scaffold(
-          backgroundColor: AppColors.background,
-          body: Padding(
-            padding: EdgeInsets.all(
-                isDesktop ? AppConstants.spacingLg : AppConstants.spacingMd),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // العنوان وزر الإضافة
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        return BlocBuilder<AuthBloc, AuthState>(
+          builder: (context, authState) {
+            // Get super admin status from auth state
+            final isSuperAdmin = authState is AuthAuthenticated &&
+                authState.user.role == 'superAdmin';
+
+            return Scaffold(
+              backgroundColor: AppColors.background,
+              body: Padding(
+                padding: EdgeInsets.all(
+                    isDesktop ? AppConstants.spacingLg : AppConstants.spacingMd),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // العنوان وزر الإضافة
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -230,17 +226,20 @@ class _ManageAdminsViewState extends State<_ManageAdminsView> {
                 ],
                 const SizedBox(height: AppConstants.spacingLg),
 
-                // قائمة المسؤولين
-                Expanded(
-                  child: isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : admins.isEmpty
-                          ? _buildEmptyState()
-                          : _buildAdminsList(admins, isDesktop, isSuperAdmin),
+                    // قائمة المسؤولين
+                    Expanded(
+                      child: isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : admins.isEmpty
+                              ? _buildEmptyState()
+                              : _buildAdminsList(
+                                  admins, isDesktop, isSuperAdmin),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
@@ -544,11 +543,6 @@ class _ManageAdminsViewState extends State<_ManageAdminsView> {
                   ? null
                   : () {
                       if (_formKey.currentState!.validate()) {
-                        if (!_isSuperAdmin(context)) {
-                          _showErrorMessage(
-                              'غير مسموح: يجب أن تكون Super Admin لإضافة مسؤولين');
-                          return;
-                        }
                         context.read<AdminsBloc>().add(AddAdminRequested(
                               name: _nameController.text.trim(),
                               email: _emailController.text.trim(),
