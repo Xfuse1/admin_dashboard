@@ -55,9 +55,13 @@ class _ManageAdminsViewState extends State<_ManageAdminsView> {
   }
 
   void _showAddAdminDialog() {
+    final adminsBloc = context.read<AdminsBloc>();
     showDialog(
       context: context,
-      builder: (dialogContext) => _buildAddAdminDialog(dialogContext),
+      builder: (dialogContext) => BlocProvider.value(
+        value: adminsBloc,
+        child: _buildAddAdminDialog(dialogContext),
+      ),
     );
   }
 
