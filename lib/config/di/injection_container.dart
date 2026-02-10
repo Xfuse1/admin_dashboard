@@ -82,6 +82,10 @@ import '../../features/admins/domain/repositories/admins_repository.dart';
 import '../../features/admins/domain/usecases/admins_usecases.dart';
 import '../../features/admins/presentation/bloc/admins_bloc.dart';
 
+// Categories Feature
+import '../../features/categories/data/datasources/categories_firebase_datasource.dart';
+import '../../features/categories/presentation/bloc/categories_bloc.dart';
+
 // Vendors Feature
 import '../../features/vendors/data/datasources/vendors_datasource.dart';
 import '../../features/vendors/data/datasources/vendors_firebase_datasource.dart';
@@ -165,6 +169,11 @@ Future<void> initDependencies() async {
   // 👤 ADMINS FEATURE
   // ============================================
   await _initAdminsDependencies();
+
+  // ============================================
+  // 📂 CATEGORIES FEATURE
+  // ============================================
+  await _initCategoriesDependencies();
 }
 
 /// Initializes Auth feature dependencies.
@@ -528,5 +537,18 @@ Future<void> _initAdminsDependencies() async {
       addAdmin: sl(),
       deleteAdmin: sl(),
     ),
+  );
+}
+
+/// Initializes Categories feature dependencies.
+Future<void> _initCategoriesDependencies() async {
+  // Data Sources
+  sl.registerLazySingleton<CategoriesFirebaseDatasource>(
+    () => CategoriesFirebaseDatasource(FirebaseFirestore.instance),
+  );
+
+  // BLoC
+  sl.registerFactory(
+    () => CategoriesBloc(sl()),
   );
 }

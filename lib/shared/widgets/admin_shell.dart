@@ -234,6 +234,12 @@ List<SidebarItem> getSidebarItems() {
       route: AppRoutes.products,
     ),
     SidebarItem(
+      label: 'الأقسام',
+      icon: Icons.category_outlined,
+      activeIcon: Icons.category,
+      route: AppRoutes.categories,
+    ),
+    SidebarItem(
       label: AppStrings.accounts,
       icon: Icons.people_outline,
       activeIcon: Icons.people,

@@ -32,6 +32,7 @@ import '../../features/settings/presentation/bloc/simulator_settings_event.dart'
 import '../../features/admins/presentation/bloc/admins_bloc.dart';
 import '../../features/admins/presentation/bloc/admins_event.dart';
 import '../../features/admins/presentation/pages/manage_admins_page.dart';
+import '../../features/categories/presentation/pages/categories_page.dart';
 import '../../shared/widgets/admin_shell.dart';
 
 /// Application route paths.
@@ -50,6 +51,7 @@ abstract final class AppRoutes {
   static const String vendorDetails = '/vendors/:id';
   static const String products = '/products';
   static const String accounts = '/accounts';
+  static const String categories = '/categories';
   static const String commissionSettings = '/commission-settings';
   static const String simulatorSettings = '/simulator-settings';
   static const String manageAdmins = '/manage-admins';
@@ -259,6 +261,16 @@ final class AppRouter {
                     ..add(const LoadSimulatorSettings()),
                   child: const SimulatorSettingsPage(),
                 ),
+                transitionsBuilder: _fadeTransition,
+              ),
+            ),
+
+            // Categories
+            GoRoute(
+              path: AppRoutes.categories,
+              pageBuilder: (context, state) => CustomTransitionPage(
+                key: state.pageKey,
+                child: const CategoriesPage(),
                 transitionsBuilder: _fadeTransition,
               ),
             ),
