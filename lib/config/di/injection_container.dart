@@ -47,6 +47,7 @@ import '../../features/onboarding/presentation/bloc/onboarding_bloc.dart';
 
 // Rejection Requests Feature
 import '../../features/rejection_requests/data/datasources/rejection_requests_datasource.dart';
+import '../../features/rejection_requests/data/datasources/rejection_requests_datasource_interface.dart';
 import '../../features/rejection_requests/data/repositories/rejection_requests_repository_impl.dart';
 import '../../features/rejection_requests/domain/repositories/rejection_requests_repository.dart';
 import '../../features/rejection_requests/domain/usecases/rejection_requests_usecases.dart';
@@ -102,7 +103,7 @@ final sl = GetIt.instance;
 /// Must be called before runApp().
 Future<void> initDependencies() async {
   // ============================================
-  // � CORE SERVICES
+  // 🛠 CORE SERVICES
   // ============================================
   logger.info('Initializing dependencies');
 
@@ -112,72 +113,72 @@ Future<void> initDependencies() async {
   );
 
   // ============================================
-  // �🔥 FIREBASE (initialized in main.dart)
+  // 🔥 FIREBASE (initialized in main.dart)
   // ============================================
 
   // ============================================
   // 🔐 AUTH FEATURE
   // ============================================
-  await _initAuthDependencies();
+  _initAuthDependencies();
 
   // ============================================
   // 📊 DASHBOARD FEATURE
   // ============================================
-  await _initDashboardDependencies();
+  _initDashboardDependencies();
 
   // ============================================
   // 📦 ORDERS FEATURE
   // ============================================
-  await _initOrdersDependencies();
+  _initOrdersDependencies();
 
   // ============================================
   // 👥 ACCOUNTS FEATURE
   // ============================================
-  await _initAccountsDependencies();
+  _initAccountsDependencies();
 
   // ============================================
   // 🏪 VENDORS FEATURE
   // ============================================
-  await _initVendorsDependencies();
+  _initVendorsDependencies();
 
   // ============================================
   // 📝 ONBOARDING FEATURE
   // ============================================
-  await _initOnboardingDependencies();
+  _initOnboardingDependencies();
 
   // ============================================
   // 🚫 REJECTION REQUESTS FEATURE
   // ============================================
-  await _initRejectionRequestsDependencies();
+  _initRejectionRequestsDependencies();
 
   // ============================================
   // 🔔 NOTIFICATIONS FEATURE
   // ============================================
-  await _initNotificationsDependencies();
+  _initNotificationsDependencies();
 
   // ============================================
   // 📦 PRODUCTS FEATURE
   // ============================================
-  await _initProductsDependencies();
+  _initProductsDependencies();
 
   // ============================================
   // ⚙️ SETTINGS FEATURE
   // ============================================
-  await _initSettingsDependencies();
+  _initSettingsDependencies();
 
   // ============================================
   // 👤 ADMINS FEATURE
   // ============================================
-  await _initAdminsDependencies();
+  _initAdminsDependencies();
 
   // ============================================
   // 📂 CATEGORIES FEATURE
   // ============================================
-  await _initCategoriesDependencies();
+  _initCategoriesDependencies();
 }
 
 /// Initializes Auth feature dependencies.
-Future<void> _initAuthDependencies() async {
+void _initAuthDependencies() {
   // Data Sources
   sl.registerLazySingleton<AuthDataSource>(
     () => AuthFirebaseDataSource(),
@@ -204,7 +205,7 @@ Future<void> _initAuthDependencies() async {
 }
 
 /// Initializes Dashboard feature dependencies.
-Future<void> _initDashboardDependencies() async {
+void _initDashboardDependencies() {
   // Data Sources
   sl.registerLazySingleton<DashboardDataSource>(
     () => DashboardFirebaseDataSource(),
@@ -233,7 +234,7 @@ Future<void> _initDashboardDependencies() async {
 }
 
 /// Initializes Orders feature dependencies.
-Future<void> _initOrdersDependencies() async {
+void _initOrdersDependencies() {
   // Data Sources
   sl.registerLazySingleton<OrdersDataSource>(
     () => OrdersFirebaseDataSource(),
@@ -268,7 +269,7 @@ Future<void> _initOrdersDependencies() async {
 }
 
 /// Initializes Accounts feature dependencies.
-Future<void> _initAccountsDependencies() async {
+void _initAccountsDependencies() {
   // Data Sources
   sl.registerLazySingleton<AccountsDataSource>(
     () => AccountsFirebaseDataSource(),
@@ -322,7 +323,7 @@ Future<void> _initAccountsDependencies() async {
 }
 
 /// Initializes Onboarding feature dependencies.
-Future<void> _initOnboardingDependencies() async {
+void _initOnboardingDependencies() {
   // Data Sources
   sl.registerLazySingleton<OnboardingDataSource>(
     () => OnboardingFirebaseDataSource(),
@@ -335,7 +336,6 @@ Future<void> _initOnboardingDependencies() async {
 
   // Use Cases
   sl.registerLazySingleton(() => GetOnboardingRequests(sl()));
-  sl.registerLazySingleton(() => GetOnboardingRequestById(sl()));
   sl.registerLazySingleton(() => ApproveOnboardingRequest(sl()));
   sl.registerLazySingleton(() => RejectOnboardingRequest(sl()));
   sl.registerLazySingleton(() => MarkRequestUnderReview(sl()));
@@ -354,7 +354,7 @@ Future<void> _initOnboardingDependencies() async {
 }
 
 /// Initializes Vendors feature dependencies.
-Future<void> _initVendorsDependencies() async {
+void _initVendorsDependencies() {
   // Data Sources
   sl.registerLazySingleton<VendorsDataSource>(
     () => VendorsFirebaseDataSource(),
@@ -399,10 +399,10 @@ Future<void> _initVendorsDependencies() async {
 }
 
 /// Initializes Rejection Requests feature dependencies.
-Future<void> _initRejectionRequestsDependencies() async {
+void _initRejectionRequestsDependencies() {
   // Data Sources
-  sl.registerLazySingleton<RejectionRequestsDataSource>(
-    () => RejectionRequestsDataSource(FirebaseFirestore.instance),
+  sl.registerLazySingleton<RejectionRequestsDataSourceInterface>(
+    () => RejectionRequestsFirebaseDataSource(FirebaseFirestore.instance),
   );
 
   // Repository
@@ -435,12 +435,12 @@ Future<void> _initRejectionRequestsDependencies() async {
 }
 
 /// Initializes Notifications feature dependencies.
-Future<void> _initNotificationsDependencies() async {
+void _initNotificationsDependencies() {
   // Data Sources
   sl.registerLazySingleton<NotificationsFirebaseDataSource>(
     () => NotificationsFirebaseDataSource(
       firestore: FirebaseFirestore.instance,
-      adminId: 'admin', // يمكن استبداله بـ ID الأدمن الحالي من Auth
+      adminId: sl<AuthRepository>().currentUser?.id ?? 'admin',
     ),
   );
 
@@ -456,7 +456,7 @@ Future<void> _initNotificationsDependencies() async {
 }
 
 /// Initializes Products feature dependencies.
-Future<void> _initProductsDependencies() async {
+void _initProductsDependencies() {
   // Data Sources
   sl.registerLazySingleton<ProductsFirebaseDatasource>(
     () => ProductsFirebaseDatasource(FirebaseFirestore.instance),
@@ -474,7 +474,7 @@ Future<void> _initProductsDependencies() async {
 }
 
 /// Initializes Settings feature dependencies.
-Future<void> _initSettingsDependencies() async {
+void _initSettingsDependencies() {
   // Data Sources
   sl.registerLazySingleton<SettingsDataSource>(
     () => SettingsFirebaseDataSource(firestore: FirebaseFirestore.instance),
@@ -514,7 +514,7 @@ Future<void> _initSettingsDependencies() async {
 }
 
 /// Initializes Admins feature dependencies.
-Future<void> _initAdminsDependencies() async {
+void _initAdminsDependencies() {
   // Data Sources
   sl.registerLazySingleton<AdminsDataSource>(
     () => AdminsFirebaseDataSource(),
@@ -541,7 +541,7 @@ Future<void> _initAdminsDependencies() async {
 }
 
 /// Initializes Categories feature dependencies.
-Future<void> _initCategoriesDependencies() async {
+void _initCategoriesDependencies() {
   // Data Sources
   sl.registerLazySingleton<CategoriesFirebaseDatasource>(
     () => CategoriesFirebaseDatasource(FirebaseFirestore.instance),

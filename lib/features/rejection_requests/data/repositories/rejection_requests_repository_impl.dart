@@ -4,11 +4,11 @@ import 'package:dartz/dartz.dart';
 import '../../../../core/errors/failures.dart';
 import '../../domain/entities/rejection_request_entities.dart';
 import '../../domain/repositories/rejection_requests_repository.dart';
-import '../datasources/rejection_requests_datasource.dart';
+import '../datasources/rejection_requests_datasource_interface.dart';
 
 /// Implementation of rejection requests repository
 class RejectionRequestsRepositoryImpl implements RejectionRequestsRepository {
-  final RejectionRequestsDataSource dataSource;
+  final RejectionRequestsDataSourceInterface dataSource;
   final FirebaseFirestore firestore;
 
   RejectionRequestsRepositoryImpl({
@@ -83,7 +83,7 @@ class RejectionRequestsRepositoryImpl implements RejectionRequestsRepository {
 
         final orderId = requestDoc.data()!['orderId'] as String;
         final driverId = requestDoc.data()!['driverId'] as String;
- 
+
         // Update rejection request
         transaction.update(requestRef, {
           'adminDecision': 'approved',
@@ -104,7 +104,6 @@ class RejectionRequestsRepositoryImpl implements RejectionRequestsRepository {
           'rejected_by_drivers': FieldValue.arrayUnion([driverId]),
         });
 
-        
         // Decrement driver's currentOrdersCount
         // Note: rejectionsCounter is now calculated dynamically from rejected_by_drivers
         final userRef = firestore.collection('users').doc(driverId);

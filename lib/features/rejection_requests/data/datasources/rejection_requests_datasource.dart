@@ -1,14 +1,17 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/rejection_request_models.dart';
+import 'rejection_requests_datasource_interface.dart';
 
-/// Data source for rejection requests
-class RejectionRequestsDataSource {
+/// Firebase implementation of [RejectionRequestsDataSourceInterface].
+class RejectionRequestsFirebaseDataSource
+    implements RejectionRequestsDataSourceInterface {
   final FirebaseFirestore _firestore;
 
-  RejectionRequestsDataSource(this._firestore);
+  RejectionRequestsFirebaseDataSource(this._firestore);
 
   /// Get all rejection requests with optional filters
+  @override
   Future<List<RejectionRequestModel>> getRejectionRequests({
     String? adminDecision,
     String? driverId,
@@ -34,16 +37,14 @@ class RejectionRequestsDataSource {
           .map((doc) => RejectionRequestModel.fromFirestore(doc))
           .toList();
     } on FirebaseException catch (e) {
-
       // If index is missing, fall back to client-side sorting
       if (e.code == 'failed-precondition' || e.code == 'unimplemented') {
-       
         return _getRejectionRequestsWithClientSort(
           adminDecision: adminDecision,
           driverId: driverId,
         );
       }
-      
+
       throw Exception('فشل في تحميل طلبات الرفض: ${e.message}');
     } catch (e) {
       throw Exception('حدث خطأ غير متوقع: $e');
@@ -83,10 +84,10 @@ class RejectionRequestsDataSource {
   }
 
   /// Watch rejection requests stream
+  @override
   Stream<List<RejectionRequestModel>> watchRejectionRequests({
     String? adminDecision,
   }) {
-    
     try {
       Query<Map<String, dynamic>> query =
           _firestore.collection('rejection_requests');
@@ -96,19 +97,21 @@ class RejectionRequestsDataSource {
       }
 
       return query.snapshots().map((snapshot) {
-        
-        final requests = snapshot.docs.map((doc) {
-          try {
-            return RejectionRequestModel.fromFirestore(doc);
-          } catch (e) {
-            // Skip invalid documents
-            return null;
-          }
-        }).whereType<RejectionRequestModel>().toList();
-        
+        final requests = snapshot.docs
+            .map((doc) {
+              try {
+                return RejectionRequestModel.fromFirestore(doc);
+              } catch (e) {
+                // Skip invalid documents
+                return null;
+              }
+            })
+            .whereType<RejectionRequestModel>()
+            .toList();
+
         // Sort by createdAt in memory to avoid index issues
         requests.sort((a, b) => b.requestedAt.compareTo(a.requestedAt));
-        
+
         return requests;
       }).handleError((error) {
         throw Exception('خطأ في تحميل البيانات المباشرة: $error');
@@ -120,21 +123,21 @@ class RejectionRequestsDataSource {
   }
 
   /// Watch pending requests count stream
+  @override
   Stream<int> watchPendingRequestsCount() {
-    
     return _firestore
         .collection('rejection_requests')
         .where('adminDecision', isEqualTo: 'pending')
         .snapshots()
         .map((snapshot) {
-          return snapshot.size;
-        })
-        .handleError((error) {
-          return 0; // Return 0 on error
-        });
+      return snapshot.size;
+    }).handleError((error) {
+      return 0; // Return 0 on error
+    });
   }
 
   /// Get rejection request by ID
+  @override
   Future<RejectionRequestModel> getRejectionRequestById(
     String requestId,
   ) async {
@@ -157,6 +160,7 @@ class RejectionRequestsDataSource {
   }
 
   /// Update rejection request
+  @override
   Future<void> updateRejectionRequest(
     String requestId,
     Map<String, dynamic> data,
@@ -172,15 +176,13 @@ class RejectionRequestsDataSource {
           .collection('rejection_requests')
           .doc(requestId)
           .update(updateData);
-          
     } on FirebaseException catch (e) {
-      
       if (e.code == 'not-found') {
         throw Exception('لم يتم العثور على طلب الرفض');
       } else if (e.code == 'permission-denied') {
         throw Exception('ليس لديك صلاحية لتحديث هذا الطلب');
       }
-      
+
       throw Exception('فشل في تحديث الطلب: ${e.message}');
     } catch (e) {
       throw Exception('حدث خطأ في التحديث: $e');
@@ -188,6 +190,7 @@ class RejectionRequestsDataSource {
   }
 
   /// Approve excuse (approve rejection request)
+  @override
   Future<void> approveExcuse({
     required String requestId,
     String? adminComment,
@@ -204,7 +207,6 @@ class RejectionRequestsDataSource {
           .collection('rejection_requests')
           .doc(requestId)
           .update(updateData);
-          
     } on FirebaseException catch (e) {
       throw Exception('فشل في الموافقة على الاعتذار: ${e.message}');
     } catch (e) {
@@ -213,6 +215,7 @@ class RejectionRequestsDataSource {
   }
 
   /// Reject excuse (reject rejection request)
+  @override
   Future<void> rejectExcuse({
     required String requestId,
     required String adminComment,
@@ -229,7 +232,6 @@ class RejectionRequestsDataSource {
           .collection('rejection_requests')
           .doc(requestId)
           .update(updateData);
-          
     } on FirebaseException catch (e) {
       throw Exception('فشل في رفض الاعتذار: ${e.message}');
     } catch (e) {
@@ -238,6 +240,7 @@ class RejectionRequestsDataSource {
   }
 
   /// Get pending requests count
+  @override
   Future<int> getPendingRequestsCount() async {
     try {
       final snapshot = await _firestore
@@ -248,7 +251,6 @@ class RejectionRequestsDataSource {
 
       return snapshot.count ?? 0;
     } on FirebaseException catch (e) {
-      
       // Fallback to get() if count() is not available
       if (e.code == 'unimplemented') {
         final snapshot = await _firestore
@@ -257,7 +259,7 @@ class RejectionRequestsDataSource {
             .get();
         return snapshot.size;
       }
-      
+
       return 0; // Return 0 on error
     } catch (e) {
       return 0; // Return 0 on error
@@ -265,6 +267,7 @@ class RejectionRequestsDataSource {
   }
 
   /// Get rejection statistics
+  @override
   Future<Map<String, dynamic>> getRejectionStats({
     String? driverId,
     DateTime? startDate,
@@ -311,8 +314,8 @@ class RejectionRequestsDataSource {
         'approvedCount': approvedCount,
         'rejectedCount': rejectedCount,
         'withinSLA': withinSLA,
-        'slaCompliance': totalRequests > 0 
-            ? (withinSLA / totalRequests * 100).toStringAsFixed(1) 
+        'slaCompliance': totalRequests > 0
+            ? (withinSLA / totalRequests * 100).toStringAsFixed(1)
             : '0.0',
       };
     } on FirebaseException catch (e) {
@@ -323,19 +326,15 @@ class RejectionRequestsDataSource {
   }
 
   /// Delete rejection request (admin only)
+  @override
   Future<void> deleteRejectionRequest(String requestId) async {
     try {
-      await _firestore
-          .collection('rejection_requests')
-          .doc(requestId)
-          .delete();
-          
+      await _firestore.collection('rejection_requests').doc(requestId).delete();
     } on FirebaseException catch (e) {
-      
       if (e.code == 'permission-denied') {
         throw Exception('ليس لديك صلاحية لحذف هذا الطلب');
       }
-      
+
       throw Exception('فشل في حذف الطلب: ${e.message}');
     } catch (e) {
       throw Exception('حدث خطأ في الحذف: $e');
@@ -343,22 +342,22 @@ class RejectionRequestsDataSource {
   }
 
   /// Batch update multiple rejection requests
+  @override
   Future<void> batchUpdateRequests(
     List<String> requestIds,
     Map<String, dynamic> updateData,
   ) async {
     try {
       final batch = _firestore.batch();
-      
+
       final dataWithTimestamp = {
         ...updateData,
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
       for (final requestId in requestIds) {
-        final docRef = _firestore
-            .collection('rejection_requests')
-            .doc(requestId);
+        final docRef =
+            _firestore.collection('rejection_requests').doc(requestId);
         batch.update(docRef, dataWithTimestamp);
       }
 

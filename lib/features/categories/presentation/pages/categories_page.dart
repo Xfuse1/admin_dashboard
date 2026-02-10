@@ -125,7 +125,7 @@ class _CategoriesViewState extends State<_CategoriesView> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'الأقسام',
+                      'الأقسام والمتاجر',
                       style:
                           Theme.of(context).textTheme.headlineSmall?.copyWith(
                                 fontWeight: FontWeight.bold,
@@ -145,9 +145,7 @@ class _CategoriesViewState extends State<_CategoriesView> {
               // Refresh button
               IconButton(
                 onPressed: () {
-                  context
-                      .read<CategoriesBloc>()
-                      .add(const RefreshCategories());
+                  context.read<CategoriesBloc>().add(const RefreshCategories());
                 },
                 icon: const Icon(Icons.refresh),
                 color: AppColors.primary,
@@ -171,8 +169,7 @@ class _CategoriesViewState extends State<_CategoriesView> {
                     vertical: AppConstants.spacingSm,
                   ),
                   shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppConstants.radiusMd),
+                    borderRadius: BorderRadius.circular(AppConstants.radiusMd),
                   ),
                 ),
               ),
@@ -188,9 +185,7 @@ class _CategoriesViewState extends State<_CategoriesView> {
               return TextField(
                 controller: _searchController,
                 onChanged: (value) {
-                  context
-                      .read<CategoriesBloc>()
-                      .add(SearchCategories(value));
+                  context.read<CategoriesBloc>().add(SearchCategories(value));
                 },
                 decoration: InputDecoration(
                   hintText: 'بحث عن قسم...',
@@ -211,22 +206,19 @@ class _CategoriesViewState extends State<_CategoriesView> {
                   filled: true,
                   fillColor: AppColors.background,
                   border: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppConstants.radiusMd),
+                    borderRadius: BorderRadius.circular(AppConstants.radiusMd),
                     borderSide: BorderSide(
                       color: AppColors.border.withValues(alpha: 0.3),
                     ),
                   ),
                   enabledBorder: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppConstants.radiusMd),
+                    borderRadius: BorderRadius.circular(AppConstants.radiusMd),
                     borderSide: BorderSide(
                       color: AppColors.border.withValues(alpha: 0.3),
                     ),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppConstants.radiusMd),
+                    borderRadius: BorderRadius.circular(AppConstants.radiusMd),
                     borderSide: const BorderSide(
                       color: AppColors.primary,
                     ),
@@ -282,9 +274,7 @@ class _CategoriesViewState extends State<_CategoriesView> {
             const SizedBox(height: AppConstants.spacingMd),
             ElevatedButton.icon(
               onPressed: () {
-                context
-                    .read<CategoriesBloc>()
-                    .add(const RefreshCategories());
+                context.read<CategoriesBloc>().add(const RefreshCategories());
               },
               icon: const Icon(Icons.refresh, size: 18),
               label: const Text('إعادة المحاولة'),
@@ -382,10 +372,8 @@ class _CategoriesViewState extends State<_CategoriesView> {
                         .read<CategoriesBloc>()
                         .add(SelectCategory(category.id));
                   },
-                  onEdit: () =>
-                      _showEditCategoryDialog(context, category),
-                  onDelete: () =>
-                      _showDeleteConfirmation(context, category),
+                  onEdit: () => _showEditCategoryDialog(context, category),
+                  onDelete: () => _showDeleteConfirmation(context, category),
                 );
               },
             ),
@@ -464,8 +452,7 @@ class _CategoriesViewState extends State<_CategoriesView> {
     );
   }
 
-  void _showEditCategoryDialog(
-      BuildContext context, CategoryEntity category) {
+  void _showEditCategoryDialog(BuildContext context, CategoryEntity category) {
     showDialog(
       context: context,
       builder: (_) => BlocProvider.value(
@@ -475,8 +462,7 @@ class _CategoriesViewState extends State<_CategoriesView> {
     );
   }
 
-  void _showDeleteConfirmation(
-      BuildContext context, CategoryEntity category) {
+  void _showDeleteConfirmation(BuildContext context, CategoryEntity category) {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(

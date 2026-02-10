@@ -234,7 +234,7 @@ List<SidebarItem> getSidebarItems() {
       route: AppRoutes.products,
     ),
     SidebarItem(
-      label: 'الأقسام',
+      label: 'اقسام المتاجر',
       icon: Icons.category_outlined,
       activeIcon: Icons.category,
       route: AppRoutes.categories,
