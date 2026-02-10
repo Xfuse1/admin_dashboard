@@ -1,6 +1,6 @@
 {
-    "name": "admin_dashboard",
-    "short_name": "admin_dashboard",
+    "name": "Admin_Mahalak",
+    "short_name": "Admin_Mahalak",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
