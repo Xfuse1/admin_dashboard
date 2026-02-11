@@ -39,17 +39,6 @@ class GetVendor {
   }
 }
 
-/// Add vendor use case.
-class AddVendor {
-  final VendorsRepository repository;
-
-  AddVendor(this.repository);
-
-  Future<Either<Failure, VendorEntity>> call(VendorEntity vendor) {
-    return repository.addVendor(vendor);
-  }
-}
-
 /// Update vendor use case.
 class UpdateVendor {
   final VendorsRepository repository;
@@ -178,5 +167,44 @@ class GetVendorProducts {
 
   Future<Either<Failure, List<ProductEntity>>> call(String vendorId) {
     return repository.getVendorProducts(vendorId);
+  }
+}
+
+/// Bulk update vendor status use case.
+class BulkUpdateVendorStatus {
+  final VendorsRepository repository;
+
+  BulkUpdateVendorStatus(this.repository);
+
+  Future<Either<Failure, List<VendorEntity>>> call(
+    List<String> vendorIds,
+    VendorStatus status,
+  ) {
+    return repository.bulkUpdateStatus(vendorIds, status);
+  }
+}
+
+/// Bulk delete vendors use case.
+class BulkDeleteVendors {
+  final VendorsRepository repository;
+
+  BulkDeleteVendors(this.repository);
+
+  Future<Either<Failure, void>> call(List<String> vendorIds) {
+    return repository.bulkDeleteVendors(vendorIds);
+  }
+}
+
+/// Bulk update commission rate use case.
+class BulkUpdateCommission {
+  final VendorsRepository repository;
+
+  BulkUpdateCommission(this.repository);
+
+  Future<Either<Failure, List<VendorEntity>>> call(
+    List<String> vendorIds,
+    double commissionRate,
+  ) {
+    return repository.bulkUpdateCommission(vendorIds, commissionRate);
   }
 }

@@ -1,8 +1,6 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../data/driver_applications_repository.dart';
 import '../../domain/entities/account_entities.dart';
-import '../../domain/entities/driver_application_entity.dart';
 import '../../domain/usecases/accounts_usecases.dart';
 import 'accounts_event.dart';
 import 'accounts_state.dart';
@@ -20,7 +18,6 @@ class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
   final GetDriverById _getDriverById;
   final ToggleDriverStatus _toggleDriverStatus;
   final GetAccountStats _getAccountStats;
-  final DriverApplicationsRepository _applicationsRepository;
 
   static const int _pageSize = 20;
 
@@ -36,7 +33,6 @@ class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
     required GetDriverById getDriverById,
     required ToggleDriverStatus toggleDriverStatus,
     required GetAccountStats getAccountStats,
-    required DriverApplicationsRepository applicationsRepository,
   })  : _getCustomers = getCustomers,
         _getCustomerById = getCustomerById,
         _toggleCustomerStatus = toggleCustomerStatus,
@@ -48,7 +44,6 @@ class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
         _getDriverById = getDriverById,
         _toggleDriverStatus = toggleDriverStatus,
         _getAccountStats = getAccountStats,
-        _applicationsRepository = applicationsRepository,
         super(const AccountsInitial()) {
     on<LoadAccountStats>(_onLoadAccountStats);
     on<LoadCustomers>(_onLoadCustomers);
@@ -70,10 +65,6 @@ class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
     on<ToggleDriverStatusEvent>(_onToggleDriverStatus);
     on<SelectDriver>(_onSelectDriver);
     on<LoadDriverDetails>(_onLoadDriverDetails);
-    on<LoadDriverApplications>(_onLoadDriverApplications);
-    on<FilterDriverApplications>(_onFilterDriverApplications);
-    on<UpdateApplicationStatusEvent>(_onUpdateApplicationStatus);
-    on<SelectDriverApplication>(_onSelectDriverApplication);
     on<SwitchAccountTab>(_onSwitchAccountTab);
     on<ClearAccountsError>(_onClearError);
   }
@@ -202,17 +193,9 @@ class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
       (_) {
         final updatedCustomers = currentState.customers.map((c) {
           if (c.id == event.customerId) {
-            return CustomerEntity(
-              id: c.id,
-              name: c.name,
-              email: c.email,
-              phone: c.phone,
+            return c.copyWith(
               isActive: event.isActive,
-              createdAt: c.createdAt,
               updatedAt: DateTime.now(),
-              totalOrders: c.totalOrders,
-              totalSpent: c.totalSpent,
-              lastOrderDate: c.lastOrderDate,
             );
           }
           return c;
@@ -365,26 +348,9 @@ class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
       (_) {
         final updatedStores = currentState.stores.map((s) {
           if (s.id == event.storeId) {
-            return StoreEntity(
-              id: s.id,
-              name: s.name,
-              email: s.email,
-              phone: s.phone,
-              type: s.type,
-              address: s.address,
+            return s.copyWith(
               isActive: event.isActive,
-              isApproved: s.isApproved,
-              isOpen: s.isOpen,
-              rating: s.rating,
-              totalRatings: s.totalRatings,
-              totalOrders: s.totalOrders,
-              totalRevenue: s.totalRevenue,
-              commissionRate: s.commissionRate,
-              createdAt: s.createdAt,
               updatedAt: DateTime.now(),
-              imageUrl: s.imageUrl,
-              categories: s.categories,
-              workingHours: s.workingHours,
             );
           }
           return s;
@@ -397,7 +363,6 @@ class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
           updatedState: updatedState,
         ));
 
-        // Reset state to AccountsLoaded so subsequent actions work
         emit(updatedState);
       },
     );
@@ -424,26 +389,9 @@ class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
       (_) {
         final updatedStores = currentState.stores.map((s) {
           if (s.id == event.storeId) {
-            return StoreEntity(
-              id: s.id,
-              name: s.name,
-              email: s.email,
-              phone: s.phone,
-              type: s.type,
-              address: s.address,
-              isActive: s.isActive,
-              isApproved: s.isApproved,
-              isOpen: s.isOpen,
-              rating: s.rating,
-              totalRatings: s.totalRatings,
-              totalOrders: s.totalOrders,
-              totalRevenue: s.totalRevenue,
+            return s.copyWith(
               commissionRate: event.rate,
-              createdAt: s.createdAt,
               updatedAt: DateTime.now(),
-              imageUrl: s.imageUrl,
-              categories: s.categories,
-              workingHours: s.workingHours,
             );
           }
           return s;
@@ -456,7 +404,6 @@ class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
           updatedState: updatedState,
         ));
 
-        // Reset state to AccountsLoaded so subsequent actions work
         emit(updatedState);
       },
     );
@@ -597,27 +544,9 @@ class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
       (_) {
         final updatedDrivers = currentState.drivers.map((d) {
           if (d.id == event.driverId) {
-            return DriverEntity(
-              id: d.id,
-              name: d.name,
-              email: d.email,
-              phone: d.phone,
+            return d.copyWith(
               isActive: event.isActive,
-              isApproved: d.isApproved,
-              isOnline: d.isOnline,
-              rating: d.rating,
-              totalRatings: d.totalRatings,
-              totalDeliveries: d.totalDeliveries,
-              walletBalance: d.walletBalance,
-              latitude: d.latitude,
-              longitude: d.longitude,
-              vehicleType: d.vehicleType,
-              vehiclePlate: d.vehiclePlate,
-              createdAt: d.createdAt,
               updatedAt: DateTime.now(),
-              imageUrl: d.imageUrl,
-              idCardImage: d.idCardImage,
-              licenseImage: d.licenseImage,
             );
           }
           return d;
@@ -630,7 +559,6 @@ class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
           updatedState: updatedState,
         ));
 
-        // Reset state to AccountsLoaded so subsequent actions work
         emit(updatedState);
       },
     );
@@ -717,102 +645,5 @@ class AccountsBloc extends Bloc<AccountsEvent, AccountsState> {
     if (currentState is AccountsError && currentState.previousState != null) {
       emit(currentState.previousState!);
     }
-  }
-
-  // ============================================
-  // 📋 DRIVER APPLICATIONS
-  // ============================================
-
-  Future<void> _onLoadDriverApplications(
-    LoadDriverApplications event,
-    Emitter<AccountsState> emit,
-  ) async {
-    final currentState = state;
-    AccountsLoaded loadedState;
-
-    if (currentState is AccountsLoaded) {
-      loadedState = currentState;
-    } else {
-      emit(const AccountsLoading());
-      loadedState = const AccountsLoaded();
-    }
-
-    await emit.forEach(
-      event.status != null
-          ? _applicationsRepository.getApplicationsByStatus(event.status!)
-          : _applicationsRepository.getApplicationsStream(),
-      onData: (applications) {
-        return loadedState.copyWith(
-          driverApplications: applications,
-          applicationFilter: event.status,
-        );
-      },
-      onError: (error, _) {
-        return AccountsError(
-          error.toString(),
-          previousState: loadedState,
-        );
-      },
-    );
-  }
-
-  Future<void> _onFilterDriverApplications(
-    FilterDriverApplications event,
-    Emitter<AccountsState> emit,
-  ) async {
-    add(LoadDriverApplications(status: event.status));
-  }
-
-  Future<void> _onUpdateApplicationStatus(
-    UpdateApplicationStatusEvent event,
-    Emitter<AccountsState> emit,
-  ) async {
-    final currentState = state;
-    if (currentState is! AccountsLoaded) return;
-
-    emit(AccountActionInProgress(
-      accountId: event.applicationId,
-      action: 'تحديث حالة الطلب',
-      previousState: currentState,
-    ));
-
-    try {
-      await _applicationsRepository.updateApplicationStatus(
-        applicationId: event.applicationId,
-        newStatus: event.newStatus,
-        reviewedBy: event.reviewedBy,
-        rejectionReason: event.rejectionReason,
-      );
-
-      final message = event.newStatus == ApplicationStatus.approved
-          ? 'تم قبول الطلب بنجاح'
-          : 'تم رفض الطلب';
-
-      emit(AccountActionSuccess(
-        message: message,
-        updatedState: currentState,
-      ));
-
-      // Reload applications
-      add(LoadDriverApplications(status: currentState.applicationFilter));
-    } catch (e) {
-      emit(AccountsError(
-        'فشل تحديث حالة الطلب: ${e.toString()}',
-        previousState: currentState,
-      ));
-    }
-  }
-
-  void _onSelectDriverApplication(
-    SelectDriverApplication event,
-    Emitter<AccountsState> emit,
-  ) {
-    final currentState = state;
-    if (currentState is! AccountsLoaded) return;
-
-    emit(currentState.copyWith(
-      selectedApplication: event.application,
-      clearSelectedApplication: event.application == null,
-    ));
   }
 }

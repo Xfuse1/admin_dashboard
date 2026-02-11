@@ -1,6 +1,4 @@
-// ignore_for_file: curly_braces_in_flow_control_structures
-
-import 'package:cloud_firestore/cloud_firestore.dart';
+﻿import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../../core/firebase/firebase_service.dart';
 import '../../domain/repositories/accounts_repository.dart';
@@ -14,10 +12,7 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
   AccountsFirebaseDataSource({FirebaseFirestore? firestore})
       : _firestore = firestore ?? FirebaseFirestore.instance;
 
-  CollectionReference<Map<String, dynamic>> get _customersCollection =>
-      _firestore.collection('users');
-
-  CollectionReference<Map<String, dynamic>> get _storesCollection =>
+  CollectionReference<Map<String, dynamic>> get _usersCollection =>
       _firestore.collection('users');
 
   CollectionReference<Map<String, dynamic>> get _driversCollection =>
@@ -46,10 +41,11 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
         final street = value['street'] ?? '';
         final city = value['city'] ?? '';
         final country = value['country'] ?? '';
-        if (street != '')
+        if (street != '') {
           return '$street, $city, $country'
               .replaceAll(RegExp(r', , '), ', ')
               .trim();
+        }
         return value.toString();
       }
       return value.toString();
@@ -67,31 +63,21 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
       normalized['lastOrderDate'] = toIsoString(normalized['lastOrderDate']);
     }
 
-    // Address construction from top-level fields
+    // Address construction
     if (!normalized.containsKey('address')) {
-      final street = normalized['street'];
-      final city = normalized['city'];
-      final country = normalized['country'];
-
-      final parts = <String>[];
-      if (street != null && street.toString().isNotEmpty)
-        parts.add(street.toString());
-      if (city != null && city.toString().isNotEmpty)
-        parts.add(city.toString());
-      if (country != null && country.toString().isNotEmpty)
-        parts.add(country.toString());
-
+      final parts = ['street', 'city', 'country']
+          .map((k) => normalized[k]?.toString() ?? '')
+          .where((s) => s.isNotEmpty)
+          .toList();
       if (parts.isNotEmpty) {
         normalized['address'] = parts.join(', ');
       }
-    } else if (normalized.containsKey('address')) {
+    } else {
       normalized['address'] = toString(normalized['address']);
     }
 
-    // Ensure safe types for other potentially problematic fields
-    // Image URL normalization - handle multiple field names
-    if (!normalized.containsKey('imageUrl') ||
-        normalized['imageUrl'] is! String) {
+    // Image URL normalization
+    if (normalized['imageUrl'] is! String) {
       normalized['imageUrl'] = normalized['profile_image'] ??
           normalized['image_url'] ??
           normalized['photo_url'];
@@ -101,10 +87,9 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
     if (normalized['phone'] is! String) normalized['phone'] = '';
     if (normalized['email'] is! String) normalized['email'] = '';
 
-    // Name field normalization (Updated for user schema)
+    // Name field normalization
     if (normalized['full_name'] is String &&
         (normalized['full_name'] as String).isNotEmpty) {
-      // Primary match for user schema
       normalized['name'] = normalized['full_name'];
     } else if (normalized['name'] is Map) {
       final nameMap = normalized['name'] as Map;
@@ -115,7 +100,7 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
     } else if (normalized['name'] == null ||
         (normalized['name'] is String &&
             (normalized['name'] as String).isEmpty)) {
-      normalized['name'] = 'مستخدم غير معروف';
+      normalized['name'] = 'Ù…Ø³ØªØ®Ø¯Ù… ØºÙŠØ± Ù…Ø¹Ø±ÙˆÙ';
     } else if (normalized['name'] is! String) {
       normalized['name'] = normalized['name'].toString();
     }
@@ -124,7 +109,7 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
   }
 
   // ============================================
-  // 👥 CUSTOMERS
+  // ðŸ‘¥ CUSTOMERS
   // ============================================
 
   @override
@@ -135,7 +120,7 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
     String? lastId,
   }) async {
     Query<Map<String, dynamic>> query =
-        _customersCollection.where('role', isEqualTo: 'customer');
+        _usersCollection.where('role', isEqualTo: 'customer');
 
     if (isActive != null) {
       query = query.where('isActive', isEqualTo: isActive);
@@ -155,7 +140,7 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
     query = query.limit(limit);
 
     if (lastId != null) {
-      final lastDoc = await _customersCollection.doc(lastId).get();
+      final lastDoc = await _usersCollection.doc(lastId).get();
       if (lastDoc.exists) {
         query = query.startAfterDocument(lastDoc);
       }
@@ -170,12 +155,18 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
       final normalizedData = _normalizeDateFields(data);
 
       // Ensure required fields exist
-      if (!normalizedData.containsKey('name'))
+      if (!normalizedData.containsKey('name')) {
         normalizedData['name'] = 'مستخدم ${doc.id.substring(0, 4)}';
-      if (!normalizedData.containsKey('email')) normalizedData['email'] = '';
-      if (!normalizedData.containsKey('phone')) normalizedData['phone'] = '';
-      if (!normalizedData.containsKey('isActive'))
+      }
+      if (!normalizedData.containsKey('email')) {
+        normalizedData['email'] = '';
+      }
+      if (!normalizedData.containsKey('phone')) {
+        normalizedData['phone'] = '';
+      }
+      if (!normalizedData.containsKey('isActive')) {
         normalizedData['isActive'] = true;
+      }
 
       return CustomerModel.fromJson(normalizedData);
     }).toList();
@@ -186,7 +177,7 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
 
   @override
   Future<CustomerModel> getCustomerById(String id) async {
-    final doc = await _customersCollection.doc(id).get();
+    final doc = await _usersCollection.doc(id).get();
     if (!doc.exists) {
       throw Exception('Customer not found');
     }
@@ -254,11 +245,11 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
 
   @override
   Future<void> toggleCustomerStatus(String id, bool isActive) async {
-    await _customersCollection.doc(id).update({'isActive': isActive});
+    await _usersCollection.doc(id).update({'isActive': isActive});
   }
 
   // ============================================
-  // 🏪 STORES
+  // ðŸª STORES
   // ============================================
 
   @override
@@ -272,7 +263,7 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
   }) async {
     // Filter only seller users (who have stores)
     Query<Map<String, dynamic>> query =
-        _storesCollection.where('role', isEqualTo: 'seller');
+        _usersCollection.where('role', isEqualTo: 'seller');
 
     if (isApproved != null) {
       query = query.where('store.is_approved', isEqualTo: isApproved);
@@ -290,7 +281,7 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
     query = query.limit(limit);
 
     if (lastId != null) {
-      final lastDoc = await _storesCollection.doc(lastId).get();
+      final lastDoc = await _usersCollection.doc(lastId).get();
       if (lastDoc.exists) {
         query = query.startAfterDocument(lastDoc);
       }
@@ -300,27 +291,9 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
 
     var stores =
         snapshot.docs.where((doc) => doc.data()['store'] != null).map((doc) {
-      final userData = doc.data();
-      final storeData =
-          (userData['store'] as Map<String, dynamic>?) ?? <String, dynamic>{};
-      final data = <String, dynamic>{
-        'id': doc.id,
-        'name': storeData['name'] ?? userData['full_name'] ?? 'Unknown',
-        'email': storeData['support_email'] ?? userData['email'] ?? '',
-        'phone': storeData['phone'] ?? userData['phone'] ?? '',
-        'imageUrl': storeData['image_url'],
-        'isActive': storeData['is_approved'] ?? false,
-        'isApproved': storeData['is_approved'] ?? false,
-        'type': storeData['category'] ?? 'other',
-        'description': storeData['description'],
-        'address': storeData['address'] ?? userData['street'] ?? '',
-        'latitude': storeData['latitude'],
-        'longitude': storeData['longitude'],
-        'rating': storeData['rating'] ?? 0,
-        'created_at': storeData['created_at'] ?? userData['created_at'],
-        'updated_at': storeData['updated_at'] ?? userData['updated_at'],
-      };
-      return StoreModel.fromJson(_normalizeDateFields(data));
+      return StoreModel.fromJson(_normalizeDateFields(
+        _mapStoreData(doc.id, doc.data()),
+      ));
     }).toList();
 
     // Client-side search filtering
@@ -339,21 +312,38 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
       stores = stores.where((s) => s.type == type).toList();
     }
 
-    // Stats (totalOrders) are fetched only in getStoreById
-    // to avoid N+1 query performance issues in list view
     return stores;
   }
 
   @override
   Future<StoreModel> getStoreById(String id) async {
-    final doc = await _storesCollection.doc(id).get();
+    final doc = await _usersCollection.doc(id).get();
     if (!doc.exists) throw Exception('Store not found');
 
-    final userData = doc.data()!;
+    var store = StoreModel.fromJson(_normalizeDateFields(
+      _mapStoreData(doc.id, doc.data()!),
+    ));
+
+    // Fetch totalOrders on detail view only
+    try {
+      final count = await _firestore
+          .collection('orders')
+          .where('store_id', isEqualTo: id)
+          .count()
+          .get();
+      store = store.copyWith(totalOrders: count.count ?? 0);
+    } catch (_) {}
+
+    return store;
+  }
+
+  /// Maps Firestore user+store data into a flat map for [StoreModel.fromJson].
+  Map<String, dynamic> _mapStoreData(
+      String docId, Map<String, dynamic> userData) {
     final storeData =
         (userData['store'] as Map<String, dynamic>?) ?? <String, dynamic>{};
-    final data = <String, dynamic>{
-      'id': doc.id,
+    return {
+      'id': docId,
       'name': storeData['name'] ?? userData['full_name'] ?? 'Unknown',
       'email': storeData['support_email'] ?? userData['email'] ?? '',
       'phone': storeData['phone'] ?? userData['phone'] ?? '',
@@ -369,28 +359,11 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
       'created_at': storeData['created_at'] ?? userData['created_at'],
       'updated_at': storeData['updated_at'] ?? userData['updated_at'],
     };
-
-    var store = StoreModel.fromJson(_normalizeDateFields(data));
-
-    // Dynamically fetch totalOrders
-    try {
-      final orderCountSnapshot = await _firestore
-          .collection('orders')
-          .where('store_id', isEqualTo: id)
-          .count()
-          .get();
-      final totalOrders = orderCountSnapshot.count ?? 0;
-      store = store.copyWith(totalOrders: totalOrders);
-    } catch (e) {
-      // Ignore
-    }
-
-    return store;
   }
 
   @override
   Future<void> toggleStoreStatus(String id, bool isActive) async {
-    await _storesCollection.doc(id).update({
+    await _usersCollection.doc(id).update({
       'store.is_approved': isActive,
       'store.updated_at': FieldValue.serverTimestamp(),
       'updated_at': FieldValue.serverTimestamp(),
@@ -399,14 +372,14 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
 
   @override
   Future<void> updateStoreCommission(String id, double rate) async {
-    await _storesCollection.doc(id).update({
+    await _usersCollection.doc(id).update({
       'store.commissionRate': rate,
       'store.updated_at': FieldValue.serverTimestamp(),
     });
   }
 
   // ============================================
-  // 🚗 DRIVERS
+  // ðŸš— DRIVERS
   // ============================================
 
   @override
@@ -522,17 +495,17 @@ class AccountsFirebaseDataSource implements AccountsDataSource {
   }
 
   // ============================================
-  // 📊 STATISTICS
+  // ðŸ“Š STATISTICS
   // ============================================
 
   @override
   Future<AccountStats> getAccountStats() async {
     // Customers are now inside users collection with role=customer
     final customersQuery =
-        _customersCollection.where('role', isEqualTo: 'customer');
+        _usersCollection.where('role', isEqualTo: 'customer');
 
     // Stores are now inside users collection with role=seller
-    final sellersQuery = _storesCollection.where('role', isEqualTo: 'seller');
+    final sellersQuery = _usersCollection.where('role', isEqualTo: 'seller');
 
     // Parallel fetch for aggregates
     final results = await Future.wait([

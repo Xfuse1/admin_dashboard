@@ -5,6 +5,7 @@ import 'package:iconsax_flutter/iconsax_flutter.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../domain/entities/vendor_entity.dart';
+import '../utils/vendor_utils.dart';
 
 /// Vendor card widget for the vendors list.
 class VendorCard extends StatelessWidget {
@@ -284,23 +285,11 @@ class _VendorLogo extends StatelessWidget {
   Widget _buildPlaceholder() {
     return Center(
       child: Icon(
-        _getCategoryIcon(),
+        VendorUtils.getCategoryIcon(category),
         color: AppColors.primary,
         size: 32,
       ),
     );
-  }
-
-  IconData _getCategoryIcon() {
-    return switch (category) {
-      VendorCategory.food => Icons.restaurant,
-      VendorCategory.grocery => Icons.local_grocery_store,
-      VendorCategory.health => Icons.local_hospital,
-      VendorCategory.electronics => Icons.devices,
-      VendorCategory.clothes => Icons.checkroom,
-      VendorCategory.furniture => Icons.chair,
-      VendorCategory.other => Icons.store,
-    };
   }
 }
 
@@ -311,12 +300,8 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (color, label) = switch (status) {
-      VendorStatus.active => (AppColors.success, 'نشط'),
-      VendorStatus.inactive => (AppColors.textTertiary, 'غير نشط'),
-      VendorStatus.pending => (AppColors.warning, 'قيد المراجعة'),
-      VendorStatus.suspended => (AppColors.error, 'موقوف'),
-    };
+    final color = VendorUtils.getStatusColor(status);
+    final label = VendorUtils.getStatusLabel(status);
 
     return Container(
       padding: const EdgeInsets.symmetric(
@@ -379,14 +364,14 @@ class _CategoryBadge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            _getCategoryIcon(),
+            VendorUtils.getCategoryIcon(category),
             size: 12,
             color: AppColors.textSecondary,
           ),
           const SizedBox(width: 4),
           Flexible(
             child: Text(
-              _getCategoryLabel(),
+              VendorUtils.getCategoryLabel(category, label),
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: AppColors.textSecondary,
                     fontSize: 11,
@@ -397,34 +382,6 @@ class _CategoryBadge extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  IconData _getCategoryIcon() {
-    return switch (category) {
-      VendorCategory.food => Icons.restaurant,
-      VendorCategory.grocery => Icons.local_grocery_store,
-      VendorCategory.health => Icons.local_hospital,
-      VendorCategory.electronics => Icons.devices,
-      VendorCategory.clothes => Icons.checkroom,
-      VendorCategory.furniture => Icons.chair,
-      VendorCategory.other => Icons.store,
-    };
-  }
-
-  String _getCategoryLabel() {
-    final normalizedLabel = label?.trim();
-    if (normalizedLabel != null && normalizedLabel.isNotEmpty) {
-      return normalizedLabel;
-    }
-    return switch (category) {
-      VendorCategory.food => 'أغذية',
-      VendorCategory.grocery => 'بقالة',
-      VendorCategory.health => 'صحة',
-      VendorCategory.electronics => 'إلكترونيات',
-      VendorCategory.clothes => 'ملابس',
-      VendorCategory.furniture => 'أثاث',
-      VendorCategory.other => 'أخرى',
-    };
   }
 }
 

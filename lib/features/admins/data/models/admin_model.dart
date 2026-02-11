@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../../domain/entities/admin_entity.dart';
 
 /// Data model for Admin with Firestore serialization.
@@ -20,8 +22,8 @@ class AdminModel extends AdminEntity {
       email: data['email'] ?? '',
       role: data['role'] ?? 'admin',
       isActive: data['isActive'] ?? true,
-      createdAt: data['createdAt'] != null
-          ? (data['createdAt'] as dynamic).toDate()
+      createdAt: data['createdAt'] is Timestamp
+          ? (data['createdAt'] as Timestamp).toDate()
           : null,
       createdBy: data['createdBy'] as String?,
     );
@@ -34,7 +36,8 @@ class AdminModel extends AdminEntity {
       'email': email,
       'role': role,
       'isActive': isActive,
-      'createdBy': createdBy,
+      if (createdBy != null) 'createdBy': createdBy,
+      if (createdAt != null) 'createdAt': Timestamp.fromDate(createdAt!),
     };
   }
 }

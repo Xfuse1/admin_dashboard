@@ -15,9 +15,6 @@ abstract class VendorsDataSource {
   /// Get a single vendor by ID.
   Future<VendorEntity> getVendor(String id);
 
-  /// Add a new vendor.
-  Future<VendorEntity> addVendor(VendorEntity vendor);
-
   /// Update an existing vendor.
   Future<VendorEntity> updateVendor(VendorEntity vendor);
 
@@ -57,4 +54,19 @@ abstract class VendorsDataSource {
 
   /// Get products for a vendor.
   Future<List<ProductEntity>> getVendorProducts(String vendorId);
+
+  /// Bulk update vendor status.
+  Future<List<VendorEntity>> bulkUpdateStatus(
+    List<String> vendorIds,
+    VendorStatus status,
+  );
+
+  /// Bulk delete vendors.
+  Future<void> bulkDeleteVendors(List<String> vendorIds);
+
+  /// Bulk update commission rate.
+  Future<List<VendorEntity>> bulkUpdateCommission(
+    List<String> vendorIds,
+    double commissionRate,
+  );
 }

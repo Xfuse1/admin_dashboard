@@ -76,16 +76,6 @@ class ClearSelectedVendor extends VendorsEvent {
   const ClearSelectedVendor();
 }
 
-/// Add new vendor.
-class AddVendorEvent extends VendorsEvent {
-  final VendorEntity vendor;
-
-  const AddVendorEvent(this.vendor);
-
-  @override
-  List<Object?> get props => [vendor];
-}
-
 /// Update vendor.
 class UpdateVendorEvent extends VendorsEvent {
   final VendorEntity vendor;

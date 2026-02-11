@@ -18,9 +18,6 @@ abstract class VendorsRepository {
   /// Get a single vendor by ID.
   Future<Either<Failure, VendorEntity>> getVendor(String id);
 
-  /// Add a new vendor.
-  Future<Either<Failure, VendorEntity>> addVendor(VendorEntity vendor);
-
   /// Update an existing vendor.
   Future<Either<Failure, VendorEntity>> updateVendor(VendorEntity vendor);
 
@@ -67,5 +64,21 @@ abstract class VendorsRepository {
   Future<Either<Failure, VendorEntity>> verifyVendor(String id);
 
   /// Get products for a vendor.
-  Future<Either<Failure, List<ProductEntity>>> getVendorProducts(String vendorId);
+  Future<Either<Failure, List<ProductEntity>>> getVendorProducts(
+      String vendorId);
+
+  /// Bulk update vendor status.
+  Future<Either<Failure, List<VendorEntity>>> bulkUpdateStatus(
+    List<String> vendorIds,
+    VendorStatus status,
+  );
+
+  /// Bulk delete vendors.
+  Future<Either<Failure, void>> bulkDeleteVendors(List<String> vendorIds);
+
+  /// Bulk update commission rate.
+  Future<Either<Failure, List<VendorEntity>>> bulkUpdateCommission(
+    List<String> vendorIds,
+    double commissionRate,
+  );
 }

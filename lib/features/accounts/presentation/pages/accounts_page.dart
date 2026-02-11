@@ -1,5 +1,3 @@
-// ignore_for_file: curly_braces_in_flow_control_structures
-
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -139,10 +137,12 @@ class _AccountsPageState extends State<AccountsPage>
 
             // If we are still loading initial data or error
             if (effectiveState == null) {
-              if (state is AccountsLoading)
+              if (state is AccountsLoading) {
                 return const Center(child: CircularProgressIndicator());
-              if (state is AccountsError)
-                return Center(child: Text(state.message)); // Simplified error
+              }
+              if (state is AccountsError) {
+                return Center(child: Text(state.message));
+              }
               return const SizedBox.shrink();
             }
 
@@ -332,32 +332,37 @@ class _AccountsPageState extends State<AccountsPage>
           const SizedBox(height: 16),
 
           // Search Bar
-          TextField(
-            controller: _searchController,
-            onChanged: _onSearch,
-            decoration: InputDecoration(
-              hintText: 'البحث...',
-              prefixIcon: const Icon(Iconsax.search_normal_1),
-              suffixIcon: _searchController.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear),
-                      onPressed: () {
-                        _searchController.clear();
-                        _onSearch('');
-                      },
-                    )
-                  : null,
-              filled: true,
-              fillColor: AppColors.surface,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
-            ),
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _searchController,
+            builder: (context, value, _) {
+              return TextField(
+                controller: _searchController,
+                onChanged: _onSearch,
+                decoration: InputDecoration(
+                  hintText: 'البحث...',
+                  prefixIcon: const Icon(Iconsax.search_normal_1),
+                  suffixIcon: value.text.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            _searchController.clear();
+                            _onSearch('');
+                          },
+                        )
+                      : null,
+                  filled: true,
+                  fillColor: AppColors.surface,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),

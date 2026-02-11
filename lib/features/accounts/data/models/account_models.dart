@@ -55,6 +55,7 @@ class CustomerModel extends CustomerEntity {
     };
   }
 
+  @override
   CustomerModel copyWith({
     String? id,
     String? name,
@@ -171,6 +172,7 @@ class StoreModel extends StoreEntity {
     };
   }
 
+  @override
   StoreModel copyWith({
     String? id,
     String? name,
@@ -317,6 +319,7 @@ class DriverModel extends DriverEntity {
     };
   }
 
+  @override
   DriverModel copyWith({
     String? id,
     String? name,

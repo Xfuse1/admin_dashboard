@@ -12,7 +12,6 @@ import 'vendors_state.dart';
 class VendorsBloc extends Bloc<VendorsEvent, VendorsState> {
   final GetVendors getVendors;
   final GetVendor getVendor;
-  final AddVendor addVendor;
   final UpdateVendor updateVendor;
   final DeleteVendor deleteVendor;
   final ToggleVendorStatus toggleVendorStatus;
@@ -26,7 +25,6 @@ class VendorsBloc extends Bloc<VendorsEvent, VendorsState> {
   VendorsBloc({
     required this.getVendors,
     required this.getVendor,
-    required this.addVendor,
     required this.updateVendor,
     required this.deleteVendor,
     required this.toggleVendorStatus,
@@ -45,7 +43,6 @@ class VendorsBloc extends Bloc<VendorsEvent, VendorsState> {
     on<FilterByCategory>(_onFilterByCategory);
     on<SelectVendor>(_onSelectVendor);
     on<ClearSelectedVendor>(_onClearSelectedVendor);
-    on<AddVendorEvent>(_onAddVendor);
     on<UpdateVendorEvent>(_onUpdateVendor);
     on<DeleteVendorEvent>(_onDeleteVendor);
     on<ToggleVendorStatusEvent>(_onToggleVendorStatus);
@@ -205,29 +202,6 @@ class VendorsBloc extends Bloc<VendorsEvent, VendorsState> {
     if (currentState is VendorsLoaded) {
       emit(currentState.copyWith(clearSelectedVendor: true));
     }
-  }
-
-  Future<void> _onAddVendor(
-    AddVendorEvent event,
-    Emitter<VendorsState> emit,
-  ) async {
-    final currentState = state;
-    if (currentState is! VendorsLoaded) return;
-
-    final result = await addVendor(event.vendor);
-
-    result.fold(
-      (failure) => emit(VendorsError(failure.message)),
-      (vendor) {
-        final updatedVendors = [vendor, ...currentState.vendors];
-        final updatedState = currentState.copyWith(vendors: updatedVendors);
-        emit(VendorsActionSuccess(
-          successMessage: 'تمت إضافة المتجر بنجاح',
-          previousState: updatedState,
-        ));
-        emit(updatedState);
-      },
-    );
   }
 
   Future<void> _onUpdateVendor(

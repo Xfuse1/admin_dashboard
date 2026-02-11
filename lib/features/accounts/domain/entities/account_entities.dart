@@ -48,6 +48,36 @@ class CustomerEntity extends AccountEntity {
     this.lastOrderDate,
   });
 
+  CustomerEntity copyWith({
+    String? id,
+    String? name,
+    String? email,
+    String? phone,
+    String? imageUrl,
+    bool? isActive,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    int? totalOrders,
+    double? totalSpent,
+    String? lastOrderId,
+    DateTime? lastOrderDate,
+  }) {
+    return CustomerEntity(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      email: email ?? this.email,
+      phone: phone ?? this.phone,
+      imageUrl: imageUrl ?? this.imageUrl,
+      isActive: isActive ?? this.isActive,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      totalOrders: totalOrders ?? this.totalOrders,
+      totalSpent: totalSpent ?? this.totalSpent,
+      lastOrderId: lastOrderId ?? this.lastOrderId,
+      lastOrderDate: lastOrderDate ?? this.lastOrderDate,
+    );
+  }
+
   @override
   List<Object?> get props => [...super.props, totalOrders, totalSpent];
 }
@@ -95,6 +125,59 @@ class StoreEntity extends AccountEntity {
     this.categories = const [],
     this.workingHours,
   });
+
+  StoreEntity copyWith({
+    String? id,
+    String? name,
+    String? email,
+    String? phone,
+    String? imageUrl,
+    bool? isActive,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    String? type,
+    String? description,
+    String? address,
+    double? latitude,
+    double? longitude,
+    bool? isOpen,
+    bool? isApproved,
+    double? rating,
+    int? totalRatings,
+    int? totalOrders,
+    double? totalRevenue,
+    double? commissionRate,
+    String? commercialRegisterImage,
+    List<String>? categories,
+    WorkingHours? workingHours,
+  }) {
+    return StoreEntity(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      email: email ?? this.email,
+      phone: phone ?? this.phone,
+      imageUrl: imageUrl ?? this.imageUrl,
+      isActive: isActive ?? this.isActive,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      type: type ?? this.type,
+      description: description ?? this.description,
+      address: address ?? this.address,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      isOpen: isOpen ?? this.isOpen,
+      isApproved: isApproved ?? this.isApproved,
+      rating: rating ?? this.rating,
+      totalRatings: totalRatings ?? this.totalRatings,
+      totalOrders: totalOrders ?? this.totalOrders,
+      totalRevenue: totalRevenue ?? this.totalRevenue,
+      commissionRate: commissionRate ?? this.commissionRate,
+      commercialRegisterImage:
+          commercialRegisterImage ?? this.commercialRegisterImage,
+      categories: categories ?? this.categories,
+      workingHours: workingHours ?? this.workingHours,
+    );
+  }
 
   @override
   List<Object?> get props => [
@@ -154,6 +237,62 @@ class DriverEntity extends AccountEntity {
     this.rejectionsCounter = 0,
     this.currentOrdersCount = 0,
   });
+
+  DriverEntity copyWith({
+    String? id,
+    String? name,
+    String? email,
+    String? phone,
+    String? imageUrl,
+    bool? isActive,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+    bool? isOnline,
+    bool? isApproved,
+    double? rating,
+    int? totalRatings,
+    int? totalDeliveries,
+    double? walletBalance,
+    double? latitude,
+    double? longitude,
+    String? vehicleType,
+    String? vehiclePlate,
+    String? licenseImage,
+    String? idCardImage,
+    String? vehicleImage,
+    String? criminalRecordImage,
+    DateTime? lastActiveAt,
+    int? rejectionsCounter,
+    int? currentOrdersCount,
+  }) {
+    return DriverEntity(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      email: email ?? this.email,
+      phone: phone ?? this.phone,
+      imageUrl: imageUrl ?? this.imageUrl,
+      isActive: isActive ?? this.isActive,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+      isOnline: isOnline ?? this.isOnline,
+      isApproved: isApproved ?? this.isApproved,
+      rating: rating ?? this.rating,
+      totalRatings: totalRatings ?? this.totalRatings,
+      totalDeliveries: totalDeliveries ?? this.totalDeliveries,
+      walletBalance: walletBalance ?? this.walletBalance,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      vehicleType: vehicleType ?? this.vehicleType,
+      vehiclePlate: vehiclePlate ?? this.vehiclePlate,
+      licenseImage: licenseImage ?? this.licenseImage,
+      idCardImage: idCardImage ?? this.idCardImage,
+      vehicleImage: vehicleImage ?? this.vehicleImage,
+      criminalRecordImage: criminalRecordImage ?? this.criminalRecordImage,
+      lastActiveAt: lastActiveAt ?? this.lastActiveAt,
+      rejectionsCounter: rejectionsCounter ?? this.rejectionsCounter,
+      currentOrdersCount: currentOrdersCount ?? this.currentOrdersCount,
+    );
+  }
 
   @override
   List<Object?> get props => [

@@ -45,7 +45,16 @@ class _ManageAdminsViewState extends State<_ManageAdminsView> {
     super.dispose();
   }
 
+  static final _emailRegex = RegExp(
+    r'^[\w.+-]+@([\w-]+\.)+[\w-]{2,}$',
+  );
+
   void _showAddAdminDialog() {
+    // Clear controllers before opening dialog
+    _nameController.clear();
+    _emailController.clear();
+    _passwordController.clear();
+
     final adminsBloc = context.read<AdminsBloc>();
     showDialog(
       context: context,
@@ -136,95 +145,100 @@ class _ManageAdminsViewState extends State<_ManageAdminsView> {
             return Scaffold(
               backgroundColor: AppColors.background,
               body: Padding(
-                padding: EdgeInsets.all(
-                    isDesktop ? AppConstants.spacingLg : AppConstants.spacingMd),
+                padding: EdgeInsets.all(isDesktop
+                    ? AppConstants.spacingLg
+                    : AppConstants.spacingMd),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // العنوان وزر الإضافة
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'إدارة المسؤولين',
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineMedium
-                              ?.copyWith(
-                                color: AppColors.textPrimary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'إضافة وإدارة حسابات المسؤولين',
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'إدارة المسؤولين',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .headlineMedium
+                                  ?.copyWith(
+                                    color: AppColors.textPrimary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'إضافة وإدارة حسابات المسؤولين',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
                                     color: AppColors.textSecondary,
                                   ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    if (!isDesktop) const SizedBox(width: 8),
-                    ElevatedButton.icon(
-                      onPressed: isSuperAdmin && !isActionInProgress
-                          ? _showAddAdminDialog
-                          : null,
-                      icon: const Icon(Iconsax.add, size: 20),
-                      label: Text(isDesktop ? 'إضافة مسؤول' : 'إضافة'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        foregroundColor: Colors.white,
-                        disabledBackgroundColor:
-                            AppColors.textSecondary.withValues(alpha: 0.3),
-                        disabledForegroundColor: AppColors.textSecondary,
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isDesktop ? 24 : 16,
-                          vertical: 16,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                if (!isSuperAdmin) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppColors.warning.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: AppColors.warning.withValues(alpha: 0.3),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Iconsax.info_circle,
-                          color: AppColors.warning,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'يمكن فقط لـ Super Admin إضافة أو حذف المسؤولين',
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      color: AppColors.warning,
-                                    ),
+                        if (!isDesktop) const SizedBox(width: 8),
+                        ElevatedButton.icon(
+                          onPressed: isSuperAdmin && !isActionInProgress
+                              ? _showAddAdminDialog
+                              : null,
+                          icon: const Icon(Iconsax.add, size: 20),
+                          label: Text(isDesktop ? 'إضافة مسؤول' : 'إضافة'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            disabledBackgroundColor:
+                                AppColors.textSecondary.withValues(alpha: 0.3),
+                            disabledForegroundColor: AppColors.textSecondary,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isDesktop ? 24 : 16,
+                              vertical: 16,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ],
-                const SizedBox(height: AppConstants.spacingLg),
+                    if (!isSuperAdmin) ...[
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.warning.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: AppColors.warning.withValues(alpha: 0.3),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Iconsax.info_circle,
+                              color: AppColors.warning,
+                              size: 20,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'يمكن فقط لـ Super Admin إضافة أو حذف المسؤولين',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodySmall
+                                    ?.copyWith(
+                                      color: AppColors.warning,
+                                    ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: AppConstants.spacingLg),
 
                     // قائمة المسؤولين
                     Expanded(
@@ -246,10 +260,13 @@ class _ManageAdminsViewState extends State<_ManageAdminsView> {
   }
 
   List<AdminEntity> _getAdminsFromState(AdminsState state) {
-    if (state is AdminsLoaded) return state.admins;
-    if (state is AdminActionInProgress) return state.admins;
-    if (state is AdminActionSuccess) return state.admins;
-    return [];
+    return switch (state) {
+      AdminsLoaded(:final admins) => admins,
+      AdminActionInProgress(:final admins) => admins,
+      AdminActionSuccess(:final admins) => admins,
+      AdminsError(:final admins) => admins,
+      _ => const [],
+    };
   }
 
   Widget _buildEmptyState() {
@@ -283,24 +300,33 @@ class _ManageAdminsViewState extends State<_ManageAdminsView> {
 
   Widget _buildAdminsList(
       List<AdminEntity> admins, bool isDesktop, bool isSuperAdmin) {
+    // Read currentUserId once for the entire list
+    final authState = context.read<AuthBloc>().state;
+    final currentUserId =
+        authState is AuthAuthenticated ? authState.user.id : '';
+
     return ListView.separated(
       itemCount: admins.length,
       separatorBuilder: (context, index) =>
           const SizedBox(height: AppConstants.spacingMd),
       itemBuilder: (context, index) {
         final admin = admins[index];
-        return _buildAdminCard(admin, isDesktop, isSuperAdmin);
+        return _buildAdminCard(
+          admin,
+          isDesktop: isDesktop,
+          isSuperAdmin: isSuperAdmin,
+          isCurrentUser: admin.id == currentUserId,
+        );
       },
     );
   }
 
-  Widget _buildAdminCard(AdminEntity admin, bool isDesktop, bool isSuperAdmin) {
-    // Get current user ID from AuthBloc
-    final authState = context.read<AuthBloc>().state;
-    final currentUserId =
-        authState is AuthAuthenticated ? authState.user.id : '';
-    final isCurrentUser = admin.id == currentUserId;
-
+  Widget _buildAdminCard(
+    AdminEntity admin, {
+    required bool isDesktop,
+    required bool isSuperAdmin,
+    required bool isCurrentUser,
+  }) {
     return GlassCard(
       child: Padding(
         padding: const EdgeInsets.all(AppConstants.spacingMd),
@@ -489,7 +515,7 @@ class _ManageAdminsViewState extends State<_ManageAdminsView> {
                   if (value == null || value.trim().isEmpty) {
                     return 'البريد الإلكتروني مطلوب';
                   }
-                  if (!value.contains('@')) {
+                  if (!_emailRegex.hasMatch(value.trim())) {
                     return 'البريد الإلكتروني غير صالح';
                   }
                   return null;
@@ -528,9 +554,6 @@ class _ManageAdminsViewState extends State<_ManageAdminsView> {
         BlocConsumer<AdminsBloc, AdminsState>(
           listener: (context, state) {
             if (state is AdminActionSuccess) {
-              _nameController.clear();
-              _emailController.clear();
-              _passwordController.clear();
               if (dialogContext.mounted) {
                 Navigator.of(dialogContext).pop();
               }

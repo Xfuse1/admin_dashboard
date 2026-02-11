@@ -130,6 +130,73 @@ final class FirebaseFailure extends Failure {
       );
 }
 
+/// Not found failure (resource doesn't exist).
+final class NotFoundFailure extends Failure {
+  const NotFoundFailure({
+    required super.message,
+    super.code,
+  });
+
+  /// Generic not found
+  factory NotFoundFailure.generic(String resourceName) => NotFoundFailure(
+        message: '$resourceName غير موجود',
+        code: 'not-found',
+      );
+
+  /// Vendor not found
+  factory NotFoundFailure.vendor() => const NotFoundFailure(
+        message: 'المتجر غير موجود',
+        code: 'vendor-not-found',
+      );
+
+  /// Product not found
+  factory NotFoundFailure.product() => const NotFoundFailure(
+        message: 'المنتج غير موجود',
+        code: 'product-not-found',
+      );
+
+  /// Order not found
+  factory NotFoundFailure.order() => const NotFoundFailure(
+        message: 'الطلب غير موجود',
+        code: 'order-not-found',
+      );
+}
+
+/// Duplicate resource failure.
+final class DuplicateFailure extends Failure {
+  const DuplicateFailure({
+    required super.message,
+    super.code,
+  });
+
+  /// Generic duplicate
+  factory DuplicateFailure.generic(String resourceName) => DuplicateFailure(
+        message: '$resourceName موجود مسبقاً',
+        code: 'duplicate',
+      );
+}
+
+/// Invalid operation failure.
+final class InvalidOperationFailure extends Failure {
+  const InvalidOperationFailure({
+    required super.message,
+    super.code,
+  });
+
+  /// Operation not allowed in current state
+  factory InvalidOperationFailure.notAllowed() => const InvalidOperationFailure(
+        message: 'العملية غير مسموحة في الحالة الحالية',
+        code: 'operation-not-allowed',
+      );
+
+  /// Insufficient permissions
+  factory InvalidOperationFailure.insufficientPermissions() =>
+      const InvalidOperationFailure(
+        message: 'صلاحياتك غير كافية لإجراء هذه العملية',
+        code: 'insufficient-permissions',
+      );
+}
+
 /// Unexpected/Unknown failure.
 final class UnexpectedFailure extends Failure {
   const UnexpectedFailure({

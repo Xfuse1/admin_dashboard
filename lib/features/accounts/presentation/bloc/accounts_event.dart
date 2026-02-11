@@ -1,7 +1,6 @@
 import 'package:equatable/equatable.dart';
 
 import '../../domain/entities/account_entities.dart';
-import '../../domain/entities/driver_application_entity.dart';
 
 /// Base class for Accounts events.
 sealed class AccountsEvent extends Equatable {
@@ -253,57 +252,4 @@ class SwitchAccountTab extends AccountsEvent {
 /// Clear error state.
 class ClearAccountsError extends AccountsEvent {
   const ClearAccountsError();
-}
-
-// ============================================
-// 📋 DRIVER APPLICATIONS
-// ============================================
-
-/// Load driver applications list.
-class LoadDriverApplications extends AccountsEvent {
-  final ApplicationStatus? status;
-
-  const LoadDriverApplications({this.status});
-
-  @override
-  List<Object?> get props => [status];
-}
-
-/// Filter driver applications by status.
-class FilterDriverApplications extends AccountsEvent {
-  final ApplicationStatus? status;
-
-  const FilterDriverApplications(this.status);
-
-  @override
-  List<Object?> get props => [status];
-}
-
-/// Update driver application status.
-class UpdateApplicationStatusEvent extends AccountsEvent {
-  final String applicationId;
-  final ApplicationStatus newStatus;
-  final String reviewedBy;
-  final String? rejectionReason;
-
-  const UpdateApplicationStatusEvent({
-    required this.applicationId,
-    required this.newStatus,
-    required this.reviewedBy,
-    this.rejectionReason,
-  });
-
-  @override
-  List<Object?> get props =>
-      [applicationId, newStatus, reviewedBy, rejectionReason];
-}
-
-/// Select a driver application to view details.
-class SelectDriverApplication extends AccountsEvent {
-  final DriverApplicationEntity? application;
-
-  const SelectDriverApplication(this.application);
-
-  @override
-  List<Object?> get props => [application];
 }

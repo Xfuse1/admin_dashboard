@@ -1,7 +1,6 @@
 import 'package:equatable/equatable.dart';
 
 import '../../domain/entities/account_entities.dart';
-import '../../domain/entities/driver_application_entity.dart';
 import '../../domain/repositories/accounts_repository.dart';
 
 /// Base class for Accounts states.
@@ -48,11 +47,6 @@ class AccountsLoaded extends AccountsState {
   final String? driversSearchQuery;
   final DriverEntity? selectedDriver;
 
-  // Driver Applications
-  final List<DriverApplicationEntity> driverApplications;
-  final ApplicationStatus? applicationFilter;
-  final DriverApplicationEntity? selectedApplication;
-
   const AccountsLoaded({
     this.currentTab = AccountType.customer,
     this.stats,
@@ -71,9 +65,6 @@ class AccountsLoaded extends AccountsState {
     this.isLoadingMoreDrivers = false,
     this.driversSearchQuery,
     this.selectedDriver,
-    this.driverApplications = const [],
-    this.applicationFilter,
-    this.selectedApplication,
   });
 
   AccountsLoaded copyWith({
@@ -97,10 +88,6 @@ class AccountsLoaded extends AccountsState {
     String? driversSearchQuery,
     DriverEntity? selectedDriver,
     bool clearSelectedDriver = false,
-    List<DriverApplicationEntity>? driverApplications,
-    ApplicationStatus? applicationFilter,
-    DriverApplicationEntity? selectedApplication,
-    bool clearSelectedApplication = false,
   }) {
     return AccountsLoaded(
       currentTab: currentTab ?? this.currentTab,
@@ -125,11 +112,6 @@ class AccountsLoaded extends AccountsState {
       driversSearchQuery: driversSearchQuery ?? this.driversSearchQuery,
       selectedDriver:
           clearSelectedDriver ? null : selectedDriver ?? this.selectedDriver,
-      driverApplications: driverApplications ?? this.driverApplications,
-      applicationFilter: applicationFilter ?? this.applicationFilter,
-      selectedApplication: clearSelectedApplication
-          ? null
-          : selectedApplication ?? this.selectedApplication,
     );
   }
 
@@ -152,9 +134,6 @@ class AccountsLoaded extends AccountsState {
         isLoadingMoreDrivers,
         driversSearchQuery,
         selectedDriver,
-        driverApplications,
-        applicationFilter,
-        selectedApplication,
       ];
 }
 

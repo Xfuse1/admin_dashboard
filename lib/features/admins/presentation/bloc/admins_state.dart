@@ -56,9 +56,10 @@ final class AdminActionSuccess extends AdminsState {
 /// Error state.
 final class AdminsError extends AdminsState {
   final String message;
+  final List<AdminEntity> admins;
 
-  const AdminsError(this.message);
+  const AdminsError(this.message, {this.admins = const []});
 
   @override
-  List<Object?> get props => [message];
+  List<Object?> get props => [message, admins];
 }

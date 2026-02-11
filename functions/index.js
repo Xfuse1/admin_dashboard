@@ -8,6 +8,7 @@ const {
   onDocumentDeleted,
   onDocumentWritten,
 } = require("firebase-functions/v2/firestore");
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 
 admin.initializeApp();
@@ -221,3 +222,231 @@ async function updateStoreRating(storeId) {
     return null;
   }
 }
+
+/**
+ * Create a new admin user (callable by superAdmin only).
+ * 
+ * SECURITY: Uses Custom Claims (NOT Firestore document) to verify superAdmin.
+ * Custom Claims are set server-side only and cannot be tampered with by clients.
+ */
+exports.createAdmin = onCall(async (request) => {
+  // 1. Must be authenticated
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "يجب تسجيل الدخول أولاً");
+  }
+
+  // 2. Verify caller is superAdmin via Custom Claims (tamper-proof)
+  const callerClaims = request.auth.token;
+  if (callerClaims.role !== "superAdmin") {
+    throw new HttpsError(
+      "permission-denied",
+      "فقط Super Admin يمكنه إضافة مسؤولين"
+    );
+  }
+
+  const callerUid = request.auth.uid;
+  const { name, email, password } = request.data;
+
+  // 3. Input validation
+  if (!name || typeof name !== "string" || name.trim().length === 0) {
+    throw new HttpsError("invalid-argument", "الاسم مطلوب");
+  }
+  if (!email || typeof email !== "string") {
+    throw new HttpsError("invalid-argument", "البريد الإلكتروني مطلوب");
+  }
+  if (!password || typeof password !== "string" || password.length < 6) {
+    throw new HttpsError(
+      "invalid-argument",
+      "كلمة المرور يجب أن تكون 6 أحرف على الأقل"
+    );
+  }
+
+  // 4. Validate email format server-side
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    throw new HttpsError("invalid-argument", "البريد الإلكتروني غير صالح");
+  }
+
+  try {
+    // 5. Create user in Firebase Auth using Admin SDK
+    const userRecord = await admin.auth().createUser({
+      email: email.trim().toLowerCase(),
+      password: password,
+      displayName: name.trim(),
+    });
+
+    // 6. Set Custom Claims for the new admin (tamper-proof role)
+    await admin.auth().setCustomUserClaims(userRecord.uid, {
+      role: "admin",
+      admin: true,
+    });
+
+    // 7. Save admin data in Firestore (for display/query purposes only)
+    const adminData = {
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      role: "admin",
+      isActive: true,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdBy: callerUid,
+    };
+
+    await db.collection("users").doc(userRecord.uid).set(adminData);
+
+    return {
+      success: true,
+      admin: {
+        id: userRecord.uid,
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+        role: "admin",
+        isActive: true,
+        createdBy: callerUid,
+      },
+    };
+  } catch (error) {
+    if (error.code === "auth/email-already-exists") {
+      throw new HttpsError(
+        "already-exists",
+        "البريد الإلكتروني مستخدم بالفعل"
+      );
+    }
+    if (error.code === "auth/invalid-email") {
+      throw new HttpsError("invalid-argument", "البريد الإلكتروني غير صالح");
+    }
+    if (error.code === "auth/weak-password") {
+      throw new HttpsError("invalid-argument", "كلمة المرور ضعيفة جداً");
+    }
+    console.error("Error creating admin:", error);
+    throw new HttpsError("internal", `فشل إضافة المسؤول: ${error.message}`);
+  }
+});
+
+/**
+ * Delete an admin user (callable by superAdmin only).
+ * 
+ * SECURITY: Uses Custom Claims to verify superAdmin.
+ * Deletes Firebase Auth account + Firestore document + clears claims.
+ */
+exports.deleteAdmin = onCall(async (request) => {
+  // 1. Must be authenticated
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "يجب تسجيل الدخول أولاً");
+  }
+
+  // 2. Verify caller is superAdmin via Custom Claims (tamper-proof)
+  const callerClaims = request.auth.token;
+  if (callerClaims.role !== "superAdmin") {
+    throw new HttpsError(
+      "permission-denied",
+      "فقط Super Admin يمكنه حذف مسؤولين"
+    );
+  }
+
+  const callerUid = request.auth.uid;
+  const { adminId } = request.data;
+
+  if (!adminId || typeof adminId !== "string") {
+    throw new HttpsError("invalid-argument", "معرف المسؤول مطلوب");
+  }
+
+  // 3. Prevent deleting yourself
+  if (adminId === callerUid) {
+    throw new HttpsError(
+      "failed-precondition",
+      "لا يمكنك حذف حسابك الخاص"
+    );
+  }
+
+  try {
+    // 4. Verify target is NOT a superAdmin (via Custom Claims, not Firestore)
+    try {
+      const targetUser = await admin.auth().getUser(adminId);
+      const targetClaims = targetUser.customClaims || {};
+      if (targetClaims.role === "superAdmin") {
+        throw new HttpsError(
+          "failed-precondition",
+          "لا يمكن حذف Super Admin"
+        );
+      }
+    } catch (error) {
+      if (error instanceof HttpsError) throw error;
+      // User might not exist in Auth, continue to clean up Firestore
+      console.warn(`Auth user ${adminId} not found in Auth`);
+    }
+
+    // 5. Delete from Firebase Auth
+    try {
+      await admin.auth().deleteUser(adminId);
+    } catch (authError) {
+      console.warn(`Could not delete Auth user ${adminId}: ${authError.message}`);
+    }
+
+    // 6. Delete from Firestore
+    await db.collection("users").doc(adminId).delete();
+
+    return { success: true };
+  } catch (error) {
+    if (error instanceof HttpsError) throw error;
+    console.error("Error deleting admin:", error);
+    throw new HttpsError("internal", `فشل حذف المسؤول: ${error.message}`);
+  }
+});
+
+/**
+ * Bootstrap: Set Custom Claims for an existing superAdmin.
+ * 
+ * Call this ONCE from Firebase console or a secure script to set the
+ * initial superAdmin claims. After that, this function is no longer needed.
+ * 
+ * SECURITY: Only works if the caller's Firestore doc has role "superAdmin"
+ * AND there are no other users with superAdmin custom claims yet.
+ * This prevents abuse after initial setup.
+ */
+exports.bootstrapSuperAdmin = onCall(async (request) => {
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "يجب تسجيل الدخول أولاً");
+  }
+
+  const callerUid = request.auth.uid;
+
+  // Check if caller already has superAdmin claims (already bootstrapped)
+  const callerClaims = request.auth.token;
+  if (callerClaims.role === "superAdmin") {
+    return { success: true, message: "أنت بالفعل Super Admin" };
+  }
+
+  // Verify in Firestore that this user is supposed to be superAdmin
+  const callerDoc = await db.collection("users").doc(callerUid).get();
+  if (!callerDoc.exists || callerDoc.data().role !== "superAdmin") {
+    throw new HttpsError(
+      "permission-denied",
+      "ليس لديك صلاحية"
+    );
+  }
+
+  // Safety: Check no one else has superAdmin claims already
+  // (list all users and check - limited to 1000 users max)
+  const listResult = await admin.auth().listUsers(1000);
+  const existingSuperAdmins = listResult.users.filter(
+    (u) => u.customClaims && u.customClaims.role === "superAdmin"
+  );
+
+  if (existingSuperAdmins.length > 0) {
+    throw new HttpsError(
+      "failed-precondition",
+      "يوجد Super Admin بالفعل. لا يمكن استخدام Bootstrap مرة أخرى."
+    );
+  }
+
+  // Set claims
+  await admin.auth().setCustomUserClaims(callerUid, {
+    role: "superAdmin",
+    admin: true,
+  });
+
+  return {
+    success: true,
+    message: "تم تعيينك كـ Super Admin. أعد تسجيل الدخول لتفعيل الصلاحيات.",
+  };
+});

@@ -11,6 +11,7 @@ import '../../domain/entities/vendor_entity.dart';
 import '../bloc/vendors_bloc.dart';
 import '../bloc/vendors_event.dart';
 import '../bloc/vendors_state.dart';
+import '../utils/vendor_utils.dart';
 
 /// Vendor details side panel.
 class VendorDetailsPanel extends StatelessWidget {
@@ -106,7 +107,7 @@ class VendorDetailsPanel extends StatelessWidget {
                   ],
                 ),
                 Text(
-                  _getCategoryLabel(
+                  VendorUtils.getCategoryLabel(
                     vendor.category,
                     vendor.categoryLabel,
                   ),
@@ -390,7 +391,7 @@ class VendorDetailsPanel extends StatelessWidget {
                     .where((s) => s != vendor.status)
                     .map((status) => PopupMenuItem(
                           value: status,
-                          child: Text(_getStatusLabel(status)),
+                          child: Text(VendorUtils.getStatusLabel(status)),
                         ))
                     .toList(),
               ),
@@ -787,31 +788,6 @@ class VendorDetailsPanel extends StatelessWidget {
     );
   }
 
-  String _getCategoryLabel(VendorCategory category, String? label) {
-    final normalizedLabel = label?.trim();
-    if (normalizedLabel != null && normalizedLabel.isNotEmpty) {
-      return normalizedLabel;
-    }
-    return switch (category) {
-      VendorCategory.food => 'أغذية',
-      VendorCategory.grocery => 'بقالة',
-      VendorCategory.health => 'صحة',
-      VendorCategory.electronics => 'إلكترونيات',
-      VendorCategory.clothes => 'ملابس',
-      VendorCategory.furniture => 'أثاث',
-      VendorCategory.other => 'أخرى',
-    };
-  }
-
-  String _getStatusLabel(VendorStatus status) {
-    return switch (status) {
-      VendorStatus.active => 'نشط',
-      VendorStatus.inactive => 'غير نشط',
-      VendorStatus.pending => 'قيد المراجعة',
-      VendorStatus.suspended => 'موقوف',
-    };
-  }
-
   void _showActivateWithoutLocationDialog(
     BuildContext context,
     VendorEntity vendor,
@@ -1075,23 +1051,11 @@ class _VendorAvatar extends StatelessWidget {
   Widget _buildPlaceholder() {
     return Center(
       child: Icon(
-        _getCategoryIcon(),
+        VendorUtils.getCategoryIcon(category),
         color: AppColors.primary,
         size: 28,
       ),
     );
-  }
-
-  IconData _getCategoryIcon() {
-    return switch (category) {
-      VendorCategory.food => Icons.restaurant,
-      VendorCategory.grocery => Icons.local_grocery_store,
-      VendorCategory.health => Icons.local_hospital,
-      VendorCategory.electronics => Icons.devices,
-      VendorCategory.clothes => Icons.checkroom,
-      VendorCategory.furniture => Icons.chair,
-      VendorCategory.other => Icons.store,
-    };
   }
 }
 

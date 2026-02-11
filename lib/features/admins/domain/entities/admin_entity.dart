@@ -23,5 +23,6 @@ class AdminEntity extends Equatable {
   bool get isSuperAdmin => role == 'superAdmin';
 
   @override
-  List<Object?> get props => [id, name, email, role, isActive, createdAt];
+  List<Object?> get props =>
+      [id, name, email, role, isActive, createdAt, createdBy];
 }

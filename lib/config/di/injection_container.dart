@@ -31,7 +31,6 @@ import '../../features/orders/presentation/bloc/orders_bloc.dart';
 import '../../features/accounts/data/datasources/accounts_datasource.dart';
 import '../../features/accounts/data/datasources/accounts_firebase_datasource.dart';
 import '../../features/accounts/data/repositories/accounts_repository_impl.dart';
-import '../../features/accounts/data/driver_applications_repository.dart';
 import '../../features/accounts/domain/repositories/accounts_repository.dart';
 import '../../features/accounts/domain/usecases/accounts_usecases.dart';
 import '../../features/accounts/presentation/bloc/accounts_bloc.dart';
@@ -280,11 +279,6 @@ void _initAccountsDependencies() {
     () => AccountsRepositoryImpl(sl()),
   );
 
-  // Driver Applications Repository
-  sl.registerLazySingleton<DriverApplicationsRepository>(
-    () => DriverApplicationsRepository(),
-  );
-
   // Driver Cleanup Service
   sl.registerLazySingleton<DriverCleanupService>(
     () => DriverCleanupService(),
@@ -317,7 +311,6 @@ void _initAccountsDependencies() {
       getDriverById: sl(),
       toggleDriverStatus: sl(),
       getAccountStats: sl(),
-      applicationsRepository: sl(),
     ),
   );
 }
@@ -368,7 +361,6 @@ void _initVendorsDependencies() {
   // Use Cases
   sl.registerLazySingleton(() => GetVendors(sl()));
   sl.registerLazySingleton(() => GetVendor(sl()));
-  sl.registerLazySingleton(() => AddVendor(sl()));
   sl.registerLazySingleton(() => UpdateVendor(sl()));
   sl.registerLazySingleton(() => DeleteVendor(sl()));
   sl.registerLazySingleton(() => ToggleVendorStatus(sl()));
@@ -384,7 +376,6 @@ void _initVendorsDependencies() {
     () => VendorsBloc(
       getVendors: sl(),
       getVendor: sl(),
-      addVendor: sl(),
       updateVendor: sl(),
       deleteVendor: sl(),
       toggleVendorStatus: sl(),

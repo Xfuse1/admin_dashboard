@@ -6,6 +6,7 @@ import 'package:iconsax_flutter/iconsax_flutter.dart';
 import '../../../../config/di/injection_container.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/firestore_lookup_service.dart';
+import '../../../../shared/widgets/responsive_layout.dart';
 import '../../domain/entities/account_entities.dart';
 import '../bloc/accounts_bloc.dart';
 import '../bloc/accounts_event.dart';
@@ -39,8 +40,6 @@ class DriverDetailsPanel extends StatelessWidget {
                 _buildVehicleInfo(context),
                 const SizedBox(height: 24),
                 _buildContactInfo(context),
-                const SizedBox(height: 24),
-                _buildRejectionStatsSection(context),
                 const SizedBox(height: 24),
                 _buildRejectionStatsSection(context),
                 const SizedBox(height: 24),
@@ -103,7 +102,7 @@ class DriverDetailsPanel extends StatelessWidget {
                     Flexible(
                       child: Text(
                         driver.name,
-                        style: Response.isMobile(context)
+                        style: ResponsiveLayout.isMobile(context)
                             ? Theme.of(context).textTheme.titleSmall?.copyWith(
                                   fontWeight: FontWeight.bold,
                                 )
@@ -166,8 +165,8 @@ class DriverDetailsPanel extends StatelessWidget {
         const SizedBox(height: 16),
         LayoutBuilder(
           builder: (context, constraints) {
-            final isMobile =
-                constraints.maxWidth < 400 || Response.isMobile(context);
+            final isMobile = constraints.maxWidth < 400 ||
+                ResponsiveLayout.isMobile(context);
             if (isMobile) {
               return Column(
                 children: [
@@ -368,8 +367,8 @@ class DriverDetailsPanel extends StatelessWidget {
 
             return LayoutBuilder(
               builder: (context, constraints) {
-                final isMobile =
-                    constraints.maxWidth < 400 || Response.isMobile(context);
+                final isMobile = constraints.maxWidth < 400 ||
+                    ResponsiveLayout.isMobile(context);
 
                 final children = [
                   if (isMobile) ...[
@@ -503,8 +502,8 @@ class DriverDetailsPanel extends StatelessWidget {
         const SizedBox(height: 16),
         LayoutBuilder(
           builder: (context, constraints) {
-            final isMobile =
-                constraints.maxWidth < 400 || Response.isMobile(context);
+            final isMobile = constraints.maxWidth < 400 ||
+                ResponsiveLayout.isMobile(context);
 
             return FutureBuilder<List<dynamic>>(
               future: Future.wait([
@@ -516,8 +515,6 @@ class DriverDetailsPanel extends StatelessWidget {
                 final deliveredCount =
                     (snapshot.data?[0] as int?) ?? driver.totalDeliveries;
                 final rejections = (snapshot.data?[1] as int?) ?? 0;
-
-                debugPrint('🔍 deliveredCount: $deliveredCount');
 
                 // Calculate rejection rate: rejections / (deliveries + rejections)
                 final totalOrders = deliveredCount + rejections;
@@ -792,9 +789,4 @@ class _InfoCard extends StatelessWidget {
       ),
     );
   }
-}
-
-class Response {
-  static bool isMobile(BuildContext context) =>
-      MediaQuery.of(context).size.width < 600;
 }

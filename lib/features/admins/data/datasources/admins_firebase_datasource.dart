@@ -1,20 +1,23 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 
 import '../../../../core/errors/exceptions.dart';
 import '../models/admin_model.dart';
 import 'admins_datasource.dart';
 
 /// Firebase implementation of Admins datasource.
+///
+/// Uses Cloud Functions for create/delete to avoid signing out the current user
+/// and to properly manage Firebase Auth accounts via Admin SDK.
 class AdminsFirebaseDataSource implements AdminsDataSource {
   final FirebaseFirestore _firestore;
-  final FirebaseAuth _auth;
+  final FirebaseFunctions _functions;
 
   AdminsFirebaseDataSource({
     FirebaseFirestore? firestore,
-    FirebaseAuth? auth,
+    FirebaseFunctions? functions,
   })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+        _functions = functions ?? FirebaseFunctions.instance;
 
   @override
   Future<List<AdminModel>> getAdmins() async {
@@ -25,15 +28,21 @@ class AdminsFirebaseDataSource implements AdminsDataSource {
 
       final admins = snapshot.docs
           .map((doc) => AdminModel.fromFirestore(doc.id, doc.data()))
-          .toList();
-
-      // Sort by creation date (newest first)
-      admins.sort((a, b) {
-        if (a.createdAt == null || b.createdAt == null) return 0;
-        return b.createdAt!.compareTo(a.createdAt!);
-      });
+          .toList()
+        // Sort locally: nulls last, newest first
+        ..sort((a, b) {
+          if (a.createdAt == null && b.createdAt == null) return 0;
+          if (a.createdAt == null) return 1;
+          if (b.createdAt == null) return -1;
+          return b.createdAt!.compareTo(a.createdAt!);
+        });
 
       return admins;
+    } on FirebaseException catch (e) {
+      throw ServerException(
+        message: 'فشل تحميل المسؤولين: ${e.message}',
+        code: e.code,
+      );
     } catch (e) {
       throw ServerException(message: 'فشل تحميل المسؤولين: $e');
     }
@@ -46,47 +55,30 @@ class AdminsFirebaseDataSource implements AdminsDataSource {
     required String password,
   }) async {
     try {
-      // Create account in Firebase Auth
-      final userCredential = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      final uid = userCredential.user!.uid;
-
-      // Save admin data in Firestore
-      final adminData = {
+      final callable = _functions.httpsCallable('createAdmin');
+      final result = await callable.call<Map<String, dynamic>>({
         'name': name,
         'email': email,
-        'role': 'admin',
-        'isActive': true,
-        'createdAt': FieldValue.serverTimestamp(),
-        'createdBy': _auth.currentUser?.uid,
-      };
+        'password': password,
+      });
 
-      await _firestore.collection('users').doc(uid).set(adminData);
+      final data = result.data;
+      final adminData = Map<String, dynamic>.from(data['admin'] as Map);
 
       return AdminModel(
-        id: uid,
-        name: name,
-        email: email,
-        role: 'admin',
-        isActive: true,
+        id: adminData['id'] as String,
+        name: adminData['name'] as String,
+        email: adminData['email'] as String,
+        role: adminData['role'] as String,
+        isActive: adminData['isActive'] as bool? ?? true,
         createdAt: DateTime.now(),
-        createdBy: _auth.currentUser?.uid,
+        createdBy: adminData['createdBy'] as String?,
       );
-    } on FirebaseAuthException catch (e) {
-      switch (e.code) {
-        case 'email-already-in-use':
-          throw const ServerException(
-              message: 'البريد الإلكتروني مستخدم بالفعل');
-        case 'weak-password':
-          throw const ServerException(message: 'كلمة المرور ضعيفة جداً');
-        case 'invalid-email':
-          throw const ServerException(message: 'البريد الإلكتروني غير صالح');
-        default:
-          throw ServerException(message: 'خطأ: ${e.message}');
-      }
+    } on FirebaseFunctionsException catch (e) {
+      throw ServerException(
+        message: e.message ?? 'فشل إضافة المسؤول',
+        code: e.code,
+      );
     } catch (e) {
       throw ServerException(message: 'فشل إضافة المسؤول: $e');
     }
@@ -95,7 +87,15 @@ class AdminsFirebaseDataSource implements AdminsDataSource {
   @override
   Future<void> deleteAdmin(String adminId) async {
     try {
-      await _firestore.collection('users').doc(adminId).delete();
+      final callable = _functions.httpsCallable('deleteAdmin');
+      await callable.call<Map<String, dynamic>>({
+        'adminId': adminId,
+      });
+    } on FirebaseFunctionsException catch (e) {
+      throw ServerException(
+        message: e.message ?? 'فشل حذف المسؤول',
+        code: e.code,
+      );
     } catch (e) {
       throw ServerException(message: 'فشل حذف المسؤول: $e');
     }
