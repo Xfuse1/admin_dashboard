@@ -185,6 +185,8 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
       'updatedAt': storeData['updated_at'] ?? userData['updated_at'],
       'ownerId': docId,
       'ownerName': userData['full_name'],
+      'saleUnits': storeData['sale_units'] ?? [],
+      'customSaleUnits': storeData['custom_sale_units'] ?? [],
     };
   }
 
@@ -421,6 +423,8 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
       'store.longitude': vendor.address.longitude,
       'store.tags': vendor.tags,
       'store.metadata': vendor.metadata,
+      'store.sale_units': vendor.saleUnits.map((e) => e.name).toList(),
+      'store.custom_sale_units': vendor.customSaleUnits,
       'store.updated_at': FieldValue.serverTimestamp(),
       'city': vendor.address.city,
       'country': vendor.address.country,

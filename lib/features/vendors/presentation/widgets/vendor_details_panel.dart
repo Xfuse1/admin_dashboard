@@ -12,6 +12,8 @@ import '../bloc/vendors_bloc.dart';
 import '../bloc/vendors_event.dart';
 import '../bloc/vendors_state.dart';
 import '../utils/vendor_utils.dart';
+import '../utils/sale_units_utils.dart';
+import 'multi_select_dropdown.dart';
 
 /// Vendor details side panel.
 class VendorDetailsPanel extends StatelessWidget {
@@ -42,6 +44,8 @@ class VendorDetailsPanel extends StatelessWidget {
                 _buildStatusSection(context),
                 const SizedBox(height: AppConstants.spacingLg),
                 _buildContactInfo(context),
+                const SizedBox(height: AppConstants.spacingLg),
+                _buildSaleUnitsSection(context),
                 if (vendor.returnPolicy != null &&
                     vendor.returnPolicy!.isNotEmpty) ...[
                   const SizedBox(height: AppConstants.spacingLg),
@@ -461,6 +465,10 @@ class VendorDetailsPanel extends StatelessWidget {
           _ContactRow(icon: Icons.language, value: vendor.website!),
       ],
     );
+  }
+
+  Widget _buildSaleUnitsSection(BuildContext context) {
+    return _SaleUnitsSection(vendor: vendor);
   }
 
   Widget _buildReturnPolicySection(BuildContext context) {
@@ -919,7 +927,7 @@ class VendorDetailsPanel extends StatelessWidget {
                   itemCount: products.length,
                   itemBuilder: (context, index) {
                     final product = products[index];
-                    return _ProductCard(product: product);
+                    return _ProductCard(product: product, vendor: vendor);
                   },
                 );
               },
@@ -933,11 +941,14 @@ class VendorDetailsPanel extends StatelessWidget {
 
 class _ProductCard extends StatelessWidget {
   final ProductEntity product;
+  final VendorEntity vendor;
 
-  const _ProductCard({required this.product});
+  const _ProductCard({required this.product, required this.vendor});
 
   @override
   Widget build(BuildContext context) {
+    final saleUnitsLabels = vendor.getSaleUnitsLabels();
+
     return Container(
       decoration: BoxDecoration(
         color: AppColors.background,
@@ -982,32 +993,71 @@ class _ProductCard extends StatelessWidget {
                           ),
                     ),
                   ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Flexible(
-                        child: Text(
-                          '${product.price} ج.م',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Flexible(
+                            child: Text(
+                              '${product.price} ج.م',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
                                     color: AppColors.primary,
                                     fontWeight: FontWeight.bold,
                                   ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      Flexible(
-                        child: Text(
-                          'بيع: ${product.ordersCount}',
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 4),
+                          Flexible(
+                            child: Text(
+                              'بيع: ${product.ordersCount}',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
                                     color: AppColors.textTertiary,
                                     fontSize: 10,
                                   ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
+                      if (saleUnitsLabels.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Wrap(
+                          spacing: 4,
+                          runSpacing: 4,
+                          children: saleUnitsLabels
+                              .take(3) // Show max 3 units
+                              .map((label) => Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary.withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      label,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color: AppColors.primary,
+                                            fontSize: 9,
+                                          ),
+                                    ),
+                                  ))
+                              .toList(),
+                        ),
+                      ],
                     ],
                   ),
                 ],
@@ -1282,6 +1332,253 @@ class _StatCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _SaleUnitsSection extends StatefulWidget {
+  final VendorEntity vendor;
+
+  const _SaleUnitsSection({required this.vendor});
+
+  @override
+  State<_SaleUnitsSection> createState() => _SaleUnitsSectionState();
+}
+
+class _SaleUnitsSectionState extends State<_SaleUnitsSection> {
+  late List<SaleUnitType> _selectedUnits;
+  late List<String> _customUnits;
+  bool _isModified = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedUnits = List.from(widget.vendor.saleUnits);
+    _customUnits = List.from(widget.vendor.customSaleUnits);
+  }
+
+  void _onUnitsChanged(List<SaleUnitType> units) {
+    setState(() {
+      _selectedUnits = units;
+      _isModified = true;
+    });
+  }
+
+  void _addCustomUnit() {
+    showDialog(
+      context: context,
+      builder: (context) => _AddCustomUnitDialog(
+        existingUnits: _customUnits,
+        onAdd: (unitName) {
+          setState(() {
+            _customUnits.add(unitName);
+            if (!_selectedUnits.contains(SaleUnitType.custom)) {
+              _selectedUnits.add(SaleUnitType.custom);
+            }
+            _isModified = true;
+          });
+        },
+      ),
+    );
+  }
+
+  void _removeCustomUnit(String unit) {
+    setState(() {
+      _customUnits.remove(unit);
+      if (_customUnits.isEmpty) {
+        _selectedUnits.remove(SaleUnitType.custom);
+      }
+      _isModified = true;
+    });
+  }
+
+  void _saveChanges() {
+    context.read<VendorsBloc>().add(
+          UpdateVendorSaleUnitsEvent(
+            vendorId: widget.vendor.id,
+            saleUnits: _selectedUnits,
+            customSaleUnits: _customUnits,
+          ),
+        );
+    setState(() {
+      _isModified = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Prepare items for dropdown
+    final allUnits = <SaleUnitType>[...SaleUnitsUtils.getStandardUnits()];
+    if (_customUnits.isNotEmpty) {
+      allUnits.add(SaleUnitType.custom);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              'وحدات البيع',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.textPrimary,
+                  ),
+            ),
+            const Spacer(),
+            TextButton.icon(
+              onPressed: _addCustomUnit,
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('إضافة وحدة مخصصة'),
+              style: TextButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppConstants.spacingSm,
+                  vertical: 4,
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppConstants.spacingMd),
+        MultiSelectDropdown<SaleUnitType>(
+          hint: 'اختر وحدات البيع',
+          items: allUnits,
+          selectedItems: _selectedUnits,
+          itemLabel: (unit) => SaleUnitsUtils.getSaleUnitArabicLabel(unit),
+          itemIcon: (unit) => SaleUnitsUtils.getSaleUnitIcon(unit),
+          onChanged: _onUnitsChanged,
+        ),
+        const SizedBox(height: AppConstants.spacingMd),
+        if (_selectedUnits.isNotEmpty) ...[
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              // Standard units
+              ..._selectedUnits
+                  .where((u) => u != SaleUnitType.custom)
+                  .map((unit) => Chip(
+                        avatar: Icon(
+                          SaleUnitsUtils.getSaleUnitIcon(unit),
+                          size: 16,
+                        ),
+                        label: Text(
+                          SaleUnitsUtils.getSaleUnitArabicLabel(unit),
+                        ),
+                        backgroundColor: AppColors.primary.withOpacity(0.1),
+                        deleteIcon: const Icon(Icons.close, size: 16),
+                        onDeleted: () {
+                          setState(() {
+                            _selectedUnits.remove(unit);
+                            _isModified = true;
+                          });
+                        },
+                      )),
+              // Custom units
+              if (_selectedUnits.contains(SaleUnitType.custom))
+                ..._customUnits.map((unit) => Chip(
+                      avatar: const Icon(Icons.edit_outlined, size: 16),
+                      label: Text(unit),
+                      backgroundColor: AppColors.info.withOpacity(0.1),
+                      deleteIcon: const Icon(Icons.close, size: 16),
+                      onDeleted: () => _removeCustomUnit(unit),
+                    )),
+            ],
+          ),
+          const SizedBox(height: AppConstants.spacingMd),
+        ],
+        if (_isModified)
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _saveChanges,
+              icon: const Icon(Icons.save, size: 18),
+              label: const Text('حفظ التغييرات'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  vertical: AppConstants.spacingSm,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _AddCustomUnitDialog extends StatefulWidget {
+  final List<String> existingUnits;
+  final void Function(String) onAdd;
+
+  const _AddCustomUnitDialog({
+    required this.existingUnits,
+    required this.onAdd,
+  });
+
+  @override
+  State<_AddCustomUnitDialog> createState() => _AddCustomUnitDialogState();
+}
+
+class _AddCustomUnitDialogState extends State<_AddCustomUnitDialog> {
+  final _controller = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    if (_formKey.currentState!.validate()) {
+      widget.onAdd(_controller.text.trim());
+      Navigator.of(context).pop();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('إضافة وحدة بيع مخصصة'),
+      content: Form(
+        key: _formKey,
+        child: TextFormField(
+          controller: _controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'اسم الوحدة',
+            hintText: 'مثال: لتر، صندوق، علبة',
+            border: OutlineInputBorder(),
+          ),
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return 'الرجاء إدخال اسم الوحدة';
+            }
+            if (widget.existingUnits.contains(value.trim())) {
+              return 'هذه الوحدة موجودة بالفعل';
+            }
+            return null;
+          },
+          onFieldSubmitted: (_) => _submit(),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('إلغاء'),
+        ),
+        ElevatedButton(
+          onPressed: _submit,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+          ),
+          child: const Text('إضافة'),
+        ),
+      ],
     );
   }
 }

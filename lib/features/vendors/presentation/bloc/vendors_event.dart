@@ -153,3 +153,19 @@ class LoadVendorProductsEvent extends VendorsEvent {
   @override
   List<Object?> get props => [vendorId];
 }
+
+/// Update vendor sale units.
+class UpdateVendorSaleUnitsEvent extends VendorsEvent {
+  final String vendorId;
+  final List<SaleUnitType> saleUnits;
+  final List<String> customSaleUnits;
+
+  const UpdateVendorSaleUnitsEvent({
+    required this.vendorId,
+    required this.saleUnits,
+    required this.customSaleUnits,
+  });
+
+  @override
+  List<Object?> get props => [vendorId, saleUnits, customSaleUnits];
+}

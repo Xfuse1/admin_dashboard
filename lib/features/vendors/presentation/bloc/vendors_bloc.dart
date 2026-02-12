@@ -50,6 +50,7 @@ class VendorsBloc extends Bloc<VendorsEvent, VendorsState> {
     on<VerifyVendorEvent>(_onVerifyVendor);
     on<WatchVendorsEvent>(_onWatchVendors, transformer: restartable());
     on<RefreshVendors>(_onRefreshVendors);
+    on<UpdateVendorSaleUnitsEvent>(_onUpdateVendorSaleUnits);
   }
 
   @override
@@ -455,6 +456,48 @@ class VendorsBloc extends Bloc<VendorsEvent, VendorsState> {
           vendorProducts: products,
           isProductsLoading: false,
         ));
+      },
+    );
+  }
+
+  Future<void> _onUpdateVendorSaleUnits(
+    UpdateVendorSaleUnitsEvent event,
+    Emitter<VendorsState> emit,
+  ) async {
+    final currentState = state;
+    if (currentState is! VendorsLoaded) return;
+
+    // Find the vendor to update
+    final vendorToUpdate = currentState.vendors.firstWhere(
+      (v) => v.id == event.vendorId,
+      orElse: () => currentState.selectedVendor!,
+    );
+
+    // Create updated vendor with new sale units
+    final updatedVendor = vendorToUpdate.copyWith(
+      saleUnits: event.saleUnits,
+      customSaleUnits: event.customSaleUnits,
+    );
+
+    // Update in repository
+    final result = await updateVendor(updatedVendor);
+
+    result.fold(
+      (failure) => emit(VendorsError(failure.message)),
+      (vendor) {
+        final updatedVendors = currentState.vendors
+            .map((v) => v.id == vendor.id ? vendor : v)
+            .toList();
+        final updatedState = currentState.copyWith(
+          vendors: updatedVendors,
+          selectedVendor:
+              currentState.selectedVendor?.id == vendor.id ? vendor : null,
+        );
+        emit(VendorsActionSuccess(
+          successMessage: 'تم تحديث وحدات البيع بنجاح',
+          previousState: updatedState,
+        ));
+        emit(updatedState);
       },
     );
   }

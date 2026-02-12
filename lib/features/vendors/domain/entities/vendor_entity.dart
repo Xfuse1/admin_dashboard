@@ -1,5 +1,13 @@
 import 'package:equatable/equatable.dart';
 
+/// Sale unit type for vendor products.
+enum SaleUnitType {
+  kilogram,
+  gram,
+  piece,
+  custom,
+}
+
 /// Vendor category type.
 enum VendorCategory {
   food,
@@ -208,6 +216,8 @@ class VendorEntity extends Equatable {
   final String? ownerId;
   final String? ownerName;
   final Map<String, dynamic>? metadata;
+  final List<SaleUnitType> saleUnits;
+  final List<String> customSaleUnits;
 
   const VendorEntity({
     required this.id,
@@ -239,6 +249,8 @@ class VendorEntity extends Equatable {
     this.ownerId,
     this.ownerName,
     this.metadata,
+    this.saleUnits = const [],
+    this.customSaleUnits = const [],
   });
 
   @override
@@ -272,6 +284,8 @@ class VendorEntity extends Equatable {
         ownerId,
         ownerName,
         metadata,
+        saleUnits,
+        customSaleUnits,
       ];
 
   VendorEntity copyWith({
@@ -304,6 +318,8 @@ class VendorEntity extends Equatable {
     String? ownerId,
     String? ownerName,
     Map<String, dynamic>? metadata,
+    List<SaleUnitType>? saleUnits,
+    List<String>? customSaleUnits,
   }) {
     return VendorEntity(
       id: id ?? this.id,
@@ -335,7 +351,36 @@ class VendorEntity extends Equatable {
       ownerId: ownerId ?? this.ownerId,
       ownerName: ownerName ?? this.ownerName,
       metadata: metadata ?? this.metadata,
+      saleUnits: saleUnits ?? this.saleUnits,
+      customSaleUnits: customSaleUnits ?? this.customSaleUnits,
     );
+  }
+
+  /// Get Arabic labels for all sale units
+  List<String> getSaleUnitsLabels() {
+    final labels = <String>[];
+    for (final unit in saleUnits) {
+      if (unit == SaleUnitType.custom) {
+        labels.addAll(customSaleUnits);
+      } else {
+        labels.add(_getSaleUnitArabicLabel(unit));
+      }
+    }
+    return labels;
+  }
+
+  /// Get Arabic label for a sale unit type
+  String _getSaleUnitArabicLabel(SaleUnitType unit) {
+    switch (unit) {
+      case SaleUnitType.kilogram:
+        return 'كيلو';
+      case SaleUnitType.gram:
+        return 'جرام';
+      case SaleUnitType.piece:
+        return 'قطعة';
+      case SaleUnitType.custom:
+        return 'مخصص';
+    }
   }
 
   Map<String, dynamic> toMap() {
@@ -369,6 +414,8 @@ class VendorEntity extends Equatable {
       'ownerId': ownerId,
       'ownerName': ownerName,
       'metadata': metadata,
+      'saleUnits': saleUnits.map((e) => e.name).toList(),
+      'customSaleUnits': customSaleUnits,
     };
   }
 
@@ -413,6 +460,14 @@ class VendorEntity extends Equatable {
       ownerId: map['ownerId'],
       ownerName: map['ownerName'],
       metadata: map['metadata'],
+      saleUnits: (map['saleUnits'] as List?)
+              ?.map((e) => SaleUnitType.values.firstWhere(
+                    (unit) => unit.name == e,
+                    orElse: () => SaleUnitType.piece,
+                  ))
+              .toList() ??
+          [],
+      customSaleUnits: List<String>.from(map['customSaleUnits'] ?? []),
     );
   }
 }
