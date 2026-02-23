@@ -82,8 +82,10 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
       final storeId = data['store_id'] as String?;
 
       if (orderType == 'multi_store') {
-        // Multi-store: check pickup_stops array
-        final pickupStops = data['pickup_stops'] as List<dynamic>?;
+        // Multi-store: check pickup_stops array (guard against non-List values)
+        final rawPickupStops = data['pickup_stops'];
+        final pickupStops =
+            rawPickupStops is List ? rawPickupStops as List<dynamic> : null;
         if (pickupStops != null) {
           for (final stop in pickupStops) {
             if (stop is Map<String, dynamic> && stop['store_id'] == vendorId) {
@@ -143,10 +145,14 @@ class VendorsFirebaseDataSource implements VendorsDataSource {
         (userData['store'] as Map<String, dynamic>?) ?? <String, dynamic>{};
 
     // Convert open_time, close_time, and working_days to operatingHours format
+    // working_days may be stored as a String in some legacy documents, guard against that.
+    final rawWorkingDays = storeData['working_days'];
+    final workingDaysList =
+        rawWorkingDays is List ? rawWorkingDays as List<dynamic> : null;
     final operatingHours = _buildOperatingHours(
-      storeData['open_time'] as String?,
-      storeData['close_time'] as String?,
-      storeData['working_days'] as List<dynamic>?,
+      storeData['open_time'] is String ? storeData['open_time'] as String : null,
+      storeData['close_time'] is String ? storeData['close_time'] as String : null,
+      workingDaysList,
     );
 
     return {
